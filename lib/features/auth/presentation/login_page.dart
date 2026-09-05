@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
@@ -16,53 +15,35 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  final _usernameController = TextEditingController();
-  final _passwordController = TextEditingController();
-  final _twoFactorCodeController = TextEditingController();
-
-  bool _isPasswordVisible = false;
-  bool _isWebViewOpen = false;
+  InAppWebViewController? _webViewController;
   double _webProgress = 0;
-
-  @override
-  void dispose() {
-    _usernameController.dispose();
-    _passwordController.dispose();
-    _twoFactorCodeController.dispose();
-    super.dispose();
-  }
-
-  void _openRiotWebView(BuildContext context) {
-    if (kIsWeb) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Riot login is designed for mobile native devices.'),
-        ),
-      );
-      return;
-    }
-
-    setState(() {
-      _isWebViewOpen = true;
-      _webProgress = 0;
-    });
-  }
+  bool _isProcessingTokens = false;
 
   void _handleUrlChange(Uri? uri) async {
-    if (uri == null) return;
+    if (uri == null || _isProcessingTokens) return;
     final urlStr = uri.toString();
 
-    // Check if redirected to opt_in URL with tokens in fragment
+    // Detect Riot OAuth redirect with tokens in fragment or query
     if (urlStr.contains('playvalorant.com/opt_in') ||
-        uri.fragment.contains('access_token')) {
-      final fragment = uri.fragment;
-      final params = Uri.splitQueryString(fragment);
+        uri.fragment.contains('access_token') ||
+        uri.queryParameters.containsKey('access_token')) {
+      final params = {
+        ...Uri.splitQueryString(uri.fragment),
+        ...uri.queryParameters,
+      };
 
       final accessToken = params['access_token'];
       final idToken = params['id_token'];
 
-      if (accessToken != null && idToken != null) {
-        // Collect all session cookies across Riot domains for reliable silent reauth
+      if (accessToken != null &&
+          accessToken.isNotEmpty &&
+          idToken != null &&
+          idToken.isNotEmpty) {
+        setState(() {
+          _isProcessingTokens = true;
+        });
+
+        // Collect all session cookies across Riot domains for silent reauth
         String cookieJar = '';
         try {
           final cookieManager = CookieManager.instance();
@@ -72,20 +53,22 @@ class _LoginPageState extends State<LoginPage> {
           final cookiesRiot = await cookieManager.getCookies(
             url: WebUri('https://riotgames.com'),
           );
+          final cookiesPv = await cookieManager.getCookies(
+            url: WebUri('https://playvalorant.com'),
+          );
 
           final cookieMap = <String, String>{};
-          for (final c in [...cookiesAuth, ...cookiesRiot]) {
+          for (final c in [...cookiesAuth, ...cookiesRiot, ...cookiesPv]) {
             cookieMap[c.name] = c.value;
           }
           cookieJar = cookieMap.entries
               .map((e) => '${e.key}=${e.value}')
               .join('; ');
-        } catch (_) {}
+        } catch (e) {
+          debugPrint('Cookie collection error: $e');
+        }
 
         if (mounted) {
-          setState(() {
-            _isWebViewOpen = false;
-          });
           context.read<AuthCubit>().loginWithTokens(
                 accessToken: accessToken,
                 idToken: idToken,
@@ -96,203 +79,25 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
-  void _submitDirectLogin() {
-    final username = _usernameController.text.trim();
-    final password = _passwordController.text;
-
-    if (username.isEmpty || password.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter both your Riot username and password.'),
-          backgroundColor: AppTheme.valorantRed,
-        ),
+  Future<void> _clearCookiesAndReload() async {
+    try {
+      final cookieManager = CookieManager.instance();
+      await cookieManager.deleteAllCookies();
+      await InAppWebViewController.clearAllCache();
+      await _webViewController?.loadUrl(
+        urlRequest: URLRequest(url: WebUri(ApiConstants.authorizeUrl)),
       );
-      return;
-    }
-
-    context.read<AuthCubit>().loginWithCredentials(
-          username: username,
-          password: password,
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Sesi dibersihkan. Silakan login kembali.'),
+            duration: Duration(seconds: 2),
+          ),
         );
-  }
-
-  void _show2FaDialog(Auth2FaRequired state) {
-    _twoFactorCodeController.clear();
-
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppTheme.surfaceDark,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Row(
-          children: [
-            Icon(Icons.security_rounded, color: AppTheme.valorantRed),
-            SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                '2-Factor Authentication',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-            ),
-          ],
-        ),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Riot Mobile push approval info
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppTheme.valorantRed.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: AppTheme.valorantRed.withValues(alpha: 0.3),
-                  ),
-                ),
-                child: const Row(
-                  children: [
-                    Icon(Icons.phone_android_rounded,
-                        color: AppTheme.valorantRed, size: 28),
-                    SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Riot Mobile Approval',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.bold,
-                              color: AppTheme.textPrimary,
-                            ),
-                          ),
-                          SizedBox(height: 2),
-                          Text(
-                            'Check your Riot Mobile app and tap Approve.\nThis page will update automatically.',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: AppTheme.textSecondary,
-                              height: 1.4,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    SizedBox(width: 8),
-                    SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: AppTheme.valorantRed,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // Divider with "OR" label
-              Row(
-                children: [
-                  Expanded(
-                    child: Divider(
-                      color: Colors.white.withValues(alpha: 0.1),
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    child: Text(
-                      'OR ENTER CODE',
-                      style: TextStyle(
-                        color: AppTheme.textMuted,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 1,
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child: Divider(
-                      color: Colors.white.withValues(alpha: 0.1),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-
-              Text(
-                'Enter the 6-digit code sent to:\n${state.email}',
-                style: const TextStyle(
-                  fontSize: 12,
-                  height: 1.5,
-                  color: AppTheme.textSecondary,
-                ),
-              ),
-              const SizedBox(height: 14),
-              TextField(
-                controller: _twoFactorCodeController,
-                keyboardType: TextInputType.number,
-                maxLength: 6,
-                textAlign: TextAlign.center,
-                autofocus: true,
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 8,
-                  color: AppTheme.textPrimary,
-                ),
-                decoration: InputDecoration(
-                  counterText: '',
-                  hintText: '••••••',
-                  hintStyle: const TextStyle(
-                    color: AppTheme.textMuted,
-                    letterSpacing: 8,
-                  ),
-                  filled: true,
-                  fillColor: AppTheme.surfaceLight,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              context.read<AuthCubit>().cancelMfaPolling();
-              Navigator.of(ctx).pop();
-            },
-            child: const Text('CANCEL'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              final code = _twoFactorCodeController.text.trim();
-              if (code.length < 6) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Please enter a valid 6-digit code'),
-                  ),
-                );
-                return;
-              }
-              Navigator.of(ctx).pop();
-              context.read<AuthCubit>().submit2FaCode(
-                    code: code,
-                    sessionCookies: state.sessionCookies,
-                  );
-            },
-            child: const Text('VERIFY & SIGN IN'),
-          ),
-        ],
-      ),
-    );
+      }
+    } catch (e) {
+      debugPrint('Clear cookies error: $e');
+    }
   }
 
   @override
@@ -300,16 +105,11 @@ class _LoginPageState extends State<LoginPage> {
     return BlocConsumer<AuthCubit, AuthState>(
       listener: (context, state) {
         if (state is AuthAuthenticated) {
-          // Close any open dialogs (e.g., 2FA dialog) before navigating
-          Navigator.of(context).popUntil((route) => route.isFirst);
           context.go('/store');
-        } else if (state is Auth2FaRequired) {
-          _show2FaDialog(state);
         } else if (state is AuthError) {
-          // Close any open dialogs (e.g., 2FA dialog on timeout)
-          if (Navigator.of(context).canPop()) {
-            Navigator.of(context).popUntil((route) => route.isFirst);
-          }
+          setState(() {
+            _isProcessingTokens = false;
+          });
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(state.message),
@@ -319,413 +119,209 @@ class _LoginPageState extends State<LoginPage> {
         }
       },
       builder: (context, state) {
-        final isLoading = state is AuthLoading;
+        final isLoadingSession = state is AuthLoading || _isProcessingTokens;
 
-        return Scaffold(
+        return PopScope(
+          canPop: false,
+          onPopInvokedWithResult: (didPop, result) async {
+            if (didPop) return;
+            if (_webViewController != null && await _webViewController!.canGoBack()) {
+              await _webViewController!.goBack();
+              return;
+            }
+            if (context.mounted) {
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go('/store');
+              }
+            }
+          },
+          child: Scaffold(
+            backgroundColor: AppTheme.backgroundColor,
+            appBar: AppBar(
+            backgroundColor: AppTheme.surfaceColor,
+            elevation: 0,
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back_rounded),
+              onPressed: () {
+                if (context.canPop()) {
+                  context.pop();
+                } else {
+                  context.go('/store');
+                }
+              },
+            ),
+            title: const Row(
+              children: [
+                Icon(
+                  Icons.lock_outline_rounded,
+                  size: 18,
+                  color: AppTheme.valorantRed,
+                ),
+                SizedBox(width: 8),
+                Text(
+                  'Riot Games Sign In',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              IconButton(
+                tooltip: 'Muat ulang halaman',
+                icon: const Icon(Icons.refresh_rounded),
+                onPressed: () => _webViewController?.reload(),
+              ),
+              PopupMenuButton<String>(
+                icon: const Icon(Icons.more_vert_rounded),
+                onSelected: (value) {
+                  if (value == 'clear') {
+                    _clearCookiesAndReload();
+                  }
+                },
+                itemBuilder: (context) => [
+                  const PopupMenuItem(
+                    value: 'clear',
+                    child: Row(
+                      children: [
+                        Icon(Icons.delete_sweep_rounded, size: 20),
+                        SizedBox(width: 8),
+                        Text('Ganti Akun / Hapus Sesi'),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ],
+            bottom: _webProgress < 1.0
+                ? PreferredSize(
+                    preferredSize: const Size.fromHeight(3.0),
+                    child: LinearProgressIndicator(
+                      value: _webProgress,
+                      backgroundColor: Colors.transparent,
+                      color: AppTheme.valorantRed,
+                      minHeight: 3,
+                    ),
+                  )
+                : null,
+          ),
           body: Stack(
             children: [
-              // Main Login Screen
-              Container(
-                decoration:
-                    const BoxDecoration(gradient: AppTheme.backgroundGradient),
-                child: SafeArea(
+              // Official Riot OAuth WebView
+              InAppWebView(
+                initialUrlRequest: URLRequest(
+                  url: WebUri(ApiConstants.authorizeUrl),
+                ),
+                initialSettings: InAppWebViewSettings(
+                  javaScriptEnabled: true,
+                  clearCache: false,
+                  thirdPartyCookiesEnabled: true,
+                  domStorageEnabled: true,
+                  databaseEnabled: true,
+                  sharedCookiesEnabled: true,
+                  supportMultipleWindows: false,
+                  allowsInlineMediaPlayback: true,
+                  useShouldOverrideUrlLoading: true,
+                  userAgent:
+                      'Mozilla/5.0 (Linux; Android 13; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
+                ),
+                onWebViewCreated: (controller) {
+                  _webViewController = controller;
+                },
+                onProgressChanged: (controller, progress) {
+                  setState(() {
+                    _webProgress = progress / 100.0;
+                  });
+                },
+                shouldOverrideUrlLoading: (controller, navigationAction) async {
+                  final uri = navigationAction.request.url?.uriValue;
+                  if (uri != null &&
+                      (uri.toString().contains('playvalorant.com/opt_in') ||
+                          uri.fragment.contains('access_token') ||
+                          uri.queryParameters.containsKey('access_token'))) {
+                    _handleUrlChange(uri);
+                    return NavigationActionPolicy.CANCEL;
+                  }
+                  return NavigationActionPolicy.ALLOW;
+                },
+                onLoadStop: (controller, url) async {
+                  _handleUrlChange(url?.uriValue);
+                },
+                onUpdateVisitedHistory: (controller, url, isReload) async {
+                  _handleUrlChange(url?.uriValue);
+                },
+              ),
+
+              // Loading Overlay when authenticating tokens & fetching entitlements
+              if (isLoadingSession)
+                Container(
+                  color: Colors.black87,
                   child: Center(
-                    child: SingleChildScrollView(
+                    child: Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 28,
-                        vertical: 20,
+                        horizontal: 32,
+                        vertical: 24,
+                      ),
+                      margin: const EdgeInsets.symmetric(horizontal: 32),
+                      decoration: BoxDecoration(
+                        color: AppTheme.surfaceColor,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: AppTheme.valorantRed.withValues(alpha: 0.3),
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.5),
+                            blurRadius: 20,
+                            offset: const Offset(0, 10),
+                          ),
+                        ],
                       ),
                       child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          // Brand Badge
-                          Container(
-                            width: 80,
-                            height: 80,
-                            decoration: BoxDecoration(
-                              gradient: AppTheme.primaryGradient,
-                              borderRadius: BorderRadius.circular(22),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: AppTheme.valorantRed
-                                      .withValues(alpha: 0.35),
-                                  blurRadius: 28,
-                                  offset: const Offset(0, 8),
-                                ),
-                              ],
-                            ),
-                            child: const Center(
-                              child: Icon(
-                                Icons.local_fire_department_rounded,
-                                size: 44,
-                                color: Colors.white,
-                              ),
+                          const SizedBox(
+                            width: 44,
+                            height: 44,
+                            child: CircularProgressIndicator(
+                              color: AppTheme.valorantRed,
+                              strokeWidth: 3,
                             ),
                           ),
                           const SizedBox(height: 20),
-
-                          // Titles
+                          const Text(
+                            'Menghubungkan Akun Riot...',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.textPrimary,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
                           Text(
-                            'VALORANT',
-                            style: Theme.of(context)
-                                .textTheme
-                                .displayLarge
-                                ?.copyWith(
-                                  letterSpacing: 8,
-                                  fontWeight: FontWeight.w900,
-                                ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'STORE & WISHLIST TRACKER',
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleSmall
-                                ?.copyWith(
-                                  color: AppTheme.valorantRed,
-                                  letterSpacing: 3,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                          ),
-                          const SizedBox(height: 32),
-
-                          // Direct Login Form Card
-                          Container(
-                            padding: const EdgeInsets.all(22),
-                            decoration: BoxDecoration(
-                              color:
-                                  AppTheme.surfaceColor.withValues(alpha: 0.8),
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                color: Colors.white.withValues(alpha: 0.08),
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.3),
-                                  blurRadius: 20,
-                                  offset: const Offset(0, 10),
-                                ),
-                              ],
+                            (state is AuthLoading ? state.message : null) ??
+                                'Mengambil sesi & rotasi skin store...',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              color: AppTheme.textSecondary,
                             ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text(
-                                  'SIGN IN TO YOUR RIOT ACCOUNT',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w800,
-                                    color: AppTheme.textPrimary,
-                                    letterSpacing: 1.2,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                const Text(
-                                  'Connects directly to Riot RSO API. Supports 2FA.',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: AppTheme.textSecondary,
-                                  ),
-                                ),
-                                const SizedBox(height: 18),
-
-                                // Username Input
-                                TextField(
-                                  controller: _usernameController,
-                                  enabled: !isLoading,
-                                  decoration: InputDecoration(
-                                    labelText: 'Riot Username / ID',
-                                    prefixIcon: const Icon(
-                                      Icons.person_outline_rounded,
-                                      size: 20,
-                                    ),
-                                    filled: true,
-                                    fillColor: AppTheme.surfaceLight
-                                        .withValues(alpha: 0.6),
-                                  ),
-                                ),
-                                const SizedBox(height: 14),
-
-                                // Password Input
-                                TextField(
-                                  controller: _passwordController,
-                                  enabled: !isLoading,
-                                  obscureText: !_isPasswordVisible,
-                                  decoration: InputDecoration(
-                                    labelText: 'Password',
-                                    prefixIcon: const Icon(
-                                      Icons.lock_outline_rounded,
-                                      size: 20,
-                                    ),
-                                    suffixIcon: IconButton(
-                                      icon: Icon(
-                                        _isPasswordVisible
-                                            ? Icons.visibility_off_rounded
-                                            : Icons.visibility_rounded,
-                                        size: 20,
-                                        color: AppTheme.textSecondary,
-                                      ),
-                                      onPressed: () {
-                                        setState(() {
-                                          _isPasswordVisible =
-                                              !_isPasswordVisible;
-                                        });
-                                      },
-                                    ),
-                                    filled: true,
-                                    fillColor: AppTheme.surfaceLight
-                                        .withValues(alpha: 0.6),
-                                  ),
-                                  onSubmitted: (_) => _submitDirectLogin(),
-                                ),
-                                const SizedBox(height: 20),
-
-                                // Sign In Button
-                                SizedBox(
-                                  width: double.infinity,
-                                  height: 50,
-                                  child: ElevatedButton(
-                                    onPressed:
-                                        isLoading ? null : _submitDirectLogin,
-                                    child: isLoading
-                                        ? Row(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.center,
-                                            children: [
-                                              const SizedBox(
-                                                width: 18,
-                                                height: 18,
-                                                child:
-                                                    CircularProgressIndicator(
-                                                  strokeWidth: 2,
-                                                  color: Colors.white,
-                                                ),
-                                              ),
-                                              const SizedBox(width: 12),
-                                              Text(
-                                                state.message ??
-                                                    'AUTHENTICATING...',
-                                                style: const TextStyle(
-                                                  fontWeight: FontWeight.bold,
-                                                  letterSpacing: 1.2,
-                                                ),
-                                              ),
-                                            ],
-                                          )
-                                        : const Text(
-                                            'SIGN IN (DIRECT & 2FA)',
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              letterSpacing: 1.5,
-                                            ),
-                                          ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 20),
-
-                          // Divider / OR
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Divider(
-                                  color: Colors.white.withValues(alpha: 0.1),
-                                ),
-                              ),
-                              const Padding(
-                                padding: EdgeInsets.symmetric(horizontal: 16),
-                                child: Text(
-                                  'OR',
-                                  style: TextStyle(
-                                    color: AppTheme.textMuted,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                              Expanded(
-                                child: Divider(
-                                  color: Colors.white.withValues(alpha: 0.1),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 20),
-
-                          // Web Sign-In Button (Official InAppWebView)
-                          SizedBox(
-                            width: double.infinity,
-                            height: 48,
-                            child: OutlinedButton.icon(
-                              onPressed: isLoading
-                                  ? null
-                                  : () => _openRiotWebView(context),
-                              icon: const Icon(Icons.open_in_browser_rounded,
-                                  size: 20),
-                              label: const Text(
-                                'SIGN IN VIA RIOT WEBVIEW',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 1.2,
-                                ),
-                              ),
-                              style: OutlinedButton.styleFrom(
-                                side: BorderSide(
-                                  color: AppTheme.valorantRed
-                                      .withValues(alpha: 0.5),
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 24),
-
-                          // Security Notice
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(
-                                Icons.verified_user_outlined,
-                                size: 14,
-                                color: AppTheme.textMuted,
-                              ),
-                              const SizedBox(width: 6),
-                              Flexible(
-                                child: Text(
-                                  'All data is fetched live from Riot & Valorant APIs.\nCredentials and tokens stored in hardware Keystore.',
-                                  textAlign: TextAlign.center,
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .bodySmall
-                                      ?.copyWith(
-                                        color: AppTheme.textMuted,
-                                        fontSize: 11,
-                                      ),
-                                ),
-                              ),
-                            ],
                           ),
                         ],
                       ),
                     ),
                   ),
                 ),
-              ),
-
-              // In-App WebView Overlay
-              if (_isWebViewOpen)
-                SafeArea(
-                  child: Container(
-                    color: AppTheme.backgroundColor,
-                    child: Column(
-                      children: [
-                        // WebView Top Bar
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 8,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppTheme.surfaceColor,
-                            border: const Border(
-                              bottom: BorderSide(color: AppTheme.surfaceLight),
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              IconButton(
-                                icon: const Icon(Icons.close_rounded),
-                                onPressed: () {
-                                  setState(() => _isWebViewOpen = false);
-                                },
-                              ),
-                              const SizedBox(width: 8),
-                              const Expanded(
-                                child: Text(
-                                  'Riot Official Sign-In (Supports 2FA)',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 15,
-                                  ),
-                                ),
-                              ),
-                              if (_webProgress < 1.0)
-                                SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    value: _webProgress,
-                                    strokeWidth: 2,
-                                    color: AppTheme.valorantRed,
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
-
-                        // Progress Bar
-                        if (_webProgress < 1.0)
-                          LinearProgressIndicator(
-                            value: _webProgress,
-                            backgroundColor: Colors.transparent,
-                            color: AppTheme.valorantRed,
-                            minHeight: 2,
-                          ),
-
-                        // Actual WebView with complete 2FA support
-                        Expanded(
-                          child: InAppWebView(
-                            initialUrlRequest: URLRequest(
-                              url: WebUri(ApiConstants.authorizeUrl),
-                            ),
-                            initialSettings: InAppWebViewSettings(
-                              javaScriptEnabled: true,
-                              clearCache: false,
-                              thirdPartyCookiesEnabled: true,
-                              domStorageEnabled: true,
-                              databaseEnabled: true,
-                              sharedCookiesEnabled: true,
-                              supportMultipleWindows: false,
-                              allowsInlineMediaPlayback: true,
-                              useShouldOverrideUrlLoading: true,
-                              userAgent:
-                                  'Mozilla/5.0 (Linux; Android 13; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
-                            ),
-                            onProgressChanged: (controller, progress) {
-                              setState(() {
-                                _webProgress = progress / 100.0;
-                              });
-                            },
-                            shouldOverrideUrlLoading:
-                                (controller, navigationAction) async {
-                              final uri = navigationAction.request.url?.uriValue;
-                              if (uri != null &&
-                                  (uri.toString().contains(
-                                          'playvalorant.com/opt_in') ||
-                                      uri.fragment.contains('access_token'))) {
-                                _handleUrlChange(uri);
-                                return NavigationActionPolicy.CANCEL;
-                              }
-                              return NavigationActionPolicy.ALLOW;
-                            },
-                            onLoadStop: (controller, url) async {
-                              _handleUrlChange(url?.uriValue);
-                            },
-                            onUpdateVisitedHistory:
-                                (controller, url, isReload) async {
-                              _handleUrlChange(url?.uriValue);
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
             ],
           ),
-        );
-      },
+        ),
+      );
+    },
     );
   }
 }
