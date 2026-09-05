@@ -83,6 +83,11 @@ class StoreRepositoryImpl implements StoreRepository {
         puuid: puuid,
       );
 
+      final resolvedShard = storefrontData['_resolvedShard'] as String?;
+      if (resolvedShard != null && resolvedShard != shard) {
+        await _secureStorage.setShard(resolvedShard);
+      }
+
       final skinsPanel =
           storefrontData['SkinsPanelLayout'] as Map<String, dynamic>? ?? {};
       final offerUuids =
@@ -174,8 +179,22 @@ class StoreRepositoryImpl implements StoreRepository {
     } catch (e) {
       final cached = await _localStore.getCachedDailyStore();
       if (cached != null) return Result.success(cached);
+      String cleanMessage = 'Gagal memuat daily store';
+      if (e is ServerException) {
+        if (e.statusCode == 404) {
+          cleanMessage =
+              'Daily store tidak ditemukan untuk akun ini di server Riot. Pastikan Anda sudah login akun Valorant yang aktif.';
+        } else if (e.statusCode == 400) {
+          cleanMessage =
+              'Sesi login Riot tidak valid atau expired (Bad Claims). Silakan sign in ulang dengan akun Riot Anda.';
+        } else {
+          cleanMessage = 'Server Riot (${e.statusCode}): ${e.message}';
+        }
+      } else {
+        cleanMessage = 'Gagal memuat daily store: $e';
+      }
       return Result.failure(
-        ServerFailure(message: 'Failed to load daily store: $e'),
+        ServerFailure(message: cleanMessage),
       );
     }
   }

@@ -25,17 +25,19 @@ class AuthInterceptor extends Interceptor {
 
     final accessToken = await _storage.getAccessToken();
     final entitlementsToken = await _storage.getEntitlementsToken();
-    final clientVersion = await _storage.getClientVersion();
+    final clientVersion = await _storage.getClientVersion() ??
+        'release-13.05-shipping-11-5350494';
 
-    if (accessToken != null) {
+    // Riot PDP and auth endpoints require RiotClient user-agent and client platform
+    options.headers['User-Agent'] = _userAgent;
+    options.headers['X-Riot-ClientPlatform'] = _clientPlatform;
+    options.headers['X-Riot-ClientVersion'] = clientVersion;
+
+    if (accessToken != null && accessToken.isNotEmpty) {
       options.headers['Authorization'] = 'Bearer $accessToken';
     }
-    if (entitlementsToken != null) {
+    if (entitlementsToken != null && entitlementsToken.isNotEmpty) {
       options.headers['X-Riot-Entitlements-JWT'] = entitlementsToken;
-    }
-    if (clientVersion != null) {
-      options.headers['X-Riot-ClientVersion'] = clientVersion;
-      options.headers['X-Riot-ClientPlatform'] = _clientPlatform;
     }
 
     handler.next(options);
@@ -60,6 +62,9 @@ class AuthInterceptor extends Interceptor {
     }
     handler.next(err);
   }
+
+  static const String _userAgent =
+      'RiotClient/43.0.1.4195386.4190634 rso-auth (Windows; 10;;Enterprise; x64)';
 
   /// Base64-encoded client platform header required by Riot API.
   static const String _clientPlatform =

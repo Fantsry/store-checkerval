@@ -423,20 +423,44 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     }
   }
 
+  static String _mapRegionToShard(String region) {
+    final r = region.toLowerCase().trim();
+    switch (r) {
+      case 'latam':
+      case 'br':
+      case 'na':
+      case 'pbe':
+        return 'na';
+      case 'eu':
+        return 'eu';
+      case 'kr':
+        return 'kr';
+      case 'ap':
+      default:
+        return 'ap';
+    }
+  }
+
   @override
   Future<Map<String, String>> getPasGeo({
     required String accessToken,
     required String idToken,
   }) async {
     try {
-      final response = await _dio.put(
-        ApiConstants.pasGeoUrl,
-        options: Options(
+      final geoDio = Dio(
+        BaseOptions(
+          connectTimeout: const Duration(seconds: 15),
+          receiveTimeout: const Duration(seconds: 15),
           headers: {
             'Authorization': 'Bearer $accessToken',
             'Content-Type': 'application/json',
+            'User-Agent': _userAgent,
           },
         ),
+      );
+
+      final response = await geoDio.put(
+        ApiConstants.pasGeoUrl,
         data: {
           'id_token': idToken,
         },
@@ -449,8 +473,8 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       if (data is Map<String, dynamic>) {
         final affinities = data['affinities'];
         if (affinities is Map<String, dynamic> && affinities['live'] != null) {
-          shard = affinities['live'].toString();
-          region = affinities['live'].toString();
+          region = affinities['live'].toString().toLowerCase().trim();
+          shard = _mapRegionToShard(region);
         }
       }
 
