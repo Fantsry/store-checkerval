@@ -95,8 +95,9 @@ class StoreRepositoryImpl implements StoreRepository {
               .map((e) => e.toString().toLowerCase())
               .toList();
 
-      final remainingSeconds = skinsPanel[
-              'SingleItemOffersRemainingDurationInSeconds'] as int? ??
+      final remainingSeconds = (skinsPanel[
+              'SingleItemOffersRemainingDurationInSeconds'] as num?)
+          ?.toInt() ??
           86400;
 
       final dailySkins = <SkinItem>[];
@@ -123,13 +124,23 @@ class StoreRepositoryImpl implements StoreRepository {
       final featuredBundleData =
           storefrontData['FeaturedBundle'] as Map<String, dynamic>?;
       if (featuredBundleData != null) {
-        final bundleDetails =
-            featuredBundleData['Bundle'] as Map<String, dynamic>?;
+        Map<String, dynamic>? bundleDetails;
+        if (featuredBundleData['Bundle'] is Map) {
+          bundleDetails =
+              Map<String, dynamic>.from(featuredBundleData['Bundle'] as Map);
+        } else if (featuredBundleData['Bundles'] is List &&
+            (featuredBundleData['Bundles'] as List).isNotEmpty &&
+            (featuredBundleData['Bundles'] as List).first is Map) {
+          bundleDetails = Map<String, dynamic>.from(
+              (featuredBundleData['Bundles'] as List).first as Map);
+        }
+
         if (bundleDetails != null) {
-          final bUuid = bundleDetails['DataAssetID'] as String? ?? '';
-          final bRemaining =
-              featuredBundleData['BundleRemainingDurationInSeconds'] as int? ??
-                  0;
+          final bUuid = bundleDetails['DataAssetID']?.toString() ?? '';
+          final bRemaining = (featuredBundleData[
+                  'BundleRemainingDurationInSeconds'] as num?)
+              ?.toInt() ??
+              0;
           final bundleItemOffers =
               bundleDetails['Items'] as List<dynamic>? ?? [];
 
@@ -137,11 +148,12 @@ class StoreRepositoryImpl implements StoreRepository {
           int bundlePrice = 0;
 
           for (final item in bundleItemOffers) {
-            final itemOffer = item['Item'] as Map<String, dynamic>?;
+            if (item is! Map) continue;
+            final itemOffer = item['Item'] as Map?;
             final itemUuid =
                 itemOffer?['ItemID']?.toString().toLowerCase() ?? '';
-            final price = item['DiscountedPrice'] as int? ??
-                item['BasePrice'] as int? ??
+            final price = (item['DiscountedPrice'] as num?)?.toInt() ??
+                (item['BasePrice'] as num?)?.toInt() ??
                 0;
             bundlePrice += price;
 
@@ -187,8 +199,11 @@ class StoreRepositoryImpl implements StoreRepository {
         } else if (e.statusCode == 400) {
           cleanMessage =
               'Sesi login Riot tidak valid atau expired (Bad Claims). Silakan sign in ulang dengan akun Riot Anda.';
+        } else if (e.statusCode == 405) {
+          cleanMessage =
+              'Metode request ditolak server Riot (405). Silakan tekan tombol RETRY.';
         } else {
-          cleanMessage = 'Server Riot (${e.statusCode}): ${e.message}';
+          cleanMessage = 'Server Riot (${e.statusCode}): Gagal memuat rotasi store. Silakan tekan RETRY.';
         }
       } else {
         cleanMessage = 'Gagal memuat daily store: $e';

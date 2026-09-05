@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:valorant_store_tracker/core/constants/api_constants.dart';
 import 'package:valorant_store_tracker/core/error/exceptions.dart';
@@ -33,7 +34,7 @@ class RiotStoreRemoteDataSourceImpl implements RiotStoreRemoteDataSource {
     final cleanPuuid = puuid.trim();
     final normalizedShard = shard.trim().toLowerCase();
 
-    // Try user's configured shard first, then all other live shards if 404
+    // Try user's configured shard first, then all other live shards
     final shardsToTry = {
       if (normalizedShard.isNotEmpty) normalizedShard,
       'ap',
@@ -45,39 +46,51 @@ class RiotStoreRemoteDataSourceImpl implements RiotStoreRemoteDataSource {
     DioException? lastDioException;
 
     for (final s in shardsToTry) {
-      for (final version in ['v2', 'v3']) {
-        try {
-          final url = 'https://pd.$s.a.pvp.net/store/$version/storefront/$cleanPuuid';
-          final response = await _dio.get(url);
-          if (response.data is Map<String, dynamic>) {
-            final data = Map<String, dynamic>.from(response.data as Map);
-            // Attach the successfully resolved shard
-            data['_resolvedShard'] = s;
-            return data;
-          }
-        } on DioException catch (e) {
-          lastDioException = e;
-          if (e.response?.statusCode == 404) {
-            // Player not on this shard or version, continue trying next
-            continue;
-          }
-          if (e.response?.statusCode == 401) {
-            throw const AuthException(message: 'Session expired, please re-authenticate');
-          }
-          // Continue trying other candidates
-          continue;
-        } catch (_) {
+      try {
+        final url = 'https://pd.$s.a.pvp.net/store/v2/storefront/$cleanPuuid';
+        final response = await _dio.get(url);
+
+        dynamic rawData = response.data;
+        if (rawData is String) {
+          try {
+            rawData = jsonDecode(rawData);
+          } catch (_) {}
+        }
+
+        if (rawData is Map) {
+          final data = Map<String, dynamic>.from(rawData);
+          // Attach the successfully resolved shard
+          data['_resolvedShard'] = s;
+          return data;
+        }
+      } on DioException catch (e) {
+        lastDioException = e;
+        if (e.response?.statusCode == 404) {
+          // Player not on this shard, continue trying next
           continue;
         }
+        if (e.response?.statusCode == 401) {
+          throw const AuthException(
+            message: 'Session expired, please re-authenticate',
+          );
+        }
+        // Continue trying other candidates
+        continue;
+      } catch (_) {
+        continue;
       }
     }
 
     if (lastDioException?.response?.statusCode == 401) {
-      throw const AuthException(message: 'Session expired, please re-authenticate');
+      throw const AuthException(
+        message: 'Session expired, please re-authenticate',
+      );
     }
+
+    final statusCode = lastDioException?.response?.statusCode ?? 404;
     throw ServerException(
-      message: lastDioException?.message ?? 'Failed to load storefront across all shards',
-      statusCode: lastDioException?.response?.statusCode ?? 404,
+      message: 'Gagal memuat storefront dari server Riot ($statusCode)',
+      statusCode: statusCode,
     );
   }
 
@@ -101,16 +114,24 @@ class RiotStoreRemoteDataSourceImpl implements RiotStoreRemoteDataSource {
       try {
         final url = ApiConstants.walletUrl(s, cleanPuuid);
         final response = await _dio.get(url);
-        final data = response.data as Map<String, dynamic>;
-        final balances = data['Balances'] as Map<String, dynamic>? ?? {};
 
-        final vp = balances[vpCurrencyUuid] as int? ?? 0;
-        final rp = balances[rpCurrencyUuid] as int? ?? 0;
+        dynamic rawData = response.data;
+        if (rawData is String) {
+          try {
+            rawData = jsonDecode(rawData);
+          } catch (_) {}
+        }
 
-        return UserWallet(
-          valorantPoints: vp,
-          radianitePoints: rp,
-        );
+        if (rawData is Map) {
+          final balances = (rawData['Balances'] as Map?) ?? {};
+          final vp = (balances[vpCurrencyUuid] as num?)?.toInt() ?? 0;
+          final rp = (balances[rpCurrencyUuid] as num?)?.toInt() ?? 0;
+
+          return UserWallet(
+            valorantPoints: vp,
+            radianitePoints: rp,
+          );
+        }
       } catch (_) {
         continue;
       }

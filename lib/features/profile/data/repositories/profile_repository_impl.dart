@@ -59,8 +59,9 @@ class ProfileRepositoryImpl implements ProfileRepository {
       var tagLine = await _storage.getTagLine() ?? '';
 
       // 1. Fetch In-Game Name via Name-Service
+      var resolvedShard = shard;
       final nameRes = await _remoteDataSource.fetchPlayerName(
-        shard: shard,
+        shard: resolvedShard,
         puuid: puuid,
       );
       final fetchedName = nameRes['gameName'] ?? '';
@@ -72,9 +73,10 @@ class ProfileRepositoryImpl implements ProfileRepository {
         await _storage.setTagLine(tagLine);
       }
 
-      // If nameRes discovered a working shard, update it
-      final resolvedShard = nameRes['resolvedShard'] ?? shard;
-      if (resolvedShard != shard) {
+      if (nameRes['resolvedShard'] != null &&
+          nameRes['resolvedShard']!.isNotEmpty &&
+          nameRes['resolvedShard'] != resolvedShard) {
+        resolvedShard = nameRes['resolvedShard']!;
         await _storage.setShard(resolvedShard);
       }
 
@@ -83,11 +85,16 @@ class ProfileRepositoryImpl implements ProfileRepository {
         shard: resolvedShard,
         puuid: puuid,
       );
+      if (identityRes['resolvedShard'] != null &&
+          identityRes['resolvedShard'] != resolvedShard) {
+        resolvedShard = identityRes['resolvedShard'] as String;
+        await _storage.setShard(resolvedShard);
+      }
       final identityMap =
           identityRes['identity'] as Map<String, dynamic>? ?? {};
       final cardUuid = identityMap['PlayerCardID'] as String?;
       final titleUuid = identityMap['PlayerTitleID'] as String?;
-      var accountLevel = identityMap['AccountLevel'] as int? ?? 1;
+      var accountLevel = (identityMap['AccountLevel'] as num?)?.toInt() ?? 1;
 
       // 3. Fetch Account XP for detailed level
       var accountXp = 0;
@@ -95,10 +102,15 @@ class ProfileRepositoryImpl implements ProfileRepository {
         shard: resolvedShard,
         puuid: puuid,
       );
+      if (xpData['resolvedShard'] != null &&
+          xpData['resolvedShard'] != resolvedShard) {
+        resolvedShard = xpData['resolvedShard'] as String;
+        await _storage.setShard(resolvedShard);
+      }
       final progress = xpData['Progress'] as Map<String, dynamic>?;
       if (progress != null) {
-        accountLevel = progress['Level'] as int? ?? accountLevel;
-        accountXp = progress['XP'] as int? ?? 0;
+        accountLevel = (progress['Level'] as num?)?.toInt() ?? accountLevel;
+        accountXp = (progress['XP'] as num?)?.toInt() ?? 0;
       }
 
       // 4. Fetch Card Metadata from Valorant-API

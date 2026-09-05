@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:valorant_store_tracker/core/constants/api_constants.dart';
 
@@ -42,22 +43,37 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
     required String shard,
     required String puuid,
   }) async {
-    final shardsToTry = {shard.trim().toLowerCase(), 'ap', 'eu', 'na', 'kr'};
+    final shardsToTry = {
+      if (shard.trim().isNotEmpty) shard.trim().toLowerCase(),
+      'ap',
+      'eu',
+      'na',
+      'kr',
+    }.toList();
 
     for (final s in shardsToTry) {
-      if (s.isEmpty) continue;
       try {
         final response = await _dio.put(
           ApiConstants.nameServiceUrl(s),
           data: [puuid],
+          options: Options(
+            contentType: Headers.jsonContentType,
+            headers: {'Content-Type': 'application/json'},
+          ),
         );
 
-        if (response.statusCode == 200 && response.data is List) {
-          final list = response.data as List;
-          if (list.isNotEmpty) {
-            final first = list.first as Map<String, dynamic>;
-            final gameName = first['GameName'] as String? ?? '';
-            final tagLine = first['TagLine'] as String? ?? '';
+        dynamic body = response.data;
+        if (body is String) {
+          try {
+            body = jsonDecode(body);
+          } catch (_) {}
+        }
+
+        if (body is List && body.isNotEmpty) {
+          final item = body.first;
+          if (item is Map) {
+            final gameName = (item['GameName'] ?? item['game_name'] ?? '').toString();
+            final tagLine = (item['TagLine'] ?? item['tag_line'] ?? '').toString();
             if (gameName.isNotEmpty) {
               return {
                 'gameName': gameName,
@@ -80,21 +96,32 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
     required String shard,
     required String puuid,
   }) async {
-    final shardsToTry = {shard.trim().toLowerCase(), 'ap', 'eu', 'na', 'kr'};
+    final shardsToTry = {
+      if (shard.trim().isNotEmpty) shard.trim().toLowerCase(),
+      'ap',
+      'eu',
+      'na',
+      'kr',
+    }.toList();
 
     for (final s in shardsToTry) {
-      if (s.isEmpty) continue;
       try {
         final response = await _dio.get(
           ApiConstants.playerLoadoutUrl(s, puuid),
         );
 
-        if (response.statusCode == 200 && response.data is Map<String, dynamic>) {
-          final data = response.data as Map<String, dynamic>;
-          final identity = data['Identity'] as Map<String, dynamic>?;
-          if (identity != null) {
+        dynamic body = response.data;
+        if (body is String) {
+          try {
+            body = jsonDecode(body);
+          } catch (_) {}
+        }
+
+        if (body is Map) {
+          final identity = body['Identity'] ?? body['identity'];
+          if (identity is Map) {
             return {
-              'identity': identity,
+              'identity': Map<String, dynamic>.from(identity),
               'resolvedShard': s,
             };
           }
@@ -112,17 +139,31 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
     required String shard,
     required String puuid,
   }) async {
-    final shardsToTry = {shard.trim().toLowerCase(), 'ap', 'eu', 'na', 'kr'};
+    final shardsToTry = {
+      if (shard.trim().isNotEmpty) shard.trim().toLowerCase(),
+      'ap',
+      'eu',
+      'na',
+      'kr',
+    }.toList();
 
     for (final s in shardsToTry) {
-      if (s.isEmpty) continue;
       try {
         final response = await _dio.get(
           ApiConstants.accountXpUrl(s, puuid),
         );
 
-        if (response.statusCode == 200 && response.data is Map<String, dynamic>) {
-          return response.data as Map<String, dynamic>;
+        dynamic body = response.data;
+        if (body is String) {
+          try {
+            body = jsonDecode(body);
+          } catch (_) {}
+        }
+
+        if (body is Map) {
+          final map = Map<String, dynamic>.from(body);
+          map['resolvedShard'] = s;
+          return map;
         }
       } catch (_) {
         // Try next shard on failure
@@ -142,16 +183,22 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
         ApiConstants.playerCardUrl(cleanUuid),
       );
 
-      if (response.statusCode == 200 && response.data is Map<String, dynamic>) {
-        final body = response.data as Map<String, dynamic>;
-        final data = body['data'] as Map<String, dynamic>?;
+      dynamic body = response.data;
+      if (body is String) {
+        try {
+          body = jsonDecode(body);
+        } catch (_) {}
+      }
+
+      if (body is Map) {
+        final data = body['data'] as Map?;
         if (data != null) {
           return {
-            'uuid': data['uuid'] as String? ?? cleanUuid,
-            'displayName': data['displayName'] as String? ?? 'Player Card',
-            'smallArt': data['smallArt'] as String? ?? data['displayIcon'] as String?,
-            'wideArt': data['wideArt'] as String?,
-            'largeArt': data['largeArt'] as String?,
+            'uuid': data['uuid']?.toString() ?? cleanUuid,
+            'displayName': data['displayName']?.toString() ?? 'Player Card',
+            'smallArt': data['smallArt']?.toString() ?? data['displayIcon']?.toString(),
+            'wideArt': data['wideArt']?.toString(),
+            'largeArt': data['largeArt']?.toString(),
           };
         }
       }
@@ -172,12 +219,18 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
         ApiConstants.playerTitleUrl(cleanUuid),
       );
 
-      if (response.statusCode == 200 && response.data is Map<String, dynamic>) {
-        final body = response.data as Map<String, dynamic>;
-        final data = body['data'] as Map<String, dynamic>?;
+      dynamic body = response.data;
+      if (body is String) {
+        try {
+          body = jsonDecode(body);
+        } catch (_) {}
+      }
+
+      if (body is Map) {
+        final data = body['data'] as Map?;
         if (data != null) {
-          final titleText = data['titleText'] as String?;
-          final displayName = data['displayName'] as String?;
+          final titleText = data['titleText']?.toString();
+          final displayName = data['displayName']?.toString();
           return titleText ?? displayName;
         }
       }
@@ -191,23 +244,33 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
     required String shard,
     required String puuid,
   }) async {
-    final shardsToTry = {shard.trim().toLowerCase(), 'ap', 'eu', 'na', 'kr'};
+    final shardsToTry = {
+      if (shard.trim().isNotEmpty) shard.trim().toLowerCase(),
+      'ap',
+      'eu',
+      'na',
+      'kr',
+    }.toList();
 
     for (final s in shardsToTry) {
-      if (s.isEmpty) continue;
       try {
         final response = await _dio.get(
           ApiConstants.walletUrl(s, puuid),
         );
 
-        if (response.statusCode == 200 && response.data is Map<String, dynamic>) {
-          final data = response.data as Map<String, dynamic>;
-          final balances = data['Balances'] as Map<String, dynamic>? ?? {};
+        dynamic body = response.data;
+        if (body is String) {
+          try {
+            body = jsonDecode(body);
+          } catch (_) {}
+        }
 
+        if (body is Map) {
+          final balances = (body['Balances'] as Map?) ?? {};
           return {
-            'vp': balances[vpCurrencyUuid] as int? ?? 0,
-            'rp': balances[rpCurrencyUuid] as int? ?? 0,
-            'kc': balances[kcCurrencyUuid] as int? ?? 0,
+            'vp': (balances[vpCurrencyUuid] as num?)?.toInt() ?? 0,
+            'rp': (balances[rpCurrencyUuid] as num?)?.toInt() ?? 0,
+            'kc': (balances[kcCurrencyUuid] as num?)?.toInt() ?? 0,
           };
         }
       } catch (_) {}
