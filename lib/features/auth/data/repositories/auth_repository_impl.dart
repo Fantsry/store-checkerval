@@ -45,10 +45,10 @@ class AuthRepositoryImpl implements AuthRepository {
           cookieJar: res['cookieJar'] as String,
         );
 
-        return sessionResult.when(
-          success: (session) => Result.success(AuthLoginSuccess(session)),
-          failure: (failure) => Result.failure(failure),
-        );
+        return switch (sessionResult) {
+          Success(:final value) => Result.success(AuthLoginSuccess(value)),
+          Error(:final failure) => Result.failure(failure),
+        };
       }
 
       return const Result.failure(
@@ -117,10 +117,10 @@ class AuthRepositoryImpl implements AuthRepository {
           cookieJar: cookieJar,
         );
 
-        return sessionResult.when(
-          success: (session) => Result.success(session),
-          failure: (failure) => Result.failure(failure),
-        );
+        return switch (sessionResult) {
+          Success(:final value) => Result.success(value),
+          Error(:final failure) => Result.failure(failure),
+        };
       }
 
       // Still pending — save updated cookies for next poll cycle

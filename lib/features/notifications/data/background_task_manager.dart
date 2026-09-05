@@ -26,7 +26,7 @@ void callbackDispatcher() {
       final cookieJar = await secureStorage.getCookieJar();
 
       if (puuid == null || cookieJar == null) {
-        return Future.value(true);
+        return true;
       }
 
       // Dio instance for background task
@@ -56,7 +56,7 @@ void callbackDispatcher() {
       }
 
       if (accessToken == null) {
-        return Future.value(true);
+        return true;
       }
 
       final entitlementsToken = await secureStorage.getEntitlementsToken();
@@ -107,10 +107,10 @@ void callbackDispatcher() {
         );
       }
 
-      return Future.value(true);
+      return true;
     } catch (e) {
       debugPrint('Background task error: $e');
-      return Future.value(true);
+      return true;
     }
   });
 }
@@ -121,7 +121,6 @@ class BackgroundTaskManager {
     try {
       await Workmanager().initialize(
         callbackDispatcher,
-        isInDebugMode: kDebugMode,
       );
     } catch (e) {
       debugPrint('Workmanager init error: $e');
@@ -140,7 +139,7 @@ class BackgroundTaskManager {
           networkType: NetworkType.connected,
           requiresBatteryNotLow: true,
         ),
-        existingWorkPolicy: ExistingWorkPolicy.replace,
+        existingWorkPolicy: ExistingPeriodicWorkPolicy.update,
       );
     } catch (e) {
       debugPrint('Workmanager registration error: $e');
