@@ -26,6 +26,8 @@ abstract class ProfileRemoteDataSource {
     required String shard,
     required String puuid,
   });
+
+  Future<Map<String, dynamic>> fetchUserInfo(String accessToken);
 }
 
 class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
@@ -37,6 +39,30 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
   static const String vpCurrencyUuid = '85ad13f7-3d1b-5128-9eb2-7cd8ee0b5741';
   static const String rpCurrencyUuid = 'e59aa87c-4cbf-517a-5983-6e81511be9b7';
   static const String kcCurrencyUuid = '85ca9543-7697-970b-7caa-e2a3d1a3d49e';
+
+  @override
+  Future<Map<String, dynamic>> fetchUserInfo(String accessToken) async {
+    try {
+      final response = await _dio.get(
+        ApiConstants.riotUserInfoUrl,
+        options: Options(
+          headers: {'Authorization': 'Bearer $accessToken'},
+        ),
+      );
+
+      dynamic body = response.data;
+      if (body is String) {
+        try {
+          body = jsonDecode(body);
+        } catch (_) {}
+      }
+
+      if (body is Map) {
+        return Map<String, dynamic>.from(body);
+      }
+    } catch (_) {}
+    return {};
+  }
 
   @override
   Future<Map<String, String>> fetchPlayerName({
@@ -118,7 +144,11 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
         }
 
         if (body is Map) {
-          final identity = body['Identity'] ?? body['identity'];
+          final identity = body['Identity'] ??
+              body['identity'] ??
+              body['PlayerIdentity'] ??
+              body['playerIdentity'] ??
+              body;
           if (identity is Map) {
             return {
               'identity': Map<String, dynamic>.from(identity),

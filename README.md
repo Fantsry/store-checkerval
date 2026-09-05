@@ -1,81 +1,57 @@
 # StoreCheckerVal
 
-A Flutter mobile application to track Valorant daily store rotations, featured bundles, Night Market offers, and skin wishlists.
+Aplikasi mobile Android berbasis Flutter untuk memantau rotasi skin harian Valorant (Daily Store), saldo VP/RP, banner kartu pemain (Player Card), dan wishlist skin tanpa perlu membuka PC.
 
-## Features
+---
 
-- **Storefront & Wallet**: Real-time daily rotating weapon skins with VP costs, featured bundles, Night Market offers, and VP/RP wallet balance.
-- **Skin Details**: High-resolution renders, chroma variants, upgrade level descriptions, and preview videos fetched from valorant-api.com.
-- **Wishlist & Background Check**: Wishlist tracking with periodic background checks (WorkManager) and local notifications when items appear in the store.
-- **Authentication**:
-  - Direct authentication with Riot Games API.
-  - Multi-factor authentication supporting both email OTP code and Riot Mobile push approval polling.
-  - Web sign-in fallback via in-app browser.
-  - Silent re-authentication using session cookies.
-  - Biometric app lock (Fingerprint / Face ID).
+## Fitur Utama
 
-## Tech Stack & Architecture
+- **Daily Store & Countdown**: Memantau 4 penawaran skin harian dan hitung mundur reset toko secara real-time.
+- **In-Game Profile & Banner**: Menampilkan nama akun (GameName#TagLine), kartu pemain (Banner & Avatar) in-game, level akun, serta progres XP.
+- **Wallet Tracker**: Memantau saldo Valorant Points (VP), Radianite Points (RP), dan Kingdom Credits (KC).
+- **Featured Bundle & Night Market**: Preview koleksi bundle aktif serta penawaran diskon Night Market.
+- **Wishlist**: Menyimpan skin favorit dan memberikan notifikasi saat skin tersedia di toko harian.
+- **Direct Riot Web Login**: Autentikasi aman melalui WebView resmi Riot Games (OAuth), mendukung verifikasi 2FA dan Riot Mobile.
 
-The application is structured following Clean Architecture principles:
+---
 
-- **Framework**: Flutter (Dart SDK ^3.9.0)
+## Download & Instalasi
+
+File instalasi APK Android:
+- Path file: `build/app/outputs/flutter-apk/app-release.apk`
+- Unduh versi rilis terbaru melalui menu Releases di repositori GitHub ini.
+
+---
+
+## Tech Stack
+
+- **Framework**: Flutter (Dart 3)
 - **State Management**: flutter_bloc
-- **Networking**: Dio
-- **Storage**: flutter_secure_storage (Auth tokens), Hive (Wishlist & Cache)
+- **Network & API**: Dio (Live Riot Games PDP API & Valorant-API.com)
+- **Storage**: flutter_secure_storage & Hive
 - **Navigation**: go_router
-- **Dependency Injection**: get_it
-- **Background Tasks**: workmanager, flutter_local_notifications
 
-### Project Structure
+---
 
-```
-lib/
-├── app/                  # Routing, theme configuration, and app initialization
-├── core/                 # Constants, errors, network clients, and storage helpers
-└── features/
-    ├── auth/             # Riot RSO, 2FA/MFA handling, and session management
-    ├── daily_store/      # Storefront, bundles, Night Market, and skin details
-    ├── wishlist/         # Wishlist management and background check handlers
-    └── settings/         # App preferences, biometrics, and account management
-```
-
-## Getting Started
-
-### Prerequisites
-
-- Flutter SDK (3.9.0 or higher)
-- Android Studio / Xcode
-- Connected device or emulator
-
-### Installation
-
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/Fantsry/store-checkerval.git
-   cd store-checkerval
-   ```
-
-2. Install dependencies:
-   ```bash
-   flutter pub get
-   ```
-
-3. Run code generation:
-   ```bash
-   flutter pub run build_runner build --delete-conflicting-outputs
-   ```
-
-4. Run the application:
-   ```bash
-   flutter run
-   ```
-
-### Running Tests
+## Menjalankan Project
 
 ```bash
-flutter test
+# Clone repository
+git clone https://github.com/Fantsry/store-checkerval.git
+cd store-checkerval
+
+# Install dependencies
+flutter pub get
+
+# Menjalankan aplikasi (Development)
+flutter run
+
+# Build APK Release
+flutter build apk --release
 ```
+
+---
 
 ## Disclaimer
 
-This project is an unofficial tool and is not affiliated with, endorsed by, or sponsored by Riot Games, Inc. Valorant and all associated properties are trademarks or registered trademarks of Riot Games, Inc.
+Aplikasi ini merupakan proyek pihak ketiga yang tidak berafiliasi dengan atau didukung oleh Riot Games, Inc. Valorant dan seluruh aset terkait merupakan merek dagang dari Riot Games, Inc.

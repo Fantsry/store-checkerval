@@ -33,9 +33,15 @@ class ProfileRepositoryImpl implements ProfileRepository {
     if (!forceRefresh) {
       final cached = await _localStore.getCachedProfile();
       if (cached != null) {
-        // Trigger background refresh silently
-        _fetchAndCacheFreshProfile().ignore();
-        return Result.success(cached);
+        final isStaleOrPlaceholder = cached.gameName.isEmpty ||
+            cached.gameName == cached.puuid.substring(0, 8) ||
+            cached.cardWideArt == null ||
+            cached.cardWideArt!.isEmpty;
+        if (!isStaleOrPlaceholder) {
+          // Trigger background refresh silently
+          _fetchAndCacheFreshProfile().ignore();
+          return Result.success(cached);
+        }
       }
     }
 
@@ -57,6 +63,25 @@ class ProfileRepositoryImpl implements ProfileRepository {
       // Read fallback names from storage
       var gameName = await _storage.getGameName() ?? '';
       var tagLine = await _storage.getTagLine() ?? '';
+
+      // If storage doesn't have gameName, fetch from UserInfo endpoint
+      if (gameName.isEmpty) {
+        try {
+          final accessToken = await _storage.getAccessToken();
+          if (accessToken != null && accessToken.isNotEmpty) {
+            final userInfo = await _remoteDataSource.fetchUserInfo(accessToken);
+            final acct = userInfo['acct'] as Map?;
+            final fName = acct?['game_name']?.toString();
+            final fTag = acct?['tag_line']?.toString();
+            if (fName != null && fName.isNotEmpty) {
+              gameName = fName;
+              tagLine = fTag ?? tagLine;
+              await _storage.setGameName(gameName);
+              await _storage.setTagLine(tagLine);
+            }
+          }
+        } catch (_) {}
+      }
 
       // 1. Fetch In-Game Name via Name-Service
       var resolvedShard = shard;
@@ -92,8 +117,16 @@ class ProfileRepositoryImpl implements ProfileRepository {
       }
       final identityMap =
           identityRes['identity'] as Map<String, dynamic>? ?? {};
-      final cardUuid = identityMap['PlayerCardID'] as String?;
-      final titleUuid = identityMap['PlayerTitleID'] as String?;
+      final rawCardUuid = (identityMap['PlayerCardID'] ??
+              identityMap['playerCardId'] ??
+              identityMap['PlayerCardId'] ??
+              identityMap['playercard_id'])
+          ?.toString();
+      final titleUuid = (identityMap['PlayerTitleID'] ??
+              identityMap['playerTitleId'] ??
+              identityMap['PlayerTitleId'] ??
+              identityMap['playertitle_id'])
+          ?.toString();
       var accountLevel = (identityMap['AccountLevel'] as num?)?.toInt() ?? 1;
 
       // 3. Fetch Account XP for detailed level
@@ -113,10 +146,16 @@ class ProfileRepositoryImpl implements ProfileRepository {
         accountXp = (progress['XP'] as num?)?.toInt() ?? 0;
       }
 
-      // 4. Fetch Card Metadata from Valorant-API
-      Map<String, dynamic>? cardData;
-      if (cardUuid != null && cardUuid.isNotEmpty) {
-        cardData = await _remoteDataSource.fetchPlayerCardDetails(cardUuid);
+      // 4. Fetch Card Metadata from Valorant-API (with default fallback to Valorant Card)
+      final effectiveCardUuid = (rawCardUuid != null &&
+              rawCardUuid.isNotEmpty &&
+              rawCardUuid != '00000000-0000-0000-0000-000000000000')
+          ? rawCardUuid
+          : '9fb348bc-41a0-91ad-8a3e-818035c4e561';
+
+      var cardData = await _remoteDataSource.fetchPlayerCardDetails(effectiveCardUuid);
+      if (cardData == null && effectiveCardUuid != '9fb348bc-41a0-91ad-8a3e-818035c4e561') {
+        cardData = await _remoteDataSource.fetchPlayerCardDetails('9fb348bc-41a0-91ad-8a3e-818035c4e561');
       }
 
       // 5. Fetch Title Text from Valorant-API
@@ -131,13 +170,15 @@ class ProfileRepositoryImpl implements ProfileRepository {
         puuid: puuid,
       );
 
+      final finalGameName = gameName.isNotEmpty ? gameName : (puuid.length > 8 ? puuid.substring(0, 8) : 'Agent');
+
       final profile = UserProfile(
         puuid: puuid,
-        gameName: gameName.isNotEmpty ? gameName : puuid.substring(0, 8),
+        gameName: finalGameName,
         tagLine: tagLine,
         accountLevel: accountLevel,
         accountXp: accountXp,
-        cardUuid: cardUuid,
+        cardUuid: cardData?['uuid'] as String? ?? effectiveCardUuid,
         cardName: cardData?['displayName'] as String?,
         cardSmallArt: cardData?['smallArt'] as String?,
         cardWideArt: cardData?['wideArt'] as String?,

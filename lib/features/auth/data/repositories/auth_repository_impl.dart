@@ -172,6 +172,12 @@ class AuthRepositoryImpl implements AuthRepository {
       await _storage.setShard(shard);
       await _storage.setRegion(region);
       await _storage.setCookieJar(cookieJar);
+      if (gameName != null && gameName.isNotEmpty) {
+        await _storage.setGameName(gameName);
+      }
+      if (tagLine != null && tagLine.isNotEmpty) {
+        await _storage.setTagLine(tagLine);
+      }
 
       final session = AuthSession(
         accessToken: accessToken,
@@ -260,6 +266,8 @@ class AuthRepositoryImpl implements AuthRepository {
     final shard = await _storage.getShard();
     final region = await _storage.getRegion();
     final cookieJar = await _storage.getCookieJar();
+    final gameName = await _storage.getGameName();
+    final tagLine = await _storage.getTagLine();
 
     if (accessToken == null ||
         idToken == null ||
@@ -276,6 +284,8 @@ class AuthRepositoryImpl implements AuthRepository {
       shard: shard ?? 'ap',
       region: region ?? 'ap',
       cookieJar: cookieJar ?? '',
+      gameName: gameName,
+      tagLine: tagLine,
     );
   }
 

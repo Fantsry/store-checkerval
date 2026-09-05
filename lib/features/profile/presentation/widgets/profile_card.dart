@@ -97,6 +97,7 @@ class _ActiveProfileCard extends StatelessWidget {
                 child: CachedNetworkImage(
                   imageUrl: profile.cardWideArt!,
                   fit: BoxFit.cover,
+                  alignment: Alignment.centerRight,
                   errorWidget: (_, __, ___) => const SizedBox.shrink(),
                 ),
               ),
@@ -108,11 +109,19 @@ class _ActiveProfileCard extends StatelessWidget {
                   gradient: LinearGradient(
                     begin: Alignment.centerLeft,
                     end: Alignment.centerRight,
-                    colors: [
-                      const Color(0xFF0F1722).withValues(alpha: 0.96),
-                      const Color(0xFF0F1722).withValues(alpha: 0.88),
-                      const Color(0xFF141F2D).withValues(alpha: 0.70),
-                    ],
+                    stops: hasWideArt ? const [0.0, 0.40, 0.75, 1.0] : null,
+                    colors: hasWideArt
+                        ? [
+                            const Color(0xFF0F1722).withValues(alpha: 0.92),
+                            const Color(0xFF0F1722).withValues(alpha: 0.65),
+                            const Color(0xFF0F1722).withValues(alpha: 0.20),
+                            Colors.transparent,
+                          ]
+                        : [
+                            const Color(0xFF0F1722).withValues(alpha: 0.96),
+                            const Color(0xFF0F1722).withValues(alpha: 0.88),
+                            const Color(0xFF141F2D).withValues(alpha: 0.70),
+                          ],
                   ),
                 ),
               ),

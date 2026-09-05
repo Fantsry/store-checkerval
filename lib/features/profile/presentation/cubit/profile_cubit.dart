@@ -12,25 +12,30 @@ class ProfileCubit extends Cubit<ProfileState> {
 
   Future<void> loadProfile({bool forceRefresh = false}) async {
     final cached = await _profileRepository.getCachedProfile();
+    final isStaleOrPlaceholder = cached != null &&
+        (cached.gameName.isEmpty ||
+            cached.gameName == cached.puuid.substring(0, 8) ||
+            cached.cardWideArt == null ||
+            cached.cardWideArt!.isEmpty);
 
-    if (cached != null && !forceRefresh) {
+    if (cached != null && !forceRefresh && !isStaleOrPlaceholder) {
       emit(ProfileLoaded(cached));
     } else {
-      emit(ProfileLoading(cachedProfile: cached));
+      emit(ProfileLoading(cachedProfile: isStaleOrPlaceholder ? null : cached));
     }
 
     final result = await _profileRepository.getUserProfile(
-      forceRefresh: forceRefresh,
+      forceRefresh: forceRefresh || isStaleOrPlaceholder,
     );
 
     switch (result) {
       case Success(:final value):
         emit(ProfileLoaded(value));
       case Error(:final failure):
-        if (cached != null) {
+        if (cached != null && !isStaleOrPlaceholder) {
           emit(ProfileLoaded(cached));
         } else {
-          emit(ProfileError(failure.message, cachedProfile: cached));
+          emit(ProfileError(failure.message, cachedProfile: null));
         }
     }
   }
