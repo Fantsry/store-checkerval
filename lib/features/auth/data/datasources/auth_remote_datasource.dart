@@ -185,7 +185,8 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         ),
       );
 
-      final response = await authDio.put(
+      // Try classic flat format first (used by SkinPeek and traditional Riot 2FA)
+      var response = await authDio.put(
         ApiConstants.riotAuthToken,
         data: {
           'type': 'multifactor',
@@ -194,9 +195,34 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         },
       );
 
-      final updatedCookies = _extractCookies(response.headers, sessionCookies);
-      final data = response.data as Map<String, dynamic>? ?? {};
-      final type = data['type'] as String?;
+      var updatedCookies = _extractCookies(response.headers, sessionCookies);
+      var data = response.data as Map<String, dynamic>? ?? {};
+      var type = data['type'] as String?;
+
+      // If classic format wasn't accepted, try modern nested format per Riot docs
+      if (type != 'response') {
+        try {
+          final nestedResponse = await authDio.put(
+            ApiConstants.riotAuthToken,
+            data: {
+              'type': 'multifactor',
+              'multifactor': {
+                'otp': code.trim(),
+                'rememberDevice': true,
+              },
+            },
+          );
+          final nestedData = nestedResponse.data as Map<String, dynamic>? ?? {};
+          if (nestedData['type'] == 'response') {
+            response = nestedResponse;
+            data = nestedData;
+            type = 'response';
+            updatedCookies = _extractCookies(nestedResponse.headers, updatedCookies);
+          } else if (nestedData['error'] != null) {
+            data = nestedData;
+          }
+        } catch (_) {}
+      }
 
       if (type == 'response') {
         final responseObj = data['response'] as Map<String, dynamic>?;
@@ -246,68 +272,57 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
             'User-Agent': _userAgent,
             'Cookie': sessionCookies,
           },
+          followRedirects: false,
           validateStatus: (s) => s != null && s < 500,
         ),
       );
 
-      // PUT to authorization endpoint to check if push approval was completed.
-      // Riot Mobile approval changes the session state server-side,
-      // so re-sending the auth PUT will return 'response' type if approved.
-      final response = await authDio.put(
+      // Strategy: Re-initialize auth session with existing cookies.
+      // When user approves via Riot Mobile, the session is approved server-side.
+      // 1. Check POST to /api/v1/authorization
+      final response = await authDio.post(
         ApiConstants.riotAuthToken,
         data: {
-          'type': 'multifactor',
-          'code': '',
-          'rememberDevice': true,
+          'client_id': ApiConstants.riotClientId,
+          'nonce': ApiConstants.riotNonce,
+          'redirect_uri': ApiConstants.riotRedirectUri,
+          'response_type': ApiConstants.riotResponseType,
+          'scope': ApiConstants.riotScope,
         },
       );
 
       final updatedCookies = _extractCookies(response.headers, sessionCookies);
-      final data = response.data as Map<String, dynamic>? ?? {};
-      final type = data['type'] as String?;
 
-      if (type == 'response') {
-        final responseObj = data['response'] as Map<String, dynamic>?;
-        final params = responseObj?['parameters'] as Map<String, dynamic>?;
-        final uriStr = params?['uri'] as String?;
+      // Check if POST returned a redirect with tokens
+      String? location = response.headers.value('location');
+      if (location != null && location.contains('access_token')) {
+        final uri = Uri.parse(location);
+        final fragmentParams = Uri.splitQueryString(uri.fragment);
+        final accessToken = fragmentParams['access_token'];
+        final idToken = fragmentParams['id_token'];
 
-        if (uriStr != null) {
-          final uri = Uri.parse(uriStr);
-          final fragmentParams = Uri.splitQueryString(uri.fragment);
-          final accessToken = fragmentParams['access_token'];
-          final idToken = fragmentParams['id_token'];
-
-          if (accessToken != null && idToken != null) {
-            return {
-              'status': 'success',
-              'access_token': accessToken,
-              'id_token': idToken,
-              'cookieJar': updatedCookies,
-            };
-          }
+        if (accessToken != null && idToken != null) {
+          return {
+            'status': 'success',
+            'access_token': accessToken,
+            'id_token': idToken,
+            'cookieJar': updatedCookies,
+          };
         }
-      } else if (type == 'multifactor') {
-        // Still waiting for approval — return updated cookies for next poll
-        return {
-          'status': 'pending',
-          'sessionCookies': updatedCookies,
-        };
-      } else if (data['error'] != null) {
-        // If error (e.g., multifactor_attempt_failed with empty code),
-        // try a simple GET as fallback to check session state
-        final fallbackResponse = await authDio.get(ApiConstants.riotAuthToken);
-        final fbCookies =
-            _extractCookies(fallbackResponse.headers, sessionCookies);
-        final fbData = fallbackResponse.data as Map<String, dynamic>? ?? {};
-        final fbType = fbData['type'] as String?;
+      }
 
-        if (fbType == 'response') {
-          final fbResp = fbData['response'] as Map<String, dynamic>?;
-          final fbParams = fbResp?['parameters'] as Map<String, dynamic>?;
-          final fbUri = fbParams?['uri'] as String?;
+      // Check if POST returned JSON type == 'response'
+      if (response.data is Map<String, dynamic>) {
+        final data = response.data as Map<String, dynamic>;
+        final type = data['type'] as String?;
 
-          if (fbUri != null) {
-            final uri = Uri.parse(fbUri);
+        if (type == 'response') {
+          final responseObj = data['response'] as Map<String, dynamic>?;
+          final params = responseObj?['parameters'] as Map<String, dynamic>?;
+          final uriStr = params?['uri'] as String?;
+
+          if (uriStr != null) {
+            final uri = Uri.parse(uriStr);
             final fragmentParams = Uri.splitQueryString(uri.fragment);
             final accessToken = fragmentParams['access_token'];
             final idToken = fragmentParams['id_token'];
@@ -317,14 +332,42 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
                 'status': 'success',
                 'access_token': accessToken,
                 'id_token': idToken,
-                'cookieJar': fbCookies,
+                'cookieJar': updatedCookies,
               };
             }
           }
         }
-
-        return {'status': 'pending', 'sessionCookies': fbCookies};
       }
+
+      // 2. Also check GET /authorize (Cookie Reauth endpoint)
+      // Once approved on Riot Mobile, GET /authorize redirects immediately with tokens
+      try {
+        final reauthResponse = await authDio.get(
+          ApiConstants.authorizeUrl,
+          options: Options(
+            headers: {'Cookie': updatedCookies},
+          ),
+        );
+
+        final reauthCookies = _extractCookies(reauthResponse.headers, updatedCookies);
+        final reauthLoc = reauthResponse.headers.value('location');
+
+        if (reauthLoc != null && reauthLoc.contains('access_token')) {
+          final uri = Uri.parse(reauthLoc);
+          final fragmentParams = Uri.splitQueryString(uri.fragment);
+          final accessToken = fragmentParams['access_token'];
+          final idToken = fragmentParams['id_token'];
+
+          if (accessToken != null && idToken != null) {
+            return {
+              'status': 'success',
+              'access_token': accessToken,
+              'id_token': idToken,
+              'cookieJar': reauthCookies,
+            };
+          }
+        }
+      } catch (_) {}
 
       return {'status': 'pending', 'sessionCookies': updatedCookies};
     } catch (_) {
