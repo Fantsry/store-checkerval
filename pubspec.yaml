@@ -27,7 +27,7 @@ dependencies:
   hive_flutter: ^1.1.0
 
   # Background Scheduler
-  workmanager: ^0.5.2
+  workmanager: ^0.10.9
 
   # Notifications
   flutter_local_notifications: ^18.0.1
