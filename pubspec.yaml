@@ -1,0 +1,78 @@
+name: valorant_store_tracker
+description: "Valorant Store & Wishlist Tracker - Monitor your daily store and get notified when wishlist skins appear."
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.9.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+
+  # State Management
+  flutter_bloc: ^9.1.0
+  equatable: ^2.0.7
+
+  # Networking
+  dio: ^5.8.0
+
+  # Secure Storage
+  flutter_secure_storage: ^9.2.4
+
+  # Local DB
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+
+  # Background Scheduler
+  workmanager: ^0.5.2
+
+  # Notifications
+  flutter_local_notifications: ^18.0.1
+
+  # WebView Login
+  flutter_inappwebview: ^6.1.5
+
+  # Timezone
+  timezone: ^0.10.0
+  flutter_timezone: ^3.0.1
+
+  # Dependency Injection
+  get_it: ^8.0.3
+
+  # Routing
+  go_router: ^15.1.2
+
+  # Biometric
+  local_auth: ^2.3.0
+
+  # Data Models
+  json_annotation: ^4.9.0
+
+  # Utils
+  connectivity_plus: ^6.1.4
+  cached_network_image: ^3.4.1
+  shimmer: ^3.0.0
+  google_fonts: ^6.2.1
+  intl: ^0.20.2
+  path_provider: ^2.1.5
+  url_launcher: ^6.3.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^5.0.0
+
+  # Testing
+  bloc_test: ^10.0.0
+  mocktail: ^1.0.4
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/images/
+    - assets/icons/

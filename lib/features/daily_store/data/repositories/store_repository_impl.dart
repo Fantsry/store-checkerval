@@ -1,0 +1,218 @@
+import 'package:valorant_store_tracker/core/error/exceptions.dart';
+import 'package:valorant_store_tracker/core/error/failures.dart';
+import 'package:valorant_store_tracker/core/error/result.dart';
+import 'package:valorant_store_tracker/core/storage/local_store_service.dart';
+import 'package:valorant_store_tracker/core/storage/secure_storage_service.dart';
+import 'package:valorant_store_tracker/features/daily_store/data/datasources/riot_store_remote_datasource.dart';
+import 'package:valorant_store_tracker/features/daily_store/data/datasources/valorant_api_remote_datasource.dart';
+import 'package:valorant_store_tracker/features/daily_store/domain/entities/daily_store.dart';
+import 'package:valorant_store_tracker/features/daily_store/domain/entities/skin_item.dart';
+import 'package:valorant_store_tracker/features/daily_store/domain/repositories/store_repository.dart';
+
+class StoreRepositoryImpl implements StoreRepository {
+  final RiotStoreRemoteDataSource _riotRemoteDataSource;
+  final ValorantApiRemoteDataSource _valorantApiRemoteDataSource;
+  final SecureStorageService _secureStorage;
+  final LocalStoreService _localStore;
+
+  StoreRepositoryImpl({
+    required RiotStoreRemoteDataSource riotRemoteDataSource,
+    required ValorantApiRemoteDataSource valorantApiRemoteDataSource,
+    required SecureStorageService secureStorage,
+    required LocalStoreService localStore,
+  })  : _riotRemoteDataSource = riotRemoteDataSource,
+        _valorantApiRemoteDataSource = valorantApiRemoteDataSource,
+        _secureStorage = secureStorage,
+        _localStore = localStore;
+
+  @override
+  Future<Result<List<SkinItem>>> getAllCatalogSkins() async {
+    try {
+      final cached = await _localStore.getCachedSkins();
+      if (cached != null && cached.isNotEmpty) {
+        return Result.success(cached);
+      }
+
+      final skins = await _valorantApiRemoteDataSource.getWeaponSkins();
+      await _localStore.saveCachedSkins(skins);
+      return Result.success(skins);
+    } catch (e) {
+      final cached = await _localStore.getCachedSkins();
+      if (cached != null && cached.isNotEmpty) {
+        return Result.success(cached);
+      }
+      return Result.failure(ServerFailure(message: 'Failed to load catalog: $e'));
+    }
+  }
+
+  @override
+  Future<Result<DailyStore>> getDailyStore({bool forceRefresh = false}) async {
+    try {
+      final puuid = await _secureStorage.getPuuid();
+      final shard = await _secureStorage.getShard() ?? 'ap';
+
+      // Ensure skin catalog is available
+      final catalogResult = await getAllCatalogSkins();
+      final allSkins = catalogResult.valueOrNull ?? [];
+      final skinMap = {for (var s in allSkins) s.uuid.toLowerCase(): s};
+
+      // Also map skin level UUIDs to skin items because Riot storefront offers level UUIDs
+      final levelToSkinMap = <String, SkinItem>{};
+      for (final s in allSkins) {
+        for (final lvl in s.levels) {
+          levelToSkinMap[lvl.uuid.toLowerCase()] = s;
+        }
+      }
+
+      // If user is not logged in, check if a real store was cached offline, otherwise require sign-in
+      if (puuid == null || puuid.isEmpty) {
+        final cached = await _localStore.getCachedDailyStore();
+        if (cached != null) {
+          return Result.success(cached);
+        }
+        return const Result.failure(
+          AuthFailure(
+            message: 'Please sign in with your Riot account to view your live daily store.',
+          ),
+        );
+      }
+
+      // Fetch from Riot storefront
+      final storefrontData = await _riotRemoteDataSource.getStorefront(
+        shard: shard,
+        puuid: puuid,
+      );
+
+      final skinsPanel =
+          storefrontData['SkinsPanelLayout'] as Map<String, dynamic>? ?? {};
+      final offerUuids =
+          (skinsPanel['SingleItemOffers'] as List<dynamic>? ?? [])
+              .map((e) => e.toString().toLowerCase())
+              .toList();
+
+      final remainingSeconds = skinsPanel[
+              'SingleItemOffersRemainingDurationInSeconds'] as int? ??
+          86400;
+
+      final dailySkins = <SkinItem>[];
+      for (final offerUuid in offerUuids) {
+        // Try matching directly or via level UUID
+        SkinItem? matched = skinMap[offerUuid] ?? levelToSkinMap[offerUuid];
+        if (matched != null) {
+          dailySkins.add(matched);
+        } else {
+          // Fallback skin item
+          dailySkins.add(
+            SkinItem(
+              uuid: offerUuid,
+              displayName: 'Valorant Skin',
+              cost: 1775,
+              weaponName: 'Weapon',
+            ),
+          );
+        }
+      }
+
+      // Parse Featured Bundle if present
+      FeaturedBundle? bundle;
+      final featuredBundleData =
+          storefrontData['FeaturedBundle'] as Map<String, dynamic>?;
+      if (featuredBundleData != null) {
+        final bundleDetails =
+            featuredBundleData['Bundle'] as Map<String, dynamic>?;
+        if (bundleDetails != null) {
+          final bUuid = bundleDetails['DataAssetID'] as String? ?? '';
+          final bRemaining =
+              featuredBundleData['BundleRemainingDurationInSeconds'] as int? ??
+                  0;
+          final bundleItemOffers =
+              bundleDetails['Items'] as List<dynamic>? ?? [];
+
+          final bundleSkins = <SkinItem>[];
+          int bundlePrice = 0;
+
+          for (final item in bundleItemOffers) {
+            final itemOffer = item['Item'] as Map<String, dynamic>?;
+            final itemUuid =
+                itemOffer?['ItemID']?.toString().toLowerCase() ?? '';
+            final price = item['DiscountedPrice'] as int? ??
+                item['BasePrice'] as int? ??
+                0;
+            bundlePrice += price;
+
+            final s = skinMap[itemUuid] ?? levelToSkinMap[itemUuid];
+            if (s != null) {
+              bundleSkins.add(s.copyWith(cost: price));
+            }
+          }
+
+          bundle = FeaturedBundle(
+            uuid: bUuid,
+            displayName: 'Featured Collection',
+            price: bundlePrice > 0 ? bundlePrice : 7100,
+            remainingDurationSeconds: bRemaining,
+            items: bundleSkins,
+          );
+        }
+      }
+
+      final store = DailyStore(
+        featuredOffers: dailySkins,
+        remainingDurationSeconds: remainingSeconds,
+        bundle: bundle,
+        lastFetched: DateTime.now(),
+      );
+
+      await _localStore.saveDailyStore(store);
+      return Result.success(store);
+    } on AuthException catch (e) {
+      final cached = await _localStore.getCachedDailyStore();
+      if (cached != null) return Result.success(cached);
+      return Result.failure(
+        AuthFailure(message: e.message, statusCode: e.statusCode),
+      );
+    } catch (e) {
+      final cached = await _localStore.getCachedDailyStore();
+      if (cached != null) return Result.success(cached);
+      return Result.failure(
+        ServerFailure(message: 'Failed to load daily store: $e'),
+      );
+    }
+  }
+
+  @override
+  Future<Result<UserWallet>> getUserWallet() async {
+    try {
+      final puuid = await _secureStorage.getPuuid();
+      final shard = await _secureStorage.getShard() ?? 'ap';
+      if (puuid == null) return const Result.success(UserWallet());
+
+      final wallet = await _riotRemoteDataSource.getWallet(
+        shard: shard,
+        puuid: puuid,
+      );
+      return Result.success(wallet);
+    } catch (e) {
+      return const Result.success(UserWallet());
+    }
+  }
+
+  @override
+  Future<Result<SkinItem>> getSkinDetail(String skinUuid) async {
+    final catalog = await getAllCatalogSkins();
+    if (catalog.isSuccess) {
+      final skins = catalog.valueOrNull!;
+      for (final s in skins) {
+        if (s.uuid.toLowerCase() == skinUuid.toLowerCase()) {
+          return Result.success(s);
+        }
+        for (final lvl in s.levels) {
+          if (lvl.uuid.toLowerCase() == skinUuid.toLowerCase()) {
+            return Result.success(s);
+          }
+        }
+      }
+    }
+    return const Result.failure(ServerFailure(message: 'Skin not found'));
+  }
+}
