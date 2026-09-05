@@ -28,6 +28,17 @@ class SecureStorageService {
   static const _keyClientVersion = 'valorant_client_version';
   static const _keyClientVersionTimestamp = 'valorant_client_version_ts';
   static const _keyBiometricEnabled = 'biometric_enabled';
+  static const _keyGameName = 'riot_game_name';
+  static const _keyTagLine = 'riot_tag_line';
+
+  // ─── Game Name & TagLine ────────────────────────────────────
+  Future<String?> getGameName() => _storage.read(key: _keyGameName);
+  Future<void> setGameName(String gameName) =>
+      _storage.write(key: _keyGameName, value: gameName);
+
+  Future<String?> getTagLine() => _storage.read(key: _keyTagLine);
+  Future<void> setTagLine(String tagLine) =>
+      _storage.write(key: _keyTagLine, value: tagLine);
 
   // ─── Access Token ───────────────────────────────────────────
   Future<String?> getAccessToken() => _storage.read(key: _keyAccessToken);

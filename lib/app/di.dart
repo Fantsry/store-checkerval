@@ -14,6 +14,10 @@ import 'package:valorant_store_tracker/features/daily_store/data/repositories/st
 import 'package:valorant_store_tracker/features/daily_store/domain/repositories/store_repository.dart';
 import 'package:valorant_store_tracker/features/daily_store/presentation/bloc/store_cubit.dart';
 import 'package:valorant_store_tracker/features/notifications/data/notification_service.dart';
+import 'package:valorant_store_tracker/features/profile/data/datasources/profile_remote_datasource.dart';
+import 'package:valorant_store_tracker/features/profile/data/repositories/profile_repository_impl.dart';
+import 'package:valorant_store_tracker/features/profile/domain/repositories/profile_repository.dart';
+import 'package:valorant_store_tracker/features/profile/presentation/cubit/profile_cubit.dart';
 import 'package:valorant_store_tracker/features/wishlist/data/repositories/wishlist_repository_impl.dart';
 import 'package:valorant_store_tracker/features/wishlist/domain/repositories/wishlist_repository.dart';
 import 'package:valorant_store_tracker/features/wishlist/presentation/cubit/wishlist_cubit.dart';
@@ -59,11 +63,23 @@ Future<void> setupDI() async {
     () => RiotStoreRemoteDataSourceImpl(dio: getIt<DioClient>().dio),
   );
 
+  getIt.registerLazySingleton<ProfileRemoteDataSource>(
+    () => ProfileRemoteDataSourceImpl(dio: getIt<DioClient>().dio),
+  );
+
   // ─── Repositories ───────────────────────────────────────────
   getIt.registerLazySingleton<AuthRepository>(
     () => AuthRepositoryImpl(
       remoteDataSource: getIt<AuthRemoteDataSource>(),
       storage: getIt<SecureStorageService>(),
+    ),
+  );
+
+  getIt.registerLazySingleton<ProfileRepository>(
+    () => ProfileRepositoryImpl(
+      remoteDataSource: getIt<ProfileRemoteDataSource>(),
+      storage: getIt<SecureStorageService>(),
+      localStore: getIt<LocalStoreService>(),
     ),
   );
 
@@ -86,6 +102,10 @@ Future<void> setupDI() async {
   // ─── Cubits ─────────────────────────────────────────────────
   getIt.registerFactory<AuthCubit>(
     () => AuthCubit(authRepository: getIt<AuthRepository>()),
+  );
+
+  getIt.registerFactory<ProfileCubit>(
+    () => ProfileCubit(profileRepository: getIt<ProfileRepository>()),
   );
 
   getIt.registerFactory<StoreCubit>(

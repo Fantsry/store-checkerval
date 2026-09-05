@@ -12,6 +12,8 @@ import 'package:valorant_store_tracker/features/auth/presentation/cubit/auth_cub
 import 'package:valorant_store_tracker/features/auth/presentation/cubit/auth_state.dart';
 import 'package:valorant_store_tracker/features/notifications/data/background_task_manager.dart';
 import 'package:valorant_store_tracker/features/notifications/data/notification_service.dart';
+import 'package:valorant_store_tracker/features/profile/presentation/cubit/profile_cubit.dart';
+import 'package:valorant_store_tracker/features/profile/presentation/widgets/profile_card.dart';
 import 'package:valorant_store_tracker/features/wishlist/domain/entities/wishlist_item.dart';
 import 'package:valorant_store_tracker/features/wishlist/presentation/cubit/wishlist_cubit.dart';
 
@@ -232,26 +234,44 @@ class _SettingsPageState extends State<SettingsPage> {
               final session =
                   authState is AuthAuthenticated ? authState.session : null;
 
-              return CustomScrollView(
-                slivers: [
-                  // ─── Header ─────────────────────────────────
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-                      child: Text(
-                        'SETTINGS',
-                        style: Theme.of(context)
-                            .textTheme
-                            .headlineLarge
-                            ?.copyWith(letterSpacing: 2),
+              return RefreshIndicator(
+                color: AppTheme.valorantRed,
+                onRefresh: () async {
+                  await Future.wait([
+                    context.read<ProfileCubit>().loadProfile(forceRefresh: true),
+                    context.read<AuthCubit>().checkAuthStatus(),
+                  ]);
+                },
+                child: CustomScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  slivers: [
+                    // ─── Header ─────────────────────────────────
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+                        child: Text(
+                          'PROFILE & SETTINGS',
+                          style: Theme.of(context)
+                              .textTheme
+                              .headlineLarge
+                              ?.copyWith(letterSpacing: 2),
+                        ),
                       ),
                     ),
-                  ),
 
-                  // ─── Account Section ────────────────────────
-                  SliverToBoxAdapter(
-                    child: _SettingsSection(
-                      title: 'ACCOUNT',
+                    // ─── Player Profile Card ────────────────────
+                    const SliverToBoxAdapter(
+                      child: ProfileCard(),
+                    ),
+
+                    const SliverToBoxAdapter(
+                      child: SizedBox(height: 8),
+                    ),
+
+                    // ─── Account Section ────────────────────────
+                    SliverToBoxAdapter(
+                      child: _SettingsSection(
+                        title: 'ACCOUNT DETAILS',
                       children: [
                         _SettingsTile(
                           icon: Icons.person_rounded,
@@ -378,6 +398,7 @@ class _SettingsPageState extends State<SettingsPage> {
                             onTap: () async {
                               await context.read<AuthCubit>().logout();
                               if (context.mounted) {
+                                context.read<ProfileCubit>().clearProfile();
                                 context.goNamed('login');
                               }
                             },
@@ -390,8 +411,9 @@ class _SettingsPageState extends State<SettingsPage> {
                     child: SizedBox(height: 40),
                   ),
                 ],
-              );
-            },
+              ),
+            );
+          },
           ),
         ),
       ),

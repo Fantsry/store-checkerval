@@ -6,6 +6,8 @@ import 'package:valorant_store_tracker/app/theme.dart';
 import 'package:valorant_store_tracker/core/constants/api_constants.dart';
 import 'package:valorant_store_tracker/features/auth/presentation/cubit/auth_cubit.dart';
 import 'package:valorant_store_tracker/features/auth/presentation/cubit/auth_state.dart';
+import 'package:valorant_store_tracker/features/daily_store/presentation/bloc/store_cubit.dart';
+import 'package:valorant_store_tracker/features/profile/presentation/cubit/profile_cubit.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -105,6 +107,8 @@ class _LoginPageState extends State<LoginPage> {
     return BlocConsumer<AuthCubit, AuthState>(
       listener: (context, state) {
         if (state is AuthAuthenticated) {
+          context.read<ProfileCubit>().loadProfile(forceRefresh: true);
+          context.read<StoreCubit>().fetchStore(forceRefresh: true);
           context.go('/store');
         } else if (state is AuthError) {
           setState(() {

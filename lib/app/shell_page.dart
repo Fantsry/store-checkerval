@@ -81,8 +81,8 @@ class _ValorantBottomNav extends StatelessWidget {
                 onTap: () => onTap(1),
               ),
               _NavItem(
-                icon: Icons.settings_rounded,
-                label: 'Settings',
+                icon: Icons.person_rounded,
+                label: 'Profile',
                 isSelected: currentIndex == 2,
                 onTap: () => onTap(2),
               ),

@@ -32,6 +32,22 @@ class ApiConstants {
   static String ownedItemsUrl(String shard, String puuid) =>
       '${storeBaseUrl(shard)}/store/v1/entitlements/$puuid';
 
+  // ─── Player Identity & Personalization ───────────────────────
+  static String nameServiceUrl(String shard) =>
+      '${storeBaseUrl(shard)}/name-service/v2/players';
+
+  static String playerLoadoutUrl(String shard, String puuid) =>
+      '${storeBaseUrl(shard)}/personalization/v2/players/$puuid/playerloadout';
+
+  static String accountXpUrl(String shard, String puuid) =>
+      '${storeBaseUrl(shard)}/account-xp/v1/players/$puuid';
+
+  static String playerCardUrl(String cardUuid) =>
+      '$valorantApiBaseUrl/playercards/$cardUuid';
+
+  static String playerTitleUrl(String titleUuid) =>
+      '$valorantApiBaseUrl/playertitles/$titleUuid';
+
   // ─── Valorant API (Community — Skin metadata) ───────────────
   static const String valorantApiBaseUrl = 'https://valorant-api.com/v1';
   static const String valorantApiVersion = '$valorantApiBaseUrl/version';
