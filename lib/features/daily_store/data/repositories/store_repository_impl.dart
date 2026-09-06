@@ -95,6 +95,43 @@ class StoreRepositoryImpl implements StoreRepository {
               .map((e) => e.toString().toLowerCase())
               .toList();
 
+      // Extract price map from SingleItemStoreOffers if present
+      final storeOffers =
+          skinsPanel['SingleItemStoreOffers'] as List<dynamic>? ?? [];
+      final itemPrices = <String, int>{};
+      for (final offer in storeOffers) {
+        if (offer is Map) {
+          final offerId = offer['OfferID']?.toString().toLowerCase();
+          final costMap = offer['Cost'] as Map?;
+          final price = (costMap?[RiotStoreRemoteDataSourceImpl.vpCurrencyUuid]
+                  as num?)
+              ?.toInt() ??
+              (costMap?.values.firstOrNull as num?)?.toInt();
+
+          if (price != null) {
+            if (offerId != null) itemPrices[offerId] = price;
+            final rewards = offer['Rewards'] as List?;
+            if (rewards != null && rewards.isNotEmpty && rewards.first is Map) {
+              final rId = rewards.first['ItemID']?.toString().toLowerCase();
+              if (rId != null) itemPrices[rId] = price;
+            }
+          }
+
+          // If SingleItemOffers was empty, populate from SingleItemStoreOffers
+          if (offerUuids.isEmpty) {
+            final rewards = offer['Rewards'] as List?;
+            String? candidateId;
+            if (rewards != null && rewards.isNotEmpty && rewards.first is Map) {
+              candidateId = rewards.first['ItemID']?.toString().toLowerCase();
+            }
+            candidateId ??= offerId;
+            if (candidateId != null && candidateId.isNotEmpty) {
+              offerUuids.add(candidateId);
+            }
+          }
+        }
+      }
+
       final remainingSeconds = (skinsPanel[
               'SingleItemOffersRemainingDurationInSeconds'] as num?)
           ?.toInt() ??
@@ -104,15 +141,17 @@ class StoreRepositoryImpl implements StoreRepository {
       for (final offerUuid in offerUuids) {
         // Try matching directly or via level UUID
         SkinItem? matched = skinMap[offerUuid] ?? levelToSkinMap[offerUuid];
+        final realPrice = itemPrices[offerUuid] ?? matched?.cost ?? 1775;
+
         if (matched != null) {
-          dailySkins.add(matched);
+          dailySkins.add(matched.copyWith(cost: realPrice));
         } else {
           // Fallback skin item
           dailySkins.add(
             SkinItem(
               uuid: offerUuid,
               displayName: 'Valorant Skin',
-              cost: 1775,
+              cost: realPrice,
               weaponName: 'Weapon',
             ),
           );
@@ -145,7 +184,11 @@ class StoreRepositoryImpl implements StoreRepository {
               bundleDetails['Items'] as List<dynamic>? ?? [];
 
           final bundleSkins = <SkinItem>[];
-          int bundlePrice = 0;
+          final totalDiscounted = bundleDetails['TotalDiscountedCost'] as Map?;
+          final totalBase = bundleDetails['TotalBaseCost'] as Map?;
+          int bundlePrice = (totalDiscounted?[RiotStoreRemoteDataSourceImpl.vpCurrencyUuid] as num?)?.toInt() ??
+              (totalBase?[RiotStoreRemoteDataSourceImpl.vpCurrencyUuid] as num?)?.toInt() ??
+              0;
 
           for (final item in bundleItemOffers) {
             if (item is! Map) continue;
@@ -155,7 +198,9 @@ class StoreRepositoryImpl implements StoreRepository {
             final price = (item['DiscountedPrice'] as num?)?.toInt() ??
                 (item['BasePrice'] as num?)?.toInt() ??
                 0;
-            bundlePrice += price;
+            if (bundlePrice == 0) {
+              bundlePrice += price;
+            }
 
             final s = skinMap[itemUuid] ?? levelToSkinMap[itemUuid];
             if (s != null) {

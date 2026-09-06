@@ -46,9 +46,17 @@ class RiotStoreRemoteDataSourceImpl implements RiotStoreRemoteDataSource {
     DioException? lastDioException;
 
     for (final s in shardsToTry) {
+      // 1. Primary: POST /store/v3/storefront/{puuid} with empty JSON body
       try {
-        final url = 'https://pd.$s.a.pvp.net/store/v2/storefront/$cleanPuuid';
-        final response = await _dio.get(url);
+        final urlV3 = ApiConstants.storefrontV3Url(s, cleanPuuid);
+        final response = await _dio.post(
+          urlV3,
+          data: '{}',
+          options: Options(
+            contentType: Headers.jsonContentType,
+            headers: {'Content-Type': 'application/json'},
+          ),
+        );
 
         dynamic rawData = response.data;
         if (rawData is String) {
@@ -65,16 +73,42 @@ class RiotStoreRemoteDataSourceImpl implements RiotStoreRemoteDataSource {
         }
       } on DioException catch (e) {
         lastDioException = e;
-        if (e.response?.statusCode == 404) {
-          // Player not on this shard, continue trying next
-          continue;
-        }
         if (e.response?.statusCode == 401) {
           throw const AuthException(
             message: 'Session expired, please re-authenticate',
           );
         }
-        // Continue trying other candidates
+        // Fall through to try v2 on this shard
+      } catch (_) {
+        // Fall through to try v2 on this shard
+      }
+
+      // 2. Fallback: GET /store/v2/storefront/{puuid}
+      try {
+        final urlV2 = ApiConstants.storefrontUrl(s, cleanPuuid);
+        final response = await _dio.get(urlV2);
+
+        dynamic rawData = response.data;
+        if (rawData is String) {
+          try {
+            rawData = jsonDecode(rawData);
+          } catch (_) {}
+        }
+
+        if (rawData is Map) {
+          final data = Map<String, dynamic>.from(rawData);
+          // Attach the successfully resolved shard
+          data['_resolvedShard'] = s;
+          return data;
+        }
+      } on DioException catch (e) {
+        lastDioException = e;
+        if (e.response?.statusCode == 401) {
+          throw const AuthException(
+            message: 'Session expired, please re-authenticate',
+          );
+        }
+        // Player not on this shard, try next shard
         continue;
       } catch (_) {
         continue;

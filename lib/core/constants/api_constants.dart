@@ -26,6 +26,9 @@ class ApiConstants {
   static String storefrontUrl(String shard, String puuid) =>
       '${storeBaseUrl(shard)}/store/v2/storefront/$puuid';
 
+  static String storefrontV3Url(String shard, String puuid) =>
+      '${storeBaseUrl(shard)}/store/v3/storefront/$puuid';
+
   static String walletUrl(String shard, String puuid) =>
       '${storeBaseUrl(shard)}/store/v1/wallet/$puuid';
 
