@@ -223,6 +223,68 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
+  Future<void> _confirmLogout(BuildContext context) async {
+    final shouldLogout = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppTheme.surfaceDark,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(
+            color: AppTheme.valorantRed.withValues(alpha: 0.4),
+            width: 1,
+          ),
+        ),
+        title: const Row(
+          children: [
+            Icon(Icons.logout_rounded, color: AppTheme.valorantRed),
+            SizedBox(width: 8),
+            Text(
+              'Logout Akun',
+              style: TextStyle(
+                color: AppTheme.textPrimary,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+        content: const Text(
+          'Apakah Anda yakin ingin logout dari akun Riot ini? Sesi login dan token akan dibersihkan.',
+          style: TextStyle(
+            color: AppTheme.textSecondary,
+            fontSize: 14,
+            height: 1.4,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text(
+              'BATAL',
+              style: TextStyle(color: AppTheme.textMuted),
+            ),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.valorantRed,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('LOGOUT'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldLogout == true && context.mounted) {
+      await context.read<AuthCubit>().logout();
+      if (context.mounted) {
+        context.read<ProfileCubit>().clearProfile();
+        context.goNamed('login');
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -310,6 +372,14 @@ class _SettingsPageState extends State<SettingsPage> {
                               ? '${session.region.toUpperCase()} (${session.shard})'
                               : 'Auto-detect on login',
                         ),
+                        if (session != null)
+                          _SettingsTile(
+                            icon: Icons.logout_rounded,
+                            title: 'Logout Akun Riot',
+                            subtitle: 'Keluar dan bersihkan sesi login',
+                            titleColor: AppTheme.valorantRed,
+                            onTap: () => _confirmLogout(context),
+                          ),
                       ],
                     ),
                   ),
@@ -395,13 +465,7 @@ class _SettingsPageState extends State<SettingsPage> {
                             title: 'Sign Out',
                             subtitle: 'Clear all tokens and local session',
                             titleColor: AppTheme.valorantRed,
-                            onTap: () async {
-                              await context.read<AuthCubit>().logout();
-                              if (context.mounted) {
-                                context.read<ProfileCubit>().clearProfile();
-                                context.goNamed('login');
-                              }
-                            },
+                            onTap: () => _confirmLogout(context),
                           ),
                       ],
                     ),

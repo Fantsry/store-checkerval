@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:valorant_store_tracker/app/theme.dart';
+import 'package:valorant_store_tracker/features/auth/presentation/cubit/auth_cubit.dart';
 import 'package:valorant_store_tracker/features/profile/domain/entities/user_profile.dart';
 import 'package:valorant_store_tracker/features/profile/presentation/cubit/profile_cubit.dart';
 import 'package:valorant_store_tracker/features/profile/presentation/cubit/profile_state.dart';
@@ -56,6 +57,68 @@ class _ActiveProfileCard extends StatelessWidget {
         behavior: SnackBarBehavior.floating,
       ),
     );
+  }
+
+  Future<void> _showLogoutDialog(BuildContext context) async {
+    final shouldLogout = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppTheme.surfaceDark,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(
+            color: AppTheme.valorantRed.withValues(alpha: 0.4),
+            width: 1,
+          ),
+        ),
+        title: const Row(
+          children: [
+            Icon(Icons.logout_rounded, color: AppTheme.valorantRed),
+            SizedBox(width: 8),
+            Text(
+              'Logout Akun',
+              style: TextStyle(
+                color: AppTheme.textPrimary,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+        content: const Text(
+          'Apakah Anda yakin ingin logout dari akun Riot ini? Sesi login dan token akan dibersihkan.',
+          style: TextStyle(
+            color: AppTheme.textSecondary,
+            fontSize: 14,
+            height: 1.4,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text(
+              'BATAL',
+              style: TextStyle(color: AppTheme.textMuted),
+            ),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.valorantRed,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('LOGOUT'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldLogout == true && context.mounted) {
+      await context.read<AuthCubit>().logout();
+      if (context.mounted) {
+        context.read<ProfileCubit>().clearProfile();
+        context.goNamed('login');
+      }
+    }
   }
 
   @override
@@ -357,28 +420,42 @@ class _ActiveProfileCard extends StatelessWidget {
                         ),
                       ),
 
-                      // Refresh Icon Button
-                      IconButton(
-                        tooltip: 'Muat ulang profil',
-                        icon: isRefreshing
-                            ? const SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: AppTheme.valorantRed,
-                                ),
-                              )
-                            : const Icon(
-                                Icons.refresh_rounded,
-                                size: 20,
-                                color: AppTheme.textSecondary,
-                              ),
-                        onPressed: () {
-                          context
-                              .read<ProfileCubit>()
-                              .loadProfile(forceRefresh: true);
-                        },
+                      // Action Buttons (Refresh & Logout)
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            tooltip: 'Muat ulang profil',
+                            icon: isRefreshing
+                                ? const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: AppTheme.valorantRed,
+                                    ),
+                                  )
+                                : const Icon(
+                                    Icons.refresh_rounded,
+                                    size: 20,
+                                    color: AppTheme.textSecondary,
+                                  ),
+                            onPressed: () {
+                              context
+                                  .read<ProfileCubit>()
+                                  .loadProfile(forceRefresh: true);
+                            },
+                          ),
+                          IconButton(
+                            tooltip: 'Logout akun Riot',
+                            icon: const Icon(
+                              Icons.logout_rounded,
+                              size: 20,
+                              color: AppTheme.valorantRed,
+                            ),
+                            onPressed: () => _showLogoutDialog(context),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -422,6 +499,38 @@ class _ActiveProfileCard extends StatelessWidget {
                         symbol: 'KC',
                       ),
                     ],
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  // Logout Action Button
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppTheme.valorantRed,
+                        side: BorderSide(
+                          color: AppTheme.valorantRed.withValues(alpha: 0.4),
+                          width: 1,
+                        ),
+                        backgroundColor:
+                            AppTheme.valorantRed.withValues(alpha: 0.08),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                      ),
+                      icon: const Icon(Icons.logout_rounded, size: 16),
+                      label: const Text(
+                        'LOGOUT AKUN',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1.2,
+                        ),
+                      ),
+                      onPressed: () => _showLogoutDialog(context),
+                    ),
                   ),
                 ],
               ),
