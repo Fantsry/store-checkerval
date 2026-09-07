@@ -22,22 +22,19 @@ class StorePage extends StatefulWidget {
   State<StorePage> createState() => _StorePageState();
 }
 
-class _StorePageState extends State<StorePage> with TickerProviderStateMixin {
+class _StorePageState extends State<StorePage>
+    with TickerProviderStateMixin, WidgetsBindingObserver {
   late Timer _countdownTimer;
   Duration _timeUntilReset = Duration.zero;
   late AnimationController _pulseController;
+  bool _hasTriggeredResetFetch = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _timeUntilReset = TimezoneHelper.timeUntilReset;
-    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted) {
-        setState(() {
-          _timeUntilReset = TimezoneHelper.timeUntilReset;
-        });
-      }
-    });
+    _startCountdownTimer();
 
     _pulseController = AnimationController(
       vsync: this,
@@ -45,8 +42,52 @@ class _StorePageState extends State<StorePage> with TickerProviderStateMixin {
     )..repeat(reverse: true);
   }
 
+  void _startCountdownTimer() {
+    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted) return;
+      final currentRemaining = TimezoneHelper.timeUntilReset;
+      setState(() {
+        _timeUntilReset = currentRemaining;
+      });
+
+      // Auto-refresh store when countdown crosses reset (00:00 UTC)
+      if (currentRemaining.inSeconds <= 1 && !_hasTriggeredResetFetch) {
+        _hasTriggeredResetFetch = true;
+        // Wait 3 seconds for Riot servers to rotate store offers
+        Future.delayed(const Duration(seconds: 3), () {
+          if (mounted) {
+            context.read<StoreCubit>().fetchStore(forceRefresh: true);
+            _hasTriggeredResetFetch = false;
+          }
+        });
+      }
+    });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      if (mounted) {
+        setState(() {
+          _timeUntilReset = TimezoneHelper.timeUntilReset;
+        });
+        final storeCubit = context.read<StoreCubit>();
+        final currentState = storeCubit.state;
+        if (currentState is StoreLoaded) {
+          final store = currentState.store;
+          final elapsed =
+              DateTime.now().difference(store.lastFetched).inSeconds;
+          if (elapsed >= store.remainingDurationSeconds) {
+            storeCubit.fetchStore(forceRefresh: true);
+          }
+        }
+      }
+    }
+  }
+
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _countdownTimer.cancel();
     _pulseController.dispose();
     super.dispose();
@@ -60,9 +101,17 @@ class _StorePageState extends State<StorePage> with TickerProviderStateMixin {
         child: SafeArea(
           child: BlocBuilder<StoreCubit, StoreState>(
             builder: (context, state) {
-              return CustomScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                slivers: [
+              return RefreshIndicator(
+                color: AppTheme.valorantRed,
+                backgroundColor: AppTheme.surfaceDark,
+                onRefresh: () async {
+                  await context
+                      .read<StoreCubit>()
+                      .fetchStore(forceRefresh: true);
+                },
+                child: CustomScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  slivers: [
                   // ─── Header ─────────────────────────────────
                   SliverToBoxAdapter(
                     child: Padding(
@@ -350,12 +399,13 @@ class _StorePageState extends State<StorePage> with TickerProviderStateMixin {
                       ),
                   ],
                 ],
-              );
-            },
-          ),
+              ),
+            );
+          },
         ),
       ),
-    );
+    ),
+  );
   }
 }
 

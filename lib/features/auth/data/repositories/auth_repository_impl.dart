@@ -220,11 +220,12 @@ class AuthRepositoryImpl implements AuthRepository {
       final tokens = await _remoteDataSource.reauthorizeSilent(cookieJar);
       final accessToken = tokens['access_token']!;
       final idToken = tokens['id_token']!;
+      final updatedCookies = tokens['cookieJar'] ?? cookieJar;
 
       return await loginWithTokens(
         accessToken: accessToken,
         idToken: idToken,
-        cookieJar: cookieJar,
+        cookieJar: updatedCookies,
       );
     } on AuthException catch (e) {
       return Result.failure(
@@ -249,25 +250,37 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   Future<bool> isLoggedIn() async {
-    final accessToken = await _storage.getAccessToken();
     final puuid = await _storage.getPuuid();
-    return accessToken != null &&
-        accessToken.isNotEmpty &&
-        puuid != null &&
-        puuid.isNotEmpty;
+    if (puuid == null || puuid.isEmpty) return false;
+    final accessToken = await _storage.getAccessToken();
+    if (accessToken != null && accessToken.isNotEmpty) return true;
+    final cookieJar = await _storage.getCookieJar();
+    return cookieJar != null && cookieJar.isNotEmpty;
   }
 
   @override
   Future<AuthSession?> getCachedSession() async {
-    final accessToken = await _storage.getAccessToken();
-    final idToken = await _storage.getIdToken();
-    final entitlementsToken = await _storage.getEntitlementsToken();
+    var accessToken = await _storage.getAccessToken();
+    var idToken = await _storage.getIdToken();
+    var entitlementsToken = await _storage.getEntitlementsToken();
     final puuid = await _storage.getPuuid();
     final shard = await _storage.getShard();
     final region = await _storage.getRegion();
     final cookieJar = await _storage.getCookieJar();
     final gameName = await _storage.getGameName();
     final tagLine = await _storage.getTagLine();
+
+    // If tokens are missing/cleared but we have a valid cookie session, attempt silent reauth
+    if ((accessToken == null || idToken == null || entitlementsToken == null) &&
+        cookieJar != null &&
+        cookieJar.isNotEmpty &&
+        puuid != null &&
+        puuid.isNotEmpty) {
+      final reauthResult = await silentReauth();
+      if (reauthResult.isSuccess) {
+        return reauthResult.valueOrNull;
+      }
+    }
 
     if (accessToken == null ||
         idToken == null ||
@@ -314,7 +327,7 @@ class AuthRepositoryImpl implements AuthRepository {
       if (fallback != null) {
         return Result.success(fallback);
       }
-      return const Result.success('release-09.08-shipping-9-2917531');
+      return const Result.success('release-13.05-shipping-11-5350494');
     }
   }
 }

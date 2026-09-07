@@ -490,7 +490,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       final dioNoRedirect = Dio(
         BaseOptions(
           followRedirects: false,
-          validateStatus: (status) => status != null && status < 400,
+          validateStatus: (status) => status != null && status < 500,
           headers: {
             'Cookie': cookieJar,
             'User-Agent': _userAgent,
@@ -498,7 +498,8 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         ),
       );
 
-      final response = await dioNoRedirect.get(ApiConstants.authorizeUrl);
+      var response = await dioNoRedirect.get(ApiConstants.authorizeUrl);
+      var updatedCookies = _extractCookies(response.headers, cookieJar);
 
       String? location = response.headers.value('location');
       if (location == null && response.data is Map) {
@@ -510,7 +511,33 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         }
       }
 
-      if (location != null) {
+      // Fallback: If GET didn't return tokens, try POST /api/v1/authorization
+      if (location == null || !location.contains('access_token')) {
+        final postResponse = await dioNoRedirect.post(
+          ApiConstants.riotAuthToken,
+          options: Options(headers: {'Cookie': updatedCookies}),
+          data: {
+            'client_id': ApiConstants.riotClientId,
+            'nonce': ApiConstants.riotNonce,
+            'redirect_uri': ApiConstants.riotRedirectUri,
+            'response_type': ApiConstants.riotResponseType,
+            'scope': ApiConstants.riotScope,
+          },
+        );
+        updatedCookies = _extractCookies(postResponse.headers, updatedCookies);
+        location = postResponse.headers.value('location');
+
+        if (location == null && postResponse.data is Map) {
+          final data = postResponse.data as Map;
+          if (data['response'] != null &&
+              data['response']['parameters'] != null &&
+              data['response']['parameters']['uri'] != null) {
+            location = data['response']['parameters']['uri'] as String;
+          }
+        }
+      }
+
+      if (location != null && location.contains('access_token')) {
         final uri = Uri.parse(location);
         final fragment = uri.fragment;
         final params = Uri.splitQueryString(fragment);
@@ -521,6 +548,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
           return {
             'access_token': accessToken,
             'id_token': idToken,
+            'cookieJar': updatedCookies,
           };
         }
       }
@@ -545,9 +573,9 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
           return version;
         }
       }
-      return 'release-09.08-shipping-9-2917531';
+      return 'release-13.05-shipping-11-5350494';
     } catch (_) {
-      return 'release-09.08-shipping-9-2917531';
+      return 'release-13.05-shipping-11-5350494';
     }
   }
 }

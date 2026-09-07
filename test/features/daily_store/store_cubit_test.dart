@@ -81,5 +81,26 @@ void main() {
         const StoreError('Store unavailable'),
       ],
     );
+
+    blocTest<StoreCubit, StoreState>(
+      'emits [StoreLoading, StoreLoaded] on fetchStore(forceRefresh: true) even if already loaded',
+      seed: () => StoreLoaded(store: tStore, wallet: tWallet),
+      build: () {
+        when(() => mockStoreRepository.getDailyStore(
+              forceRefresh: true,
+            )).thenAnswer((_) async => Result.success(tStore));
+        when(() => mockStoreRepository.getUserWallet())
+            .thenAnswer((_) async => const Result.success(tWallet));
+        return storeCubit;
+      },
+      act: (cubit) => cubit.fetchStore(forceRefresh: true),
+      expect: () => [
+        const StoreLoading(),
+        StoreLoaded(
+          store: tStore,
+          wallet: tWallet,
+        ),
+      ],
+    );
   });
 }

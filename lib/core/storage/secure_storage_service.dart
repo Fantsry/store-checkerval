@@ -123,13 +123,13 @@ class SecureStorageService {
   /// Clear everything (full logout).
   Future<void> clearAll() => _storage.deleteAll();
 
-  /// Check if user has a stored session.
+  /// Check if user has a stored session (either valid access token or saved cookie jar).
   Future<bool> hasSession() async {
     final puuid = await getPuuid();
+    if (puuid == null || puuid.isEmpty) return false;
     final accessToken = await getAccessToken();
-    return puuid != null &&
-        puuid.isNotEmpty &&
-        accessToken != null &&
-        accessToken.isNotEmpty;
+    if (accessToken != null && accessToken.isNotEmpty) return true;
+    final cookieJar = await getCookieJar();
+    return cookieJar != null && cookieJar.isNotEmpty;
   }
 }

@@ -11,7 +11,7 @@ class StoreCubit extends Cubit<StoreState> {
         super(const StoreInitial());
 
   Future<void> fetchStore({bool forceRefresh = false}) async {
-    if (state is! StoreLoaded) {
+    if (forceRefresh || state is! StoreLoaded) {
       emit(const StoreLoading());
     }
 

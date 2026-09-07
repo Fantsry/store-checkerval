@@ -45,11 +45,38 @@ class StoreRepositoryImpl implements StoreRepository {
     }
   }
 
+  bool _isStoreExpired(DailyStore store) {
+    if (store.featuredOffers.isEmpty) return true;
+    final elapsed = DateTime.now().difference(store.lastFetched).inSeconds;
+    return elapsed >= store.remainingDurationSeconds;
+  }
+
   @override
   Future<Result<DailyStore>> getDailyStore({bool forceRefresh = false}) async {
     try {
       final puuid = await _secureStorage.getPuuid();
       final shard = await _secureStorage.getShard() ?? 'ap';
+
+      // If not force-refreshing, check if valid unexpired cached store exists
+      if (!forceRefresh) {
+        final cached = await _localStore.getCachedDailyStore();
+        if (cached != null && !_isStoreExpired(cached)) {
+          return Result.success(cached);
+        }
+      }
+
+      // If user is not logged in, check if a real store was cached offline, otherwise require sign-in
+      if (puuid == null || puuid.isEmpty) {
+        final cached = await _localStore.getCachedDailyStore();
+        if (cached != null && !_isStoreExpired(cached)) {
+          return Result.success(cached);
+        }
+        return const Result.failure(
+          AuthFailure(
+            message: 'Please sign in with your Riot account to view your live daily store.',
+          ),
+        );
+      }
 
       // Ensure skin catalog is available
       final catalogResult = await getAllCatalogSkins();
@@ -62,19 +89,6 @@ class StoreRepositoryImpl implements StoreRepository {
         for (final lvl in s.levels) {
           levelToSkinMap[lvl.uuid.toLowerCase()] = s;
         }
-      }
-
-      // If user is not logged in, check if a real store was cached offline, otherwise require sign-in
-      if (puuid == null || puuid.isEmpty) {
-        final cached = await _localStore.getCachedDailyStore();
-        if (cached != null) {
-          return Result.success(cached);
-        }
-        return const Result.failure(
-          AuthFailure(
-            message: 'Please sign in with your Riot account to view your live daily store.',
-          ),
-        );
       }
 
       // Fetch from Riot storefront
@@ -228,22 +242,26 @@ class StoreRepositoryImpl implements StoreRepository {
       await _localStore.saveDailyStore(store);
       return Result.success(store);
     } on AuthException catch (e) {
-      final cached = await _localStore.getCachedDailyStore();
-      if (cached != null) return Result.success(cached);
+      if (!forceRefresh) {
+        final cached = await _localStore.getCachedDailyStore();
+        if (cached != null && !_isStoreExpired(cached)) return Result.success(cached);
+      }
       return Result.failure(
         AuthFailure(message: e.message, statusCode: e.statusCode),
       );
     } catch (e) {
-      final cached = await _localStore.getCachedDailyStore();
-      if (cached != null) return Result.success(cached);
+      if (!forceRefresh) {
+        final cached = await _localStore.getCachedDailyStore();
+        if (cached != null && !_isStoreExpired(cached)) return Result.success(cached);
+      }
       String cleanMessage = 'Gagal memuat daily store';
       if (e is ServerException) {
         if (e.statusCode == 404) {
           cleanMessage =
               'Daily store tidak ditemukan untuk akun ini di server Riot. Pastikan Anda sudah login akun Valorant yang aktif.';
-        } else if (e.statusCode == 400) {
+        } else if (e.statusCode == 401 || e.statusCode == 400) {
           cleanMessage =
-              'Sesi login Riot tidak valid atau expired (Bad Claims). Silakan sign in ulang dengan akun Riot Anda.';
+              'Sesi login Riot kedaluwarsa atau tidak valid. Silakan sign in ulang dengan akun Riot Anda.';
         } else if (e.statusCode == 405) {
           cleanMessage =
               'Metode request ditolak server Riot (405). Silakan tekan tombol RETRY.';
