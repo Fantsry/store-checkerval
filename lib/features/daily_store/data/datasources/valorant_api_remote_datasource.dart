@@ -70,15 +70,23 @@ class ValorantApiRemoteDataSourceImpl implements ValorantApiRemoteDataSource {
         final tierIcon = tierInfo?['icon'] as String?;
 
         // Default cost estimation based on content tier if not provided by storefront
-        int estimatedCost = 1775;
+        final isMelee = displayName.toLowerCase().contains('melee') ||
+            displayName.toLowerCase().contains('knife') ||
+            displayName.toLowerCase().contains('blade') ||
+            displayName.toLowerCase().contains('sword') ||
+            displayName.toLowerCase().contains('axe') ||
+            displayName.toLowerCase().contains('dagger') ||
+            displayName.toLowerCase().contains('karambit');
+
+        int estimatedCost = isMelee ? 3550 : 1775;
         if (tierName.contains('Ultra') || tierName.contains('Exclusive')) {
-          estimatedCost = 2175;
+          estimatedCost = isMelee ? 5350 : 2175;
         } else if (tierName.contains('Premium')) {
-          estimatedCost = 1775;
+          estimatedCost = isMelee ? 3550 : 1775;
         } else if (tierName.contains('Deluxe')) {
-          estimatedCost = 1275;
+          estimatedCost = isMelee ? 2550 : 1275;
         } else if (tierName.contains('Select')) {
-          estimatedCost = 875;
+          estimatedCost = isMelee ? 1750 : 875;
         }
 
         // Chromas

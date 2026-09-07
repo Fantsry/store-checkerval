@@ -14,6 +14,7 @@ import 'package:valorant_store_tracker/features/daily_store/data/repositories/st
 import 'package:valorant_store_tracker/features/daily_store/domain/repositories/store_repository.dart';
 import 'package:valorant_store_tracker/features/daily_store/presentation/bloc/store_cubit.dart';
 import 'package:valorant_store_tracker/features/notifications/data/notification_service.dart';
+import 'package:valorant_store_tracker/features/notifications/presentation/cubit/store_alert_cubit.dart';
 import 'package:valorant_store_tracker/features/profile/data/datasources/profile_remote_datasource.dart';
 import 'package:valorant_store_tracker/features/profile/data/repositories/profile_repository_impl.dart';
 import 'package:valorant_store_tracker/features/profile/domain/repositories/profile_repository.dart';
@@ -109,10 +110,18 @@ Future<void> setupDI() async {
   );
 
   getIt.registerFactory<StoreCubit>(
-    () => StoreCubit(storeRepository: getIt<StoreRepository>()),
+    () => StoreCubit(
+      storeRepository: getIt<StoreRepository>(),
+      notificationService: getIt<NotificationService>(),
+      localStore: getIt<LocalStoreService>(),
+    ),
   );
 
   getIt.registerFactory<WishlistCubit>(
     () => WishlistCubit(wishlistRepository: getIt<WishlistRepository>()),
+  );
+
+  getIt.registerFactory<StoreAlertCubit>(
+    () => StoreAlertCubit(localStore: getIt<LocalStoreService>()),
   );
 }

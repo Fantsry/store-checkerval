@@ -12,6 +12,9 @@ import 'package:valorant_store_tracker/features/auth/presentation/cubit/auth_cub
 import 'package:valorant_store_tracker/features/auth/presentation/cubit/auth_state.dart';
 import 'package:valorant_store_tracker/features/notifications/data/background_task_manager.dart';
 import 'package:valorant_store_tracker/features/notifications/data/notification_service.dart';
+import 'package:valorant_store_tracker/features/notifications/presentation/cubit/store_alert_cubit.dart';
+import 'package:valorant_store_tracker/features/notifications/presentation/cubit/store_alert_state.dart';
+import 'package:valorant_store_tracker/features/notifications/presentation/widgets/store_alert_sheet.dart';
 import 'package:valorant_store_tracker/features/profile/presentation/cubit/profile_cubit.dart';
 import 'package:valorant_store_tracker/features/profile/presentation/widgets/profile_card.dart';
 import 'package:valorant_store_tracker/features/wishlist/domain/entities/wishlist_item.dart';
@@ -391,8 +394,8 @@ class _SettingsPageState extends State<SettingsPage> {
                       children: [
                         _SettingsTile(
                           icon: Icons.notifications_rounded,
-                          title: 'Store Notifications',
-                          subtitle: 'Alert when wishlist skins appear in store',
+                          title: 'Store Wishlist Alerts',
+                          subtitle: 'Notifikasi saat skin wishlist ada di store',
                           trailing: Switch(
                             value: _notificationsEnabled,
                             activeThumbColor: AppTheme.valorantRed,
@@ -400,9 +403,83 @@ class _SettingsPageState extends State<SettingsPage> {
                           ),
                         ),
                         _SettingsTile(
+                          icon: Icons.tune_rounded,
+                          title: 'Aturan Notifikasi Skin (Custom Alerts)',
+                          subtitle: 'Notifikasi Melee, Vandal, Ghost, dll.',
+                          trailing: const Icon(
+                            Icons.chevron_right_rounded,
+                            color: AppTheme.textSecondary,
+                          ),
+                          onTap: () => StoreAlertSheet.show(context),
+                        ),
+                        BlocBuilder<StoreAlertCubit, StoreAlertState>(
+                          builder: (context, state) {
+                            if (state is StoreAlertLoaded) {
+                              final activeRules =
+                                  state.rules.where((r) => r.isEnabled).toList();
+                              if (activeRules.isNotEmpty) {
+                                return Padding(
+                                  padding:
+                                      const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                                  child: Wrap(
+                                    spacing: 6,
+                                    runSpacing: 6,
+                                    children: activeRules.map((rule) {
+                                      return Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                          vertical: 4,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: AppTheme.surfaceLight,
+                                          borderRadius:
+                                              BorderRadius.circular(6),
+                                          border: Border.all(
+                                            color: AppTheme.valorantRed
+                                                .withValues(alpha: 0.3),
+                                          ),
+                                        ),
+                                        child: Text(
+                                          rule.displayName,
+                                          style: const TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w600,
+                                            color: AppTheme.textPrimary,
+                                          ),
+                                        ),
+                                      );
+                                    }).toList(),
+                                  ),
+                                );
+                              }
+                            }
+                            return const SizedBox.shrink();
+                          },
+                        ),
+                        _SettingsTile(
+                          icon: Icons.send_rounded,
+                          title: 'Tes Kirim Notifikasi',
+                          subtitle:
+                              'Uji suara, banner, & getaran di perangkat Anda',
+                          onTap: () async {
+                            await getIt<NotificationService>()
+                                .showTestNotification();
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                      'Notifikasi tes telah dikirim! Cek panel notifikasi HP Anda.'),
+                                  backgroundColor: AppTheme.surfaceLight,
+                                ),
+                              );
+                            }
+                          },
+                        ),
+                        _SettingsTile(
                           icon: Icons.battery_saver_rounded,
                           title: 'Battery Optimization Guide',
-                          subtitle: 'Required for reliable background checks',
+                          subtitle:
+                              'Panduan agar background check tidak dibunuh sistem',
                           onTap: () => _showBatteryOptimizationDialog(context),
                         ),
                       ],

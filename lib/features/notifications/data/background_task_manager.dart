@@ -6,6 +6,8 @@ import 'package:valorant_store_tracker/core/storage/local_store_service.dart';
 import 'package:valorant_store_tracker/core/storage/secure_storage_service.dart';
 import 'package:valorant_store_tracker/features/auth/data/datasources/auth_remote_datasource.dart';
 import 'package:valorant_store_tracker/features/daily_store/data/datasources/riot_store_remote_datasource.dart';
+import 'package:valorant_store_tracker/features/daily_store/domain/entities/daily_store.dart';
+import 'package:valorant_store_tracker/features/daily_store/domain/entities/skin_item.dart';
 import 'package:valorant_store_tracker/features/notifications/data/notification_service.dart';
 
 const String dailyStoreCheckTaskKey = 'com.valorantstore.daily_check_task';
@@ -85,30 +87,78 @@ void callbackDispatcher() {
 
       final skinsPanel =
           storefront['SkinsPanelLayout'] as Map<String, dynamic>? ?? {};
-      final offers = (skinsPanel['SingleItemOffers'] as List<dynamic>? ?? [])
-          .map((e) => e.toString().toLowerCase())
-          .toList();
+      final offerUuids =
+          (skinsPanel['SingleItemOffers'] as List<dynamic>? ?? [])
+              .map((e) => e.toString().toLowerCase())
+              .toList();
 
-      // Check wishlist
-      final wishlist = await localStore.getWishlist();
-      final matchedNames = <String>[];
-      String? firstMatchUuid;
-
-      for (final item in wishlist) {
-        if (offers.contains(item.uuid.toLowerCase())) {
-          matchedNames.add(item.displayName);
-          firstMatchUuid ??= item.uuid;
+      final allSkins = await localStore.getCachedSkins() ?? [];
+      final skinMap = {for (var s in allSkins) s.uuid.toLowerCase(): s};
+      final levelToSkinMap = <String, SkinItem>{};
+      for (final s in allSkins) {
+        for (final lvl in s.levels) {
+          levelToSkinMap[lvl.uuid.toLowerCase()] = s;
         }
       }
 
-      if (matchedNames.isNotEmpty) {
-        final notificationService = NotificationService();
-        await notificationService.init();
-        await notificationService.showWishlistMatchNotification(
-          matchedSkinNames: matchedNames,
-          skinUuid: firstMatchUuid,
-        );
+      final storeOffers =
+          skinsPanel['SingleItemStoreOffers'] as List<dynamic>? ?? [];
+
+      final dailySkins = <SkinItem>[];
+      for (final offerUuid in offerUuids) {
+        SkinItem? matched = skinMap[offerUuid] ?? levelToSkinMap[offerUuid];
+        if (matched == null) {
+          for (final o in storeOffers) {
+            if (o is Map &&
+                o['OfferID']?.toString().toLowerCase() == offerUuid) {
+              final rewards = o['Rewards'] as List?;
+              if (rewards != null &&
+                  rewards.isNotEmpty &&
+                  rewards.first is Map) {
+                final rId = rewards.first['ItemID']?.toString().toLowerCase();
+                if (rId != null) {
+                  matched = skinMap[rId] ?? levelToSkinMap[rId];
+                  break;
+                }
+              }
+            }
+          }
+        }
+        if (matched != null) {
+          dailySkins.add(matched);
+        } else {
+          dailySkins.add(
+            SkinItem(
+              uuid: offerUuid,
+              displayName: 'Valorant Skin',
+              weaponName: 'Weapon',
+            ),
+          );
+        }
       }
+
+      final dailyStore = DailyStore(
+        featuredOffers: dailySkins,
+        remainingDurationSeconds: (skinsPanel[
+                'SingleItemOffersRemainingDurationInSeconds'] as num?)
+            ?.toInt() ??
+            86400,
+        lastFetched: DateTime.now(),
+      );
+
+      // Check both Wishlist and Custom Alert Rules
+      final wishlist = await localStore.getWishlist();
+      final alertRules = await localStore.getAlertRules();
+
+      final notificationService = NotificationService();
+      await notificationService.init();
+      await notificationService.evaluateStoreOffers(
+        store: dailyStore,
+        wishlist: wishlist,
+        alertRules: alertRules,
+        localStore: localStore,
+        deduplicate: true,
+      );
 
       return true;
     } catch (e) {

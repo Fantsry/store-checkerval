@@ -113,21 +113,40 @@ class StoreRepositoryImpl implements StoreRepository {
       final storeOffers =
           skinsPanel['SingleItemStoreOffers'] as List<dynamic>? ?? [];
       final itemPrices = <String, int>{};
+
+      int? extractVpCost(Map? costMap) {
+        if (costMap == null) return null;
+        for (final entry in costMap.entries) {
+          if (entry.key.toString().toLowerCase() ==
+              RiotStoreRemoteDataSourceImpl.vpCurrencyUuid.toLowerCase()) {
+            return (entry.value as num?)?.toInt();
+          }
+        }
+        return (costMap.values.firstOrNull as num?)?.toInt();
+      }
+
       for (final offer in storeOffers) {
         if (offer is Map) {
           final offerId = offer['OfferID']?.toString().toLowerCase();
-          final costMap = offer['Cost'] as Map?;
-          final price = (costMap?[RiotStoreRemoteDataSourceImpl.vpCurrencyUuid]
-                  as num?)
-              ?.toInt() ??
-              (costMap?.values.firstOrNull as num?)?.toInt();
+          final price = extractVpCost(offer['Cost'] as Map?);
 
           if (price != null) {
             if (offerId != null) itemPrices[offerId] = price;
             final rewards = offer['Rewards'] as List?;
             if (rewards != null && rewards.isNotEmpty && rewards.first is Map) {
               final rId = rewards.first['ItemID']?.toString().toLowerCase();
-              if (rId != null) itemPrices[rId] = price;
+              if (rId != null) {
+                itemPrices[rId] = price;
+
+                // Cross-index with catalog skin item and all its levels
+                final s = skinMap[rId] ?? levelToSkinMap[rId];
+                if (s != null) {
+                  itemPrices[s.uuid.toLowerCase()] = price;
+                  for (final lvl in s.levels) {
+                    itemPrices[lvl.uuid.toLowerCase()] = price;
+                  }
+                }
+              }
             }
           }
 
@@ -155,7 +174,39 @@ class StoreRepositoryImpl implements StoreRepository {
       for (final offerUuid in offerUuids) {
         // Try matching directly or via level UUID
         SkinItem? matched = skinMap[offerUuid] ?? levelToSkinMap[offerUuid];
-        final realPrice = itemPrices[offerUuid] ?? matched?.cost ?? 1775;
+
+        // If offerUuid is an OfferID from Riot, resolve the real skin from storeOffers
+        if (matched == null) {
+          for (final offer in storeOffers) {
+            if (offer is Map &&
+                offer['OfferID']?.toString().toLowerCase() == offerUuid) {
+              final rewards = offer['Rewards'] as List?;
+              if (rewards != null && rewards.isNotEmpty && rewards.first is Map) {
+                final rId = rewards.first['ItemID']?.toString().toLowerCase();
+                if (rId != null) {
+                  matched = skinMap[rId] ?? levelToSkinMap[rId];
+                  break;
+                }
+              }
+            }
+          }
+        }
+
+        // Layered price resolution: offerUuid -> matched.uuid -> matched.levels
+        int? realPrice = itemPrices[offerUuid];
+        if (matched != null) {
+          realPrice ??= itemPrices[matched.uuid.toLowerCase()];
+          if (realPrice == null) {
+            for (final lvl in matched.levels) {
+              final p = itemPrices[lvl.uuid.toLowerCase()];
+              if (p != null) {
+                realPrice = p;
+                break;
+              }
+            }
+          }
+        }
+        realPrice ??= matched?.cost ?? 1775;
 
         if (matched != null) {
           dailySkins.add(matched.copyWith(cost: realPrice));

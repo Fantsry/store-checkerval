@@ -5,6 +5,7 @@ import 'package:valorant_store_tracker/app/router.dart';
 import 'package:valorant_store_tracker/app/theme.dart';
 import 'package:valorant_store_tracker/features/auth/presentation/cubit/auth_cubit.dart';
 import 'package:valorant_store_tracker/features/daily_store/presentation/bloc/store_cubit.dart';
+import 'package:valorant_store_tracker/features/notifications/presentation/cubit/store_alert_cubit.dart';
 import 'package:valorant_store_tracker/features/profile/presentation/cubit/profile_cubit.dart';
 import 'package:valorant_store_tracker/features/wishlist/presentation/cubit/wishlist_cubit.dart';
 
@@ -26,6 +27,9 @@ class ValorantStoreApp extends StatelessWidget {
         ),
         BlocProvider<WishlistCubit>(
           create: (_) => getIt<WishlistCubit>()..loadWishlist(),
+        ),
+        BlocProvider<StoreAlertCubit>(
+          create: (_) => getIt<StoreAlertCubit>()..loadRules(),
         ),
       ],
       child: MaterialApp.router(
