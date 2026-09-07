@@ -15,6 +15,7 @@ import 'package:valorant_store_tracker/core/storage/secure_storage_service.dart'
 import 'package:valorant_store_tracker/features/auth/presentation/login_page.dart';
 import 'package:valorant_store_tracker/features/daily_store/presentation/pages/store_page.dart';
 import 'package:valorant_store_tracker/features/daily_store/presentation/pages/skin_detail_page.dart';
+import 'package:valorant_store_tracker/features/career/presentation/pages/career_page.dart';
 import 'package:valorant_store_tracker/features/wishlist/presentation/pages/wishlist_page.dart';
 import 'package:valorant_store_tracker/features/wishlist/presentation/pages/catalog_page.dart';
 import 'package:valorant_store_tracker/features/settings/presentation/settings_page.dart';
@@ -50,6 +51,13 @@ class AppRouter {
             name: 'store',
             pageBuilder: (context, state) => const NoTransitionPage(
               child: StorePage(),
+            ),
+          ),
+          GoRoute(
+            path: '/career',
+            name: 'career',
+            pageBuilder: (context, state) => const NoTransitionPage(
+              child: CareerPage(),
             ),
           ),
           GoRoute(

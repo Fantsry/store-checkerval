@@ -51,7 +51,31 @@ class ApiConstants {
   static String playerTitleUrl(String titleUuid) =>
       '$valorantApiBaseUrl/playertitles/$titleUuid';
 
-  // ─── Valorant API (Community — Skin metadata) ───────────────
+  // ─── Match History & Details (Riot PVP) ──────────────────────
+  static String matchHistoryUrl(
+    String shard,
+    String puuid, {
+    int startIndex = 0,
+    int endIndex = 15,
+    String? queue,
+  }) =>
+      '${storeBaseUrl(shard)}/match-history/v1/history/$puuid?startIndex=$startIndex&endIndex=$endIndex${queue != null ? '&queue=$queue' : ''}';
+
+  static String matchDetailsUrl(String shard, String matchId) =>
+      '${storeBaseUrl(shard)}/match-details/v1/matches/$matchId';
+
+  static String competitiveUpdatesUrl(
+    String shard,
+    String puuid, {
+    int startIndex = 0,
+    int endIndex = 15,
+  }) =>
+      '${storeBaseUrl(shard)}/mmr/v1/players/$puuid/competitiveupdates?startIndex=$startIndex&endIndex=$endIndex';
+
+  static String playerMmrUrl(String shard, String puuid) =>
+      '${storeBaseUrl(shard)}/mmr/v1/players/$puuid';
+
+  // ─── Valorant API (Community — Skin & Game metadata) ─────────
   static const String valorantApiBaseUrl = 'https://valorant-api.com/v1';
   static const String valorantApiVersion = '$valorantApiBaseUrl/version';
   static const String valorantApiWeaponSkins =
@@ -62,6 +86,10 @@ class ApiConstants {
       '$valorantApiBaseUrl/contenttiers';
   static const String valorantApiCurrencies =
       '$valorantApiBaseUrl/currencies';
+  static const String valorantApiMaps = '$valorantApiBaseUrl/maps';
+  static const String valorantApiAgents = '$valorantApiBaseUrl/agents';
+  static const String valorantApiCompetitiveTiers =
+      '$valorantApiBaseUrl/competitivetiers';
 
   // ─── Auth OAuth2 Parameters ─────────────────────────────────
   static const String riotClientId = 'play-valorant-web-prod';

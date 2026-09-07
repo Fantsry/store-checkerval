@@ -19,6 +19,10 @@ import 'package:valorant_store_tracker/features/profile/data/datasources/profile
 import 'package:valorant_store_tracker/features/profile/data/repositories/profile_repository_impl.dart';
 import 'package:valorant_store_tracker/features/profile/domain/repositories/profile_repository.dart';
 import 'package:valorant_store_tracker/features/profile/presentation/cubit/profile_cubit.dart';
+import 'package:valorant_store_tracker/features/career/data/datasources/career_remote_datasource.dart';
+import 'package:valorant_store_tracker/features/career/data/repositories/career_repository_impl.dart';
+import 'package:valorant_store_tracker/features/career/domain/repositories/career_repository.dart';
+import 'package:valorant_store_tracker/features/career/presentation/cubit/career_cubit.dart';
 import 'package:valorant_store_tracker/features/wishlist/data/repositories/wishlist_repository_impl.dart';
 import 'package:valorant_store_tracker/features/wishlist/domain/repositories/wishlist_repository.dart';
 import 'package:valorant_store_tracker/features/wishlist/presentation/cubit/wishlist_cubit.dart';
@@ -68,6 +72,10 @@ Future<void> setupDI() async {
     () => ProfileRemoteDataSourceImpl(dio: getIt<DioClient>().dio),
   );
 
+  getIt.registerLazySingleton<CareerRemoteDataSource>(
+    () => CareerRemoteDataSourceImpl(dio: getIt<DioClient>().dio),
+  );
+
   // ─── Repositories ───────────────────────────────────────────
   getIt.registerLazySingleton<AuthRepository>(
     () => AuthRepositoryImpl(
@@ -79,6 +87,14 @@ Future<void> setupDI() async {
   getIt.registerLazySingleton<ProfileRepository>(
     () => ProfileRepositoryImpl(
       remoteDataSource: getIt<ProfileRemoteDataSource>(),
+      storage: getIt<SecureStorageService>(),
+      localStore: getIt<LocalStoreService>(),
+    ),
+  );
+
+  getIt.registerLazySingleton<CareerRepository>(
+    () => CareerRepositoryImpl(
+      remoteDataSource: getIt<CareerRemoteDataSource>(),
       storage: getIt<SecureStorageService>(),
       localStore: getIt<LocalStoreService>(),
     ),
@@ -107,6 +123,10 @@ Future<void> setupDI() async {
 
   getIt.registerFactory<ProfileCubit>(
     () => ProfileCubit(profileRepository: getIt<ProfileRepository>()),
+  );
+
+  getIt.registerFactory<CareerCubit>(
+    () => CareerCubit(careerRepository: getIt<CareerRepository>()),
   );
 
   getIt.registerFactory<StoreCubit>(

@@ -4,6 +4,7 @@ import 'package:valorant_store_tracker/app/di.dart';
 import 'package:valorant_store_tracker/app/router.dart';
 import 'package:valorant_store_tracker/app/theme.dart';
 import 'package:valorant_store_tracker/features/auth/presentation/cubit/auth_cubit.dart';
+import 'package:valorant_store_tracker/features/career/presentation/cubit/career_cubit.dart';
 import 'package:valorant_store_tracker/features/daily_store/presentation/bloc/store_cubit.dart';
 import 'package:valorant_store_tracker/features/notifications/presentation/cubit/store_alert_cubit.dart';
 import 'package:valorant_store_tracker/features/profile/presentation/cubit/profile_cubit.dart';
@@ -21,6 +22,9 @@ class ValorantStoreApp extends StatelessWidget {
         ),
         BlocProvider<ProfileCubit>(
           create: (_) => getIt<ProfileCubit>()..loadProfile(),
+        ),
+        BlocProvider<CareerCubit>(
+          create: (_) => getIt<CareerCubit>(),
         ),
         BlocProvider<StoreCubit>(
           create: (_) => getIt<StoreCubit>()..fetchStore(),

@@ -25,8 +25,9 @@ class ShellPage extends StatelessWidget {
   int _calculateSelectedIndex(BuildContext context) {
     final location = GoRouterState.of(context).matchedLocation;
     if (location.startsWith('/store')) return 0;
-    if (location.startsWith('/wishlist')) return 1;
-    if (location.startsWith('/settings')) return 2;
+    if (location.startsWith('/career')) return 1;
+    if (location.startsWith('/wishlist')) return 2;
+    if (location.startsWith('/settings')) return 3;
     return 0;
   }
 
@@ -35,8 +36,10 @@ class ShellPage extends StatelessWidget {
       case 0:
         context.goNamed('store');
       case 1:
-        context.goNamed('wishlist');
+        context.goNamed('career');
       case 2:
+        context.goNamed('wishlist');
+      case 3:
         context.goNamed('settings');
     }
   }
@@ -75,16 +78,22 @@ class _ValorantBottomNav extends StatelessWidget {
                 onTap: () => onTap(0),
               ),
               _NavItem(
-                icon: Icons.favorite_rounded,
-                label: 'Wishlist',
+                icon: Icons.leaderboard_rounded,
+                label: 'Career',
                 isSelected: currentIndex == 1,
                 onTap: () => onTap(1),
               ),
               _NavItem(
-                icon: Icons.person_rounded,
-                label: 'Profile',
+                icon: Icons.favorite_rounded,
+                label: 'Wishlist',
                 isSelected: currentIndex == 2,
                 onTap: () => onTap(2),
+              ),
+              _NavItem(
+                icon: Icons.person_rounded,
+                label: 'Profile',
+                isSelected: currentIndex == 3,
+                onTap: () => onTap(3),
               ),
             ],
           ),

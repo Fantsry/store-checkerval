@@ -12,12 +12,14 @@ class LocalStoreService {
   static const String _storeCacheBoxName = 'store_cache_box';
   static const String _profileCacheBoxName = 'profile_cache_box';
   static const String _alertRulesBoxName = 'alert_rules_box';
+  static const String _careerCacheBoxName = 'career_cache_box';
 
   late Box<String> _wishlistBox;
   late Box<String> _skinsCacheBox;
   late Box<String> _storeCacheBox;
   late Box<String> _profileCacheBox;
   late Box<String> _alertRulesBox;
+  late Box<String> _careerCacheBox;
 
   Future<void> init() async {
     await Hive.initFlutter();
@@ -26,6 +28,7 @@ class LocalStoreService {
     _storeCacheBox = await Hive.openBox<String>(_storeCacheBoxName);
     _profileCacheBox = await Hive.openBox<String>(_profileCacheBoxName);
     _alertRulesBox = await Hive.openBox<String>(_alertRulesBoxName);
+    _careerCacheBox = await Hive.openBox<String>(_careerCacheBoxName);
   }
 
   // ─── Wishlist Operations ───────────────────────────────────
@@ -238,5 +241,19 @@ class LocalStoreService {
 
   Future<void> setLastNotifiedStoreDate(String dateStr) async {
     await _storeCacheBox.put('last_notified_store_date', dateStr);
+  }
+
+  // ─── Career & Match History Cache ──────────────────────────
+
+  Future<String?> getCachedCareerJson(String puuid) async {
+    return _careerCacheBox.get('career_$puuid');
+  }
+
+  Future<void> saveCachedCareerJson(String puuid, String jsonStr) async {
+    await _careerCacheBox.put('career_$puuid', jsonStr);
+  }
+
+  Future<void> clearCareerCache() async {
+    await _careerCacheBox.clear();
   }
 }
