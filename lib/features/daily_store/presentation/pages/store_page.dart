@@ -144,23 +144,34 @@ class _StorePageState extends State<StorePage>
                                       child: Row(
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
-                                          if (profile.cardSmallArt != null)
-                                            ClipRRect(
-                                              borderRadius:
-                                                  BorderRadius.circular(8),
-                                              child: CachedNetworkImage(
-                                                imageUrl: profile.cardSmallArt!,
-                                                width: 18,
-                                                height: 18,
-                                                fit: BoxFit.cover,
-                                              ),
-                                            )
-                                          else
-                                            const Icon(
-                                              Icons.person_rounded,
-                                              size: 16,
-                                              color: AppTheme.valorantRed,
-                                            ),
+                                          Builder(
+                                            builder: (_) {
+                                              final miniArt = (profile.cardSmallArt != null && profile.cardSmallArt!.isNotEmpty)
+                                                  ? profile.cardSmallArt!
+                                                  : (profile.cardWideArt ?? profile.cardLargeArt);
+                                              if (miniArt != null && miniArt.isNotEmpty) {
+                                                return ClipRRect(
+                                                  borderRadius: BorderRadius.circular(8),
+                                                  child: CachedNetworkImage(
+                                                    imageUrl: miniArt,
+                                                    width: 18,
+                                                    height: 18,
+                                                    fit: BoxFit.cover,
+                                                    errorWidget: (_, __, ___) => const Icon(
+                                                      Icons.person_rounded,
+                                                      size: 16,
+                                                      color: AppTheme.valorantRed,
+                                                    ),
+                                                  ),
+                                                );
+                                              }
+                                              return const Icon(
+                                                Icons.person_rounded,
+                                                size: 16,
+                                                color: AppTheme.valorantRed,
+                                              );
+                                            },
+                                          ),
                                           const SizedBox(width: 6),
                                           Text(
                                             profile.displayName,
@@ -268,6 +279,9 @@ class _StorePageState extends State<StorePage>
                                         context
                                             .read<StoreCubit>()
                                             .fetchStore(forceRefresh: true);
+                                        context
+                                            .read<ProfileCubit>()
+                                            .loadProfile(forceRefresh: true);
                                       },
                                       icon: const Icon(
                                         Icons.refresh_rounded,

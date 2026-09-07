@@ -123,10 +123,15 @@ class _ActiveProfileCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final hasWideArt =
-        profile.cardWideArt != null && profile.cardWideArt!.isNotEmpty;
-    final hasSmallArt =
-        profile.cardSmallArt != null && profile.cardSmallArt!.isNotEmpty;
+    final effectiveWideArt = (profile.cardWideArt != null && profile.cardWideArt!.isNotEmpty)
+        ? profile.cardWideArt!
+        : (profile.cardLargeArt ?? '');
+    final effectiveSmallArt = (profile.cardSmallArt != null && profile.cardSmallArt!.isNotEmpty)
+        ? profile.cardSmallArt!
+        : (profile.cardWideArt ?? profile.cardLargeArt ?? '');
+
+    final hasWideArt = effectiveWideArt.isNotEmpty;
+    final hasSmallArt = effectiveSmallArt.isNotEmpty;
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
@@ -158,7 +163,7 @@ class _ActiveProfileCard extends StatelessWidget {
             if (hasWideArt)
               Positioned.fill(
                 child: CachedNetworkImage(
-                  imageUrl: profile.cardWideArt!,
+                  imageUrl: effectiveWideArt,
                   fit: BoxFit.cover,
                   alignment: Alignment.centerRight,
                   errorWidget: (_, __, ___) => const SizedBox.shrink(),
@@ -240,7 +245,7 @@ class _ActiveProfileCard extends StatelessWidget {
                               borderRadius: BorderRadius.circular(12),
                               child: hasSmallArt
                                   ? CachedNetworkImage(
-                                      imageUrl: profile.cardSmallArt!,
+                                      imageUrl: effectiveSmallArt,
                                       fit: BoxFit.cover,
                                       placeholder: (_, __) => Container(
                                         color: AppTheme.surfaceLight,

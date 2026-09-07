@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:valorant_store_tracker/core/error/failures.dart';
 import 'package:valorant_store_tracker/core/error/result.dart';
 import 'package:valorant_store_tracker/core/storage/local_store_service.dart';
@@ -27,18 +28,32 @@ class ProfileRepositoryImpl implements ProfileRepository {
     await _localStore.clearCachedProfile();
   }
 
+  static bool _isDefaultBanner(UserProfile profile) {
+    const defaultCardUuid = '9fb348bc-41a0-91ad-8a3e-818035c4e561';
+    final cardUuid = profile.cardUuid?.toLowerCase();
+    final cardName = profile.cardName?.toLowerCase();
+    final wideArt = profile.cardWideArt?.toLowerCase();
+
+    return cardUuid == defaultCardUuid ||
+        cardName == 'valorant card' ||
+        (wideArt != null && wideArt.contains(defaultCardUuid));
+  }
+
   @override
   Future<Result<UserProfile>> getUserProfile({bool forceRefresh = false}) async {
-    // 1. Return cached profile immediately if available and not forced
+    // 1. Return cached profile immediately if available, valid, and not forced
     if (!forceRefresh) {
       final cached = await _localStore.getCachedProfile();
       if (cached != null) {
+        final isDefaultBanner = _isDefaultBanner(cached);
         final isStaleOrPlaceholder = cached.gameName.isEmpty ||
             cached.gameName == cached.puuid.substring(0, 8) ||
             cached.cardWideArt == null ||
-            cached.cardWideArt!.isEmpty;
+            cached.cardWideArt!.isEmpty ||
+            isDefaultBanner;
+
         if (!isStaleOrPlaceholder) {
-          // Trigger background refresh silently
+          // Trigger background refresh silently to sync in-game changes
           _fetchAndCacheFreshProfile().ignore();
           return Result.success(cached);
         }
@@ -48,9 +63,54 @@ class ProfileRepositoryImpl implements ProfileRepository {
     return _fetchAndCacheFreshProfile();
   }
 
+  String? _extractPuuidFromJwt(String token) {
+    try {
+      final parts = token.split('.');
+      if (parts.length != 3) return null;
+      final normalized = base64Url.normalize(parts[1]);
+      final payloadJson = utf8.decode(base64Url.decode(normalized));
+      final payload = jsonDecode(payloadJson) as Map<String, dynamic>;
+      return payload['sub']?.toString();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  String? _findString(Map<String, dynamic> map, List<String> candidateKeys) {
+    for (final key in candidateKeys) {
+      if (map.containsKey(key) && map[key] != null) {
+        final val = map[key].toString().trim();
+        if (val.isNotEmpty) return val;
+      }
+    }
+    for (final entry in map.entries) {
+      final normalized = entry.key.toLowerCase().replaceAll('_', '').replaceAll('-', '');
+      for (final candidate in candidateKeys) {
+        if (normalized == candidate.toLowerCase().replaceAll('_', '').replaceAll('-', '')) {
+          if (entry.value != null) {
+            final val = entry.value.toString().trim();
+            if (val.isNotEmpty) return val;
+          }
+        }
+      }
+    }
+    return null;
+  }
+
   Future<Result<UserProfile>> _fetchAndCacheFreshProfile() async {
     try {
-      final puuid = await _storage.getPuuid();
+      var puuid = await _storage.getPuuid();
+      if (puuid == null || puuid.isEmpty) {
+        final token = await _storage.getAccessToken();
+        if (token != null && token.isNotEmpty) {
+          final extracted = _extractPuuidFromJwt(token);
+          if (extracted != null && extracted.isNotEmpty) {
+            puuid = extracted;
+            await _storage.setPuuid(puuid);
+          }
+        }
+      }
+
       final shard = await _storage.getShard() ?? 'ap';
       final region = await _storage.getRegion() ?? 'ap';
 
@@ -105,7 +165,7 @@ class ProfileRepositoryImpl implements ProfileRepository {
         await _storage.setShard(resolvedShard);
       }
 
-      // 2. Fetch Player Identity (Loadout / Equipped Player Card)
+      // 2. Fetch Player Identity (Equipped Player Card & Title)
       final identityRes = await _remoteDataSource.fetchPlayerIdentity(
         shard: resolvedShard,
         puuid: puuid,
@@ -117,17 +177,46 @@ class ProfileRepositoryImpl implements ProfileRepository {
       }
       final identityMap =
           identityRes['identity'] as Map<String, dynamic>? ?? {};
-      final rawCardUuid = (identityMap['PlayerCardID'] ??
-              identityMap['playerCardId'] ??
-              identityMap['PlayerCardId'] ??
-              identityMap['playercard_id'])
-          ?.toString();
-      final titleUuid = (identityMap['PlayerTitleID'] ??
-              identityMap['playerTitleId'] ??
-              identityMap['PlayerTitleId'] ??
-              identityMap['playertitle_id'])
-          ?.toString();
-      var accountLevel = (identityMap['AccountLevel'] as num?)?.toInt() ?? 1;
+
+      final rawCardUuid = _findString(identityMap, [
+        'PlayerCardID',
+        'playerCardId',
+        'PlayerCardId',
+        'playercard_id',
+        'player_card_id',
+        'cardId',
+        'CardID',
+        'cardUuid',
+        'CardUuid',
+        'uuid',
+        'PlayerCard',
+        'playerCard',
+      ]);
+
+      final titleUuid = _findString(identityMap, [
+        'PlayerTitleID',
+        'playerTitleId',
+        'PlayerTitleId',
+        'playertitle_id',
+        'player_title_id',
+        'titleId',
+        'TitleID',
+        'titleUuid',
+        'PlayerTitle',
+        'playerTitle',
+      ]);
+
+      var accountLevel = 1;
+      final levelRaw = identityMap['AccountLevel'] ??
+          identityMap['accountLevel'] ??
+          identityMap['account_level'] ??
+          identityMap['Level'] ??
+          identityMap['level'];
+      if (levelRaw is num) {
+        accountLevel = levelRaw.toInt();
+      } else if (levelRaw != null) {
+        accountLevel = int.tryParse(levelRaw.toString()) ?? 1;
+      }
 
       // 3. Fetch Account XP for detailed level
       var accountXp = 0;
@@ -146,22 +235,39 @@ class ProfileRepositoryImpl implements ProfileRepository {
         accountXp = (progress['XP'] as num?)?.toInt() ?? 0;
       }
 
-      // 4. Fetch Card Metadata from Valorant-API (with default fallback to Valorant Card)
-      final effectiveCardUuid = (rawCardUuid != null &&
-              rawCardUuid.isNotEmpty &&
-              rawCardUuid != '00000000-0000-0000-0000-000000000000')
-          ? rawCardUuid
-          : '9fb348bc-41a0-91ad-8a3e-818035c4e561';
+      // 4. Fetch Card Metadata from Valorant-API for the player's equipped in-game card
+      Map<String, dynamic>? cardData;
+      String? effectiveCardUuid;
 
-      var cardData = await _remoteDataSource.fetchPlayerCardDetails(effectiveCardUuid);
-      if (cardData == null && effectiveCardUuid != '9fb348bc-41a0-91ad-8a3e-818035c4e561') {
-        cardData = await _remoteDataSource.fetchPlayerCardDetails('9fb348bc-41a0-91ad-8a3e-818035c4e561');
+      if (rawCardUuid != null &&
+          rawCardUuid.isNotEmpty &&
+          rawCardUuid != '00000000-0000-0000-0000-000000000000') {
+        effectiveCardUuid = rawCardUuid;
+        cardData = await _remoteDataSource.fetchPlayerCardDetails(rawCardUuid);
+      }
+
+      // Fallback: If network failed to reach valorant-api, reuse previous non-default cached card
+      final cached = await _localStore.getCachedProfile();
+      if (cardData == null && cached != null && !_isDefaultBanner(cached) && cached.cardWideArt != null) {
+        cardData = {
+          'uuid': cached.cardUuid ?? effectiveCardUuid ?? '',
+          'displayName': cached.cardName ?? 'Player Card',
+          'smallArt': cached.cardSmallArt,
+          'wideArt': cached.cardWideArt,
+          'largeArt': cached.cardLargeArt,
+        };
+        effectiveCardUuid ??= cached.cardUuid;
       }
 
       // 5. Fetch Title Text from Valorant-API
       String? titleText;
-      if (titleUuid != null && titleUuid.isNotEmpty) {
+      if (titleUuid != null &&
+          titleUuid.isNotEmpty &&
+          titleUuid != '00000000-0000-0000-0000-000000000000') {
         titleText = await _remoteDataSource.fetchPlayerTitleText(titleUuid);
+      }
+      if (titleText == null && cached != null && cached.titleText != null) {
+        titleText = cached.titleText;
       }
 
       // 6. Fetch Wallet Balances (VP, RP, KC)
@@ -170,7 +276,9 @@ class ProfileRepositoryImpl implements ProfileRepository {
         puuid: puuid,
       );
 
-      final finalGameName = gameName.isNotEmpty ? gameName : (puuid.length > 8 ? puuid.substring(0, 8) : 'Agent');
+      final finalGameName = gameName.isNotEmpty
+          ? gameName
+          : (puuid.length > 8 ? puuid.substring(0, 8) : 'Agent');
 
       final profile = UserProfile(
         puuid: puuid,
@@ -192,7 +300,7 @@ class ProfileRepositoryImpl implements ProfileRepository {
         kingdomCredits: wallet['kc'] ?? 0,
       );
 
-      // Save to offline storage
+      // Save fresh profile to offline storage
       await _localStore.saveCachedProfile(profile);
 
       return Result.success(profile);

@@ -12,11 +12,18 @@ class ProfileCubit extends Cubit<ProfileState> {
 
   Future<void> loadProfile({bool forceRefresh = false}) async {
     final cached = await _profileRepository.getCachedProfile();
+    final isDefaultBanner = cached != null &&
+        (cached.cardUuid?.toLowerCase() == '9fb348bc-41a0-91ad-8a3e-818035c4e561' ||
+            cached.cardName?.toLowerCase() == 'valorant card' ||
+            (cached.cardWideArt != null &&
+                cached.cardWideArt!.toLowerCase().contains('9fb348bc-41a0-91ad-8a3e-818035c4e561')));
+
     final isStaleOrPlaceholder = cached != null &&
         (cached.gameName.isEmpty ||
             cached.gameName == cached.puuid.substring(0, 8) ||
             cached.cardWideArt == null ||
-            cached.cardWideArt!.isEmpty);
+            cached.cardWideArt!.isEmpty ||
+            isDefaultBanner);
 
     if (cached != null && !forceRefresh && !isStaleOrPlaceholder) {
       emit(ProfileLoaded(cached));

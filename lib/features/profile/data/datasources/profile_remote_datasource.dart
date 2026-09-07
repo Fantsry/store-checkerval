@@ -117,13 +117,37 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
     return {'gameName': '', 'tagLine': '', 'resolvedShard': shard};
   }
 
+  static String _normalizeShard(String shard) {
+    final s = shard.trim().toLowerCase();
+    switch (s) {
+      case 'latam':
+      case 'br':
+      case 'pbe':
+      case 'na':
+        return 'na';
+      case 'eu':
+        return 'eu';
+      case 'kr':
+        return 'kr';
+      case 'ap':
+      default:
+        return s.isNotEmpty ? s : 'ap';
+    }
+  }
+
   @override
   Future<Map<String, dynamic>> fetchPlayerIdentity({
     required String shard,
     required String puuid,
   }) async {
+    final cleanPuuid = puuid.trim();
+    if (cleanPuuid.isEmpty) {
+      return {'identity': <String, dynamic>{}, 'resolvedShard': shard};
+    }
+
+    final normalized = _normalizeShard(shard);
     final shardsToTry = {
-      if (shard.trim().isNotEmpty) shard.trim().toLowerCase(),
+      normalized,
       'ap',
       'eu',
       'na',
@@ -133,8 +157,16 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
     for (final s in shardsToTry) {
       try {
         final response = await _dio.get(
-          ApiConstants.playerLoadoutUrl(s, puuid),
+          ApiConstants.playerLoadoutUrl(s, cleanPuuid),
+          options: Options(
+            headers: {'Accept': 'application/json'},
+            validateStatus: (status) => status != null && status < 500,
+          ),
         );
+
+        if (response.statusCode != 200) {
+          continue;
+        }
 
         dynamic body = response.data;
         if (body is String) {
@@ -144,14 +176,30 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
         }
 
         if (body is Map) {
-          final identity = body['Identity'] ??
+          // Check standard Riot structure and any nested variations
+          dynamic identity = body['Identity'] ??
               body['identity'] ??
               body['PlayerIdentity'] ??
-              body['playerIdentity'] ??
-              body;
+              body['playerIdentity'];
+
+          if (identity == null && body['data'] is Map) {
+            identity = body['data']['Identity'] ??
+                body['data']['identity'] ??
+                body['data']['PlayerIdentity'];
+          }
+
+          if (identity == null && body['loadout'] is Map) {
+            identity = body['loadout']['Identity'] ??
+                body['loadout']['identity'];
+          }
+
+          // Fall back to root body if it directly holds identity fields
+          identity ??= body;
+
           if (identity is Map) {
+            final identityMap = Map<String, dynamic>.from(identity);
             return {
-              'identity': Map<String, dynamic>.from(identity),
+              'identity': identityMap,
               'resolvedShard': s,
             };
           }
@@ -169,8 +217,12 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
     required String shard,
     required String puuid,
   }) async {
+    final cleanPuuid = puuid.trim();
+    if (cleanPuuid.isEmpty) return {};
+
+    final normalized = _normalizeShard(shard);
     final shardsToTry = {
-      if (shard.trim().isNotEmpty) shard.trim().toLowerCase(),
+      normalized,
       'ap',
       'eu',
       'na',
@@ -180,8 +232,16 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
     for (final s in shardsToTry) {
       try {
         final response = await _dio.get(
-          ApiConstants.accountXpUrl(s, puuid),
+          ApiConstants.accountXpUrl(s, cleanPuuid),
+          options: Options(
+            headers: {'Accept': 'application/json'},
+            validateStatus: (status) => status != null && status < 500,
+          ),
         );
+
+        if (response.statusCode != 200) {
+          continue;
+        }
 
         dynamic body = response.data;
         if (body is String) {
@@ -206,12 +266,21 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
   @override
   Future<Map<String, dynamic>?> fetchPlayerCardDetails(String cardUuid) async {
     final cleanUuid = cardUuid.trim().toLowerCase();
-    if (cleanUuid.isEmpty) return null;
+    if (cleanUuid.isEmpty || cleanUuid == '00000000-0000-0000-0000-000000000000') {
+      return null;
+    }
 
     try {
       final response = await _dio.get(
         ApiConstants.playerCardUrl(cleanUuid),
+        options: Options(
+          validateStatus: (status) => status != null && status < 500,
+        ),
       );
+
+      if (response.statusCode != 200) {
+        return null;
+      }
 
       dynamic body = response.data;
       if (body is String) {
@@ -223,12 +292,20 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
       if (body is Map) {
         final data = body['data'] as Map?;
         if (data != null) {
+          final wide = data['wideArt']?.toString();
+          final large = data['largeArt']?.toString();
+          final small = data['smallArt']?.toString() ?? data['displayIcon']?.toString();
+
+          final effectiveWide = (wide != null && wide.isNotEmpty) ? wide : (large ?? small);
+          final effectiveSmall = (small != null && small.isNotEmpty) ? small : (wide ?? large);
+          final effectiveLarge = (large != null && large.isNotEmpty) ? large : (wide ?? small);
+
           return {
             'uuid': data['uuid']?.toString() ?? cleanUuid,
             'displayName': data['displayName']?.toString() ?? 'Player Card',
-            'smallArt': data['smallArt']?.toString() ?? data['displayIcon']?.toString(),
-            'wideArt': data['wideArt']?.toString(),
-            'largeArt': data['largeArt']?.toString(),
+            'smallArt': effectiveSmall,
+            'wideArt': effectiveWide,
+            'largeArt': effectiveLarge,
           };
         }
       }
@@ -247,7 +324,14 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
     try {
       final response = await _dio.get(
         ApiConstants.playerTitleUrl(cleanUuid),
+        options: Options(
+          validateStatus: (status) => status != null && status < 500,
+        ),
       );
+
+      if (response.statusCode != 200) {
+        return null;
+      }
 
       dynamic body = response.data;
       if (body is String) {
@@ -259,15 +343,14 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
       if (body is Map) {
         final data = body['data'] as Map?;
         if (data != null) {
-          final titleText = data['titleText']?.toString();
-          final displayName = data['displayName']?.toString();
-          return titleText ?? displayName;
+          return (data['titleText'] ?? data['displayName'])?.toString();
         }
       }
     } catch (_) {}
 
     return null;
   }
+
 
   @override
   Future<Map<String, int>> fetchWallet({
