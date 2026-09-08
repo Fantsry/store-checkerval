@@ -41,7 +41,7 @@ class LocalStoreService {
         final map = jsonDecode(value) as Map<String, dynamic>;
         var item = WishlistItem.fromJson(map);
 
-        // Self-heal items with inaccurate price or missing melee weapon tag
+        // Data-driven melee check
         final isMelee = SkinPriceHelper.isMelee(
           displayName: item.displayName,
           weaponName: item.weaponName,
@@ -56,10 +56,12 @@ class LocalStoreService {
             weaponName = 'Melee';
             needsUpdate = true;
           }
+          final livePrice = getLivePrice(item.uuid);
           final accuratePrice = SkinPriceHelper.calculateEstimatedPrice(
-            displayName: item.displayName,
             isMelee: true,
             tierName: item.tierName ?? 'Exclusive',
+            liveStorePrice: livePrice,
+            displayName: item.displayName,
           );
           if (cost != accuratePrice) {
             cost = accuratePrice;
@@ -103,10 +105,12 @@ class LocalStoreService {
       if (weaponName == null || weaponName.toLowerCase() == 'weapon') {
         weaponName = 'Melee';
       }
+      final livePrice = getLivePrice(item.uuid);
       final accuratePrice = SkinPriceHelper.calculateEstimatedPrice(
-        displayName: item.displayName,
         isMelee: true,
         tierName: item.tierName ?? 'Exclusive',
+        liveStorePrice: livePrice,
+        displayName: item.displayName,
       );
       if (cost <= 2175 || cost != accuratePrice) {
         cost = accuratePrice;
@@ -141,6 +145,18 @@ class LocalStoreService {
     await _wishlistBox.clear();
   }
 
+  // ─── Live Price Registry ───────────────────────────────────
+
+  int? getLivePrice(String uuid) {
+    final val = _skinsCacheBox.get('price_${uuid.toLowerCase()}');
+    if (val == null) return null;
+    return int.tryParse(val);
+  }
+
+  Future<void> saveLivePrice(String uuid, int price) async {
+    await _skinsCacheBox.put('price_${uuid.toLowerCase()}', price.toString());
+  }
+
   // ─── Skins Catalog Cache ───────────────────────────────────
 
   Future<List<SkinItem>?> getCachedSkins() async {
@@ -156,10 +172,12 @@ class LocalStoreService {
           weaponName: skin.weaponName,
         );
         if (isMelee) {
+          final livePrice = getLivePrice(skin.uuid);
           final expectedPrice = SkinPriceHelper.calculateEstimatedPrice(
-            displayName: skin.displayName,
             isMelee: true,
             tierName: skin.tierName ?? 'Exclusive',
+            liveStorePrice: livePrice,
+            displayName: skin.displayName,
           );
           final weapon = (skin.weaponName == null ||
                   skin.weaponName!.toLowerCase() == 'weapon')

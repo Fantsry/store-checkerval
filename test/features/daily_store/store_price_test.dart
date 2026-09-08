@@ -50,6 +50,8 @@ void main() {
     mockValorantApi = MockValorantApiRemoteDataSource();
     mockSecureStorage = MockSecureStorageService();
     mockLocalStore = MockLocalStoreService();
+    when(() => mockLocalStore.saveLivePrice(any(), any()))
+        .thenAnswer((_) async => {});
 
     repository = StoreRepositoryImpl(
       riotRemoteDataSource: mockRiotRemote,
@@ -111,114 +113,108 @@ void main() {
   });
 
   group('SkinPriceHelper Tests', () {
-    test('accurately identifies non-traditional melee weapons', () {
+    test('accurately identifies melee weapons from API category, weaponName, and assetPath', () {
+      // 1. From category in API
       expect(
-        SkinPriceHelper.isMelee(displayName: 'Phaseguard Splitter'),
+        SkinPriceHelper.isMelee(category: 'EEquippableCategory::Melee'),
         isTrue,
       );
-      expect(
-        SkinPriceHelper.isMelee(displayName: 'Power Fist'),
-        isTrue,
-      );
-      expect(
-        SkinPriceHelper.isMelee(displayName: 'Nocturnum Scythe'),
-        isTrue,
-      );
-      expect(
-        SkinPriceHelper.isMelee(displayName: 'Waveform'),
-        isTrue,
-      );
-      expect(
-        SkinPriceHelper.isMelee(displayName: 'VCT LOCK//IN Misericórdia'),
-        isTrue,
-      );
-      expect(
-        SkinPriceHelper.isMelee(displayName: 'Emberclad Hammer'),
-        isTrue,
-      );
-    });
 
-    test('does not misclassify guns ending with gun suffixes', () {
+      // 2. From weaponName in API
       expect(
-        SkinPriceHelper.isMelee(displayName: 'Phaseguard Vandal'),
-        isFalse,
+        SkinPriceHelper.isMelee(weaponName: 'Melee'),
+        isTrue,
+      );
+
+      // 3. From engine assetPath
+      expect(
+        SkinPriceHelper.isMelee(
+          assetPath: 'ShooterGame/Content/Equippables/Melee/Commando/Melee_Commando_PrimaryAsset',
+        ),
+        isTrue,
       );
       expect(
-        SkinPriceHelper.isMelee(displayName: 'Infantry Ghost'),
-        isFalse,
+        SkinPriceHelper.isMelee(
+          assetPath: 'ShooterGame/Content/Equippables/Melee/Arcade/Melee_Arcade_PrimaryAsset',
+        ),
+        isTrue,
       );
+
+      // 4. Guns are not melee
       expect(
-        SkinPriceHelper.isMelee(displayName: 'Xerøfang Ghost'),
-        isFalse,
-      );
-      expect(
-        SkinPriceHelper.isMelee(displayName: 'Combat Crafts Frenzy'),
-        isFalse,
-      );
-      expect(
-        SkinPriceHelper.isMelee(displayName: 'Arcane Sheriff'),
+        SkinPriceHelper.isMelee(
+          category: 'EEquippableCategory::Rifle',
+          weaponName: 'Vandal',
+          assetPath: 'ShooterGame/Content/Equippables/Guns/Rifles/AK/AssaultRifle_AK_PrimaryAsset',
+        ),
         isFalse,
       );
     });
 
-    test('accurately prices Phaseguard Splitter at 5350 VP', () {
-      final price = SkinPriceHelper.calculateEstimatedPrice(
-        displayName: 'Phaseguard Splitter',
-        isMelee: true,
-        tierName: 'Exclusive',
+    test('accurately prices Melee based on Content Tier data', () {
+      // Exclusive Melee (e.g. Phaseguard Splitter, Kuronami)
+      expect(
+        SkinPriceHelper.calculateEstimatedPrice(
+          isMelee: true,
+          tierName: 'Exclusive',
+        ),
+        equals(5350),
       );
-      expect(price, equals(5350));
+
+      // Premium Melee (e.g. Reaver Knife)
+      expect(
+        SkinPriceHelper.calculateEstimatedPrice(
+          isMelee: true,
+          tierName: 'Premium',
+        ),
+        equals(3550),
+      );
+
+      // Deluxe Melee (e.g. Prism Knife)
+      expect(
+        SkinPriceHelper.calculateEstimatedPrice(
+          isMelee: true,
+          tierName: 'Deluxe',
+        ),
+        equals(2550),
+      );
+
+      // Select Melee (e.g. Luxe Knife)
+      expect(
+        SkinPriceHelper.calculateEstimatedPrice(
+          isMelee: true,
+          tierName: 'Select',
+        ),
+        equals(1750),
+      );
     });
 
-    test('accurately prices Power Fist at 5950 VP', () {
-      final price = SkinPriceHelper.calculateEstimatedPrice(
-        displayName: 'Power Fist',
-        isMelee: true,
-        tierName: 'Exclusive',
+    test('uses live storefront price from Riot when available', () {
+      expect(
+        SkinPriceHelper.calculateEstimatedPrice(
+          isMelee: true,
+          tierName: 'Exclusive',
+          liveStorePrice: 5950,
+        ),
+        equals(5950),
       );
-      expect(price, equals(5950));
-    });
-
-    test('accurately prices standard Exclusive melee at 4350 VP', () {
-      final price = SkinPriceHelper.calculateEstimatedPrice(
-        displayName: 'Araxys Bio-Harvester',
-        isMelee: true,
-        tierName: 'Exclusive',
-      );
-      expect(price, equals(4350));
-    });
-
-    test('accurately prices VCT LOCK//IN Misericórdia at 5440 VP', () {
-      final price = SkinPriceHelper.calculateEstimatedPrice(
-        displayName: 'VCT LOCK//IN Misericórdia',
-        isMelee: true,
-        tierName: 'Exclusive',
-      );
-      expect(price, equals(5440));
-    });
-
-    test('accurately prices Ultra Edition melee at 4950 VP', () {
-      final price = SkinPriceHelper.calculateEstimatedPrice(
-        displayName: "Evori's Spellcaster",
-        isMelee: true,
-        tierName: 'Ultra',
-      );
-      expect(price, equals(4950));
     });
   });
 
-  group('getSkinDetail Self-Healing Tests', () {
-    test('heals Phaseguard Splitter with 5350 VP and Melee weapon tag', () async {
+  group('getSkinDetail Data-Driven Self-Healing Tests', () {
+    test('heals Phaseguard Splitter with 5350 VP and Melee weapon tag from tier data', () async {
       const stalePhaseguard = SkinItem(
         uuid: 'phaseguard-uuid',
         displayName: 'Phaseguard Splitter',
-        weaponName: 'Weapon',
+        weaponName: 'Melee',
         cost: 2175,
         tierName: 'Exclusive',
       );
 
       when(() => mockLocalStore.getCachedSkins())
           .thenAnswer((_) async => [stalePhaseguard]);
+      when(() => mockLocalStore.getLivePrice('phaseguard-uuid'))
+          .thenReturn(null);
 
       final result = await repository.getSkinDetail('phaseguard-uuid');
       expect(result.isSuccess, isTrue);
@@ -227,17 +223,19 @@ void main() {
       expect(skin.weaponName, equals('Melee'));
     });
 
-    test('heals Power Fist with 5950 VP and Melee weapon tag', () async {
+    test('heals Power Fist with live storefront price when recorded', () async {
       const stalePowerFist = SkinItem(
         uuid: 'power-fist-uuid',
         displayName: 'Power Fist',
-        weaponName: null,
+        weaponName: 'Melee',
         cost: 2175,
         tierName: 'Exclusive',
       );
 
       when(() => mockLocalStore.getCachedSkins())
           .thenAnswer((_) async => [stalePowerFist]);
+      when(() => mockLocalStore.getLivePrice('power-fist-uuid'))
+          .thenReturn(5950);
 
       final result = await repository.getSkinDetail('power-fist-uuid');
       expect(result.isSuccess, isTrue);

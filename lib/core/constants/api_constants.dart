@@ -113,6 +113,7 @@ class ApiConstants {
   // ─── Valorant API (Community — Skin & Game metadata) ─────────
   static const String valorantApiBaseUrl = 'https://valorant-api.com/v1';
   static const String valorantApiVersion = '$valorantApiBaseUrl/version';
+  static const String valorantApiWeapons = '$valorantApiBaseUrl/weapons';
   static const String valorantApiWeaponSkins =
       '$valorantApiBaseUrl/weapons/skins';
   static const String valorantApiWeaponSkinLevels =

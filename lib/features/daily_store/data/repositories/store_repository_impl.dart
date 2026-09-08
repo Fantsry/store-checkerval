@@ -138,13 +138,16 @@ class StoreRepositoryImpl implements StoreRepository {
               final rId = rewards.first['ItemID']?.toString().toLowerCase();
               if (rId != null) {
                 itemPrices[rId] = price;
+                _localStore.saveLivePrice(rId, price);
 
                 // Cross-index with catalog skin item and all its levels
                 final s = skinMap[rId] ?? levelToSkinMap[rId];
                 if (s != null) {
                   itemPrices[s.uuid.toLowerCase()] = price;
+                  _localStore.saveLivePrice(s.uuid, price);
                   for (final lvl in s.levels) {
                     itemPrices[lvl.uuid.toLowerCase()] = price;
+                    _localStore.saveLivePrice(lvl.uuid, price);
                   }
                 }
               }
@@ -520,10 +523,12 @@ class StoreRepositoryImpl implements StoreRepository {
             weaponName: s.weaponName,
           );
           if (isMelee) {
+            final livePrice = _localStore.getLivePrice(s.uuid);
             final expectedPrice = SkinPriceHelper.calculateEstimatedPrice(
-              displayName: s.displayName,
               isMelee: true,
               tierName: s.tierName ?? 'Exclusive',
+              liveStorePrice: livePrice,
+              displayName: s.displayName,
             );
             final weapon = (s.weaponName == null || s.weaponName!.toLowerCase() == 'weapon')
                 ? 'Melee'

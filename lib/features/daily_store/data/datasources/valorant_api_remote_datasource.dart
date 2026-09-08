@@ -47,147 +47,122 @@ class ValorantApiRemoteDataSourceImpl implements ValorantApiRemoteDataSource {
     try {
       final tiers = await getContentTiers();
 
+      // Fetch official weapons hierarchy from valorant-api.com/v1/weapons
+      // This groups every skin under its authentic weapon parent and category directly from the data.
       final response = await _dio.get(
-        ApiConstants.valorantApiWeaponSkins,
+        ApiConstants.valorantApiWeapons,
         queryParameters: {'language': 'en-US'},
       );
 
-      final data = response.data['data'] as List<dynamic>? ?? [];
+      final weaponsData = response.data['data'] as List<dynamic>? ?? [];
       final result = <SkinItem>[];
 
-      for (final raw in data) {
-        if (raw is! Map<String, dynamic>) continue;
+      for (final weaponRaw in weaponsData) {
+        if (weaponRaw is! Map<String, dynamic>) continue;
 
-        final uuid = raw['uuid'] as String? ?? '';
-        final displayName = raw['displayName'] as String? ?? '';
-        final displayIcon = raw['displayIcon'] as String?;
-        final contentTierUuid = raw['contentTierUuid'] as String?;
+        final rawWeaponName = weaponRaw['displayName'] as String? ?? 'Weapon';
+        final rawCategory = weaponRaw['category'] as String? ?? '';
+        final isMeleeWeapon = rawCategory.toLowerCase().contains('melee') ||
+            rawWeaponName.toLowerCase() == 'melee';
+        final effectiveWeaponName = isMeleeWeapon ? 'Melee' : rawWeaponName;
 
-        // Ignore standard base weapons without skin styling
-        if (displayName.toLowerCase().contains('standard') ||
-            displayName.toLowerCase().contains('random')) {
-          continue;
-        }
+        final skins = weaponRaw['skins'] as List<dynamic>? ?? [];
 
-        // Tier info
-        final tierInfo = tiers[contentTierUuid];
-        final tierName = tierInfo?['name'] as String? ?? 'Select';
-        final tierColor = tierInfo?['color'] as String? ?? '5A9FE2';
-        final tierIcon = tierInfo?['icon'] as String?;
+        for (final raw in skins) {
+          if (raw is! Map<String, dynamic>) continue;
 
-        // Accurate melee detection and price calculation
-        final assetPath = raw['assetPath'] as String? ?? '';
-        final isMelee = SkinPriceHelper.isMelee(
-          displayName: displayName,
-          assetPath: assetPath,
-        );
+          final uuid = raw['uuid'] as String? ?? '';
+          final displayName = raw['displayName'] as String? ?? '';
+          final displayIcon = raw['displayIcon'] as String?;
+          final contentTierUuid = raw['contentTierUuid'] as String?;
 
-        final estimatedCost = SkinPriceHelper.calculateEstimatedPrice(
-          displayName: displayName,
-          isMelee: isMelee,
-          tierName: tierName,
-        );
+          // Ignore standard base weapons without skin styling
+          if (displayName.toLowerCase().contains('standard') ||
+              displayName.toLowerCase().contains('random')) {
+            continue;
+          }
 
-        // Chromas
-        final chromasRaw = raw['chromas'] as List<dynamic>? ?? [];
-        final chromas = chromasRaw.map((c) {
-          return SkinChroma(
-            uuid: c['uuid'] as String? ?? '',
-            displayName: c['displayName'] as String? ?? '',
-            displayIcon: c['displayIcon'] as String?,
-            fullRender: c['fullRender'] as String?,
-            streamedVideo: c['streamedVideo'] as String?,
+          // Tier info from contentTier data
+          final tierInfo = tiers[contentTierUuid];
+          final tierName = tierInfo?['name'] as String? ?? 'Select';
+          final tierColor = tierInfo?['color'] as String? ?? '5A9FE2';
+          final tierIcon = tierInfo?['icon'] as String?;
+
+          final estimatedCost = SkinPriceHelper.calculateEstimatedPrice(
+            isMelee: isMeleeWeapon,
+            tierName: tierName,
+            displayName: displayName,
           );
-        }).toList();
 
-        // Levels
-        final levelsRaw = raw['levels'] as List<dynamic>? ?? [];
-        final levels = levelsRaw.map((l) {
-          return SkinLevel(
-            uuid: l['uuid'] as String? ?? '',
-            displayName: l['displayName'] as String? ?? '',
-            levelItem: l['levelItem'] as String?,
-            displayIcon: l['displayIcon'] as String?,
-            streamedVideo: l['streamedVideo'] as String?,
-          );
-        }).toList();
+          // Chromas
+          final chromasRaw = raw['chromas'] as List<dynamic>? ?? [];
+          final chromas = chromasRaw.map((c) {
+            return SkinChroma(
+              uuid: c['uuid'] as String? ?? '',
+              displayName: c['displayName'] as String? ?? '',
+              displayIcon: c['displayIcon'] as String?,
+              fullRender: c['fullRender'] as String?,
+              streamedVideo: c['streamedVideo'] as String?,
+            );
+          }).toList();
 
-        // Extract weapon name from display name (e.g. "Prime Vandal" -> "Vandal", Melee skins -> "Melee")
-        String? weapon;
-        if (isMelee) {
-          weapon = 'Melee';
-        } else {
-          final weapons = [
-            'Vandal',
-            'Phantom',
-            'Operator',
-            'Sheriff',
-            'Ghost',
-            'Classic',
-            'Spectre',
-            'Odin',
-            'Ares',
-            'Judge',
-            'Bucky',
-            'Marshal',
-            'Outlaw',
-            'Bulldog',
-            'Guardian',
-            'Stinger',
-            'Frenzy',
-            'Shorty',
-          ];
-          for (final w in weapons) {
-            if (displayName.toLowerCase().contains(w.toLowerCase())) {
-              weapon = w;
+          // Levels
+          final levelsRaw = raw['levels'] as List<dynamic>? ?? [];
+          final levels = levelsRaw.map((l) {
+            return SkinLevel(
+              uuid: l['uuid'] as String? ?? '',
+              displayName: l['displayName'] as String? ?? '',
+              levelItem: l['levelItem'] as String?,
+              displayIcon: l['displayIcon'] as String?,
+              streamedVideo: l['streamedVideo'] as String?,
+            );
+          }).toList();
+
+          // Get preview video if any level has it
+          String? videoUrl;
+          for (final lvl in levels) {
+            if (lvl.streamedVideo != null && lvl.streamedVideo!.isNotEmpty) {
+              videoUrl = lvl.streamedVideo;
               break;
             }
           }
-        }
 
-        // Get preview video if any level has it
-        String? videoUrl;
-        for (final lvl in levels) {
-          if (lvl.streamedVideo != null && lvl.streamedVideo!.isNotEmpty) {
-            videoUrl = lvl.streamedVideo;
-            break;
+          // Get icon from chromas if displayIcon is null
+          String? icon = displayIcon;
+          if (icon == null && chromas.isNotEmpty) {
+            icon = chromas.first.displayIcon ?? chromas.first.fullRender;
           }
-        }
 
-        // Get icon from chromas if displayIcon is null
-        String? icon = displayIcon;
-        if (icon == null && chromas.isNotEmpty) {
-          icon = chromas.first.displayIcon ?? chromas.first.fullRender;
+          result.add(
+            SkinItem(
+              uuid: uuid,
+              displayName: displayName,
+              displayIcon: icon,
+              weaponName: effectiveWeaponName,
+              cost: estimatedCost,
+              contentTierUuid: contentTierUuid,
+              tierName: tierName,
+              tierColor: tierColor,
+              tierIcon: tierIcon,
+              streamedVideo: videoUrl,
+              chromas: chromas,
+              levels: levels,
+            ),
+          );
         }
-
-        result.add(
-          SkinItem(
-            uuid: uuid,
-            displayName: displayName,
-            displayIcon: icon,
-            weaponName: weapon ?? 'Weapon',
-            cost: estimatedCost,
-            contentTierUuid: contentTierUuid,
-            tierName: tierName,
-            tierColor: tierColor,
-            tierIcon: tierIcon,
-            streamedVideo: videoUrl,
-            chromas: chromas,
-            levels: levels,
-          ),
-        );
       }
 
       return result;
     } on DioException catch (e) {
       throw ServerException(
-        message: e.message ?? 'Failed to fetch skins from Valorant API',
+        message: e.message ?? 'Failed to load weapon skins',
         statusCode: e.response?.statusCode,
       );
     } catch (e) {
-      throw ServerException(message: 'Error parsing skin catalog: $e');
+      throw ServerException(message: e.toString());
     }
   }
+
 
   @override
   Future<Map<String, Map<String, dynamic>>> getBundlesMetadata() async {
