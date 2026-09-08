@@ -78,7 +78,10 @@ class InventoryRepositoryImpl implements InventoryRepository {
       final futures = await Future.wait<dynamic>([
         _remoteDataSource.fetchSkinEntitlements(shard: shard, puuid: puuid),
         _remoteDataSource.fetchPlayerLoadout(shard: shard, puuid: puuid),
-        _valorantApiDataSource.getWeaponSkins(),
+        _valorantApiDataSource.getWeaponSkins().catchError((_) async {
+          final cached = await _localStore.getCachedSkins();
+          return cached ?? <SkinItem>[];
+        }),
         _remoteDataSource.fetchWeaponsMetadata(),
       ]);
 
@@ -231,8 +234,18 @@ class InventoryRepositoryImpl implements InventoryRepository {
         } catch (_) {}
       }
 
+      final errorMsg = e.toString();
+      if (errorMsg.contains('401') ||
+          errorMsg.toLowerCase().contains('unauthorized')) {
+        return const Result.failure(
+          AuthFailure(message: 'Session expired. Please sign in again.'),
+        );
+      }
+
       return Result.failure(
-        ServerFailure(message: 'Failed to calculate account inventory: $e'),
+        ServerFailure(
+          message: 'Failed to calculate account inventory: ${e.toString().replaceAll(RegExp(r'DioException.*?:'), '').trim()}',
+        ),
       );
     }
   }

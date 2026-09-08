@@ -77,7 +77,9 @@ class ApiConstants {
 
   // ─── Inventory / Entitlements & Contracts (Riot PVP) ─────────
   static const String weaponSkinItemTypeId =
-      'e7c633d8-b96c-4863-8406-3f1ee677b945';
+      'e7c63390-eda7-46e0-bb7a-a6abdacd2433';
+  static const String skinChromaItemTypeId =
+      '3ad1b2b2-acdb-4524-852f-954a76ddae0a';
 
   static String entitlementsUrl(
     String shard,
@@ -87,7 +89,7 @@ class ApiConstants {
       '${storeBaseUrl(shard)}/store/v1/entitlements/$puuid/$itemTypeId';
 
   static String contractsUrl(String shard, String puuid) =>
-      '${storeBaseUrl(shard)}/contract-service/v1/contracts/$puuid';
+      '${storeBaseUrl(shard)}/contracts/v1/contracts/$puuid';
 
   // ─── Live Game / GLZ Endpoints (Pre-Game & Core-Game) ───────
   static String glzBaseUrl(String region, String shard) {

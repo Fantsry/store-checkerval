@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:valorant_store_tracker/core/constants/api_constants.dart';
 
@@ -43,12 +44,40 @@ class ContractsRemoteDataSourceImpl implements ContractsRemoteDataSource {
     required String shard,
     required String puuid,
   }) async {
-    final normShard = _normalizeShard(shard);
-    final url = ApiConstants.contractsUrl(normShard, puuid);
+    final cleanPuuid = puuid.trim();
+    if (cleanPuuid.isEmpty) return null;
 
-    final response = await _dio.get(url);
-    if (response.statusCode == 200 && response.data != null) {
-      return response.data as Map<String, dynamic>;
+    final normShard = _normalizeShard(shard);
+    final shardsToTry = {
+      if (normShard.isNotEmpty) normShard,
+      'ap',
+      'eu',
+      'na',
+      'kr',
+    }.toList();
+
+    for (final s in shardsToTry) {
+      try {
+        final url = ApiConstants.contractsUrl(s, cleanPuuid);
+        final response = await _dio.get(
+          url,
+          options: Options(
+            validateStatus: (status) => status != null && status < 500,
+          ),
+        );
+
+        if (response.statusCode == 200 && response.data != null) {
+          dynamic raw = response.data;
+          if (raw is String) {
+            try {
+              raw = jsonDecode(raw);
+            } catch (_) {}
+          }
+          if (raw is Map) {
+            return Map<String, dynamic>.from(raw);
+          }
+        }
+      } catch (_) {}
     }
     return null;
   }

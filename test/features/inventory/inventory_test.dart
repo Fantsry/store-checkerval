@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:valorant_store_tracker/core/constants/api_constants.dart';
 import 'package:valorant_store_tracker/core/error/result.dart';
 import 'package:valorant_store_tracker/features/inventory/domain/entities/inventory_overview.dart';
 import 'package:valorant_store_tracker/features/inventory/domain/repositories/inventory_repository.dart';
@@ -132,6 +133,32 @@ void main() {
       expect(
         (cubit.state as InventoryLoaded).filteredSkins.first.displayName,
         equals('Prime Vandal'),
+      );
+    });
+  });
+
+  group('Inventory API Constants & Endpoints', () {
+    test('weaponSkinItemTypeId matches official Riot Games skins UUID', () {
+      expect(
+        ApiConstants.weaponSkinItemTypeId,
+        equals('e7c63390-eda7-46e0-bb7a-a6abdacd2433'),
+      );
+    });
+
+    test('skinChromaItemTypeId matches official Riot Games chromas UUID', () {
+      expect(
+        ApiConstants.skinChromaItemTypeId,
+        equals('3ad1b2b2-acdb-4524-852f-954a76ddae0a'),
+      );
+    });
+
+    test('entitlementsUrl constructs valid Riot PVP endpoint', () {
+      final url = ApiConstants.entitlementsUrl('ap', 'test-puuid');
+      expect(
+        url,
+        equals(
+          'https://pd.ap.a.pvp.net/store/v1/entitlements/test-puuid/e7c63390-eda7-46e0-bb7a-a6abdacd2433',
+        ),
       );
     });
   });

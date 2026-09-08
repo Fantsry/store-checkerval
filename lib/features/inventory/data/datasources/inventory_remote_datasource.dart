@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:valorant_store_tracker/core/constants/api_constants.dart';
 
@@ -44,29 +45,122 @@ class InventoryRemoteDataSourceImpl implements InventoryRemoteDataSource {
     required String shard,
     required String puuid,
   }) async {
-    final normShard = _normalizeShard(shard);
-    final url = ApiConstants.entitlementsUrl(normShard, puuid);
+    final cleanPuuid = puuid.trim();
+    if (cleanPuuid.isEmpty) return [];
 
-    final response = await _dio.get(url);
-    if (response.statusCode == 200 && response.data != null) {
-      final data = response.data;
-      final entitlementsByTypes =
-          data['EntitlementsByTypes'] as List<dynamic>? ?? [];
+    final normalized = _normalizeShard(shard);
+    final shardsToTry = {
+      if (normalized.isNotEmpty) normalized,
+      'ap',
+      'eu',
+      'na',
+      'kr',
+    }.toList();
 
-      final List<String> itemIds = [];
-      for (final typeEntry in entitlementsByTypes) {
+    final List<String> itemIds = [];
+
+    for (final s in shardsToTry) {
+      try {
+        final url = ApiConstants.entitlementsUrl(
+          s,
+          cleanPuuid,
+          itemTypeId: ApiConstants.weaponSkinItemTypeId,
+        );
+
+        final response = await _dio.get(
+          url,
+          options: Options(
+            validateStatus: (status) => status != null && status < 500,
+          ),
+        );
+
+        if (response.statusCode == 200 && response.data != null) {
+          _extractItemIds(response.data, itemIds);
+
+          // Also try fetching skin variants/chromas on the same active shard
+          try {
+            final chromaUrl = ApiConstants.entitlementsUrl(
+              s,
+              cleanPuuid,
+              itemTypeId: ApiConstants.skinChromaItemTypeId,
+            );
+            final chromaResponse = await _dio.get(
+              chromaUrl,
+              options: Options(
+                validateStatus: (status) => status != null && status < 500,
+              ),
+            );
+            if (chromaResponse.statusCode == 200 &&
+                chromaResponse.data != null) {
+              _extractItemIds(chromaResponse.data, itemIds);
+            }
+          } catch (_) {}
+
+          // Successfully retrieved entitlements from this active shard
+          return itemIds.toSet().toList();
+        }
+      } catch (_) {}
+    }
+
+    return itemIds.toSet().toList();
+  }
+
+  static void _extractItemIds(dynamic data, List<String> out) {
+    if (data == null) return;
+    dynamic json = data;
+    if (json is String) {
+      try {
+        json = jsonDecode(json);
+      } catch (_) {
+        return;
+      }
+    }
+    if (json is! Map) return;
+
+    final byTypes = json['EntitlementsByTypes'];
+    if (byTypes is List) {
+      for (final typeEntry in byTypes) {
         if (typeEntry is Map) {
-          final entitlements = typeEntry['Entitlements'] as List<dynamic>? ?? [];
+          final entitlements =
+              typeEntry['Entitlements'] as List<dynamic>? ?? [];
           for (final e in entitlements) {
-            if (e is Map && e['ItemID'] != null) {
-              itemIds.add(e['ItemID'].toString().toLowerCase());
+            if (e is Map) {
+              final id = e['ItemID'] ?? e['itemId'] ?? e['ItemTypeId'];
+              if (id != null) {
+                out.add(id.toString().toLowerCase());
+              }
             }
           }
         }
       }
-      return itemIds;
+    } else if (byTypes is Map) {
+      for (final typeEntry in byTypes.values) {
+        if (typeEntry is Map) {
+          final entitlements =
+              typeEntry['Entitlements'] as List<dynamic>? ?? [];
+          for (final e in entitlements) {
+            if (e is Map) {
+              final id = e['ItemID'] ?? e['itemId'];
+              if (id != null) {
+                out.add(id.toString().toLowerCase());
+              }
+            }
+          }
+        }
+      }
     }
-    return [];
+
+    final topEntitlements = json['Entitlements'];
+    if (topEntitlements is List) {
+      for (final e in topEntitlements) {
+        if (e is Map) {
+          final id = e['ItemID'] ?? e['itemId'];
+          if (id != null) {
+            out.add(id.toString().toLowerCase());
+          }
+        }
+      }
+    }
   }
 
   @override
@@ -74,12 +168,40 @@ class InventoryRemoteDataSourceImpl implements InventoryRemoteDataSource {
     required String shard,
     required String puuid,
   }) async {
-    final normShard = _normalizeShard(shard);
-    final url = ApiConstants.playerLoadoutUrl(normShard, puuid);
+    final cleanPuuid = puuid.trim();
+    if (cleanPuuid.isEmpty) return null;
 
-    final response = await _dio.get(url);
-    if (response.statusCode == 200 && response.data != null) {
-      return response.data as Map<String, dynamic>;
+    final normalized = _normalizeShard(shard);
+    final shardsToTry = {
+      if (normalized.isNotEmpty) normalized,
+      'ap',
+      'eu',
+      'na',
+      'kr',
+    }.toList();
+
+    for (final s in shardsToTry) {
+      try {
+        final url = ApiConstants.playerLoadoutUrl(s, cleanPuuid);
+        final response = await _dio.get(
+          url,
+          options: Options(
+            validateStatus: (status) => status != null && status < 500,
+          ),
+        );
+
+        if (response.statusCode == 200 && response.data != null) {
+          dynamic raw = response.data;
+          if (raw is String) {
+            try {
+              raw = jsonDecode(raw);
+            } catch (_) {}
+          }
+          if (raw is Map) {
+            return Map<String, dynamic>.from(raw);
+          }
+        }
+      } catch (_) {}
     }
     return null;
   }
