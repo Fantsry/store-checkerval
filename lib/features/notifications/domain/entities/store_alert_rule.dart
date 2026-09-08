@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'package:valorant_store_tracker/core/utils/skin_price_helper.dart';
 import 'package:valorant_store_tracker/features/daily_store/domain/entities/skin_item.dart';
 
 class StoreAlertRule extends Equatable {
@@ -39,21 +40,10 @@ class StoreAlertRule extends Equatable {
     if (targetWeapon == 'any') {
       weaponMatches = true;
     } else if (targetWeapon == 'melee') {
-      const meleeAliases = [
-        'melee',
-        'knife',
-        'blade',
-        'sword',
-        'axe',
-        'dagger',
-        'karambit',
-        'scythe',
-        'mace',
-        'bat',
-        'fan',
-      ];
-      weaponMatches = meleeAliases.contains(w) ||
-          meleeAliases.any((alias) => name.contains(alias));
+      weaponMatches = SkinPriceHelper.isMelee(
+        displayName: skin.displayName,
+        weaponName: skin.weaponName,
+      );
     } else {
       weaponMatches = w == targetWeapon || name.contains(targetWeapon);
     }

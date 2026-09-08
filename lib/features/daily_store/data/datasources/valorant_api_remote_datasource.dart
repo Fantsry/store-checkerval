@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:valorant_store_tracker/core/constants/api_constants.dart';
 import 'package:valorant_store_tracker/core/error/exceptions.dart';
+import 'package:valorant_store_tracker/core/utils/skin_price_helper.dart';
 import 'package:valorant_store_tracker/features/daily_store/domain/entities/skin_item.dart';
 
 abstract class ValorantApiRemoteDataSource {
@@ -74,25 +75,18 @@ class ValorantApiRemoteDataSourceImpl implements ValorantApiRemoteDataSource {
         final tierColor = tierInfo?['color'] as String? ?? '5A9FE2';
         final tierIcon = tierInfo?['icon'] as String?;
 
-        // Default cost estimation based on content tier if not provided by storefront
-        final isMelee = displayName.toLowerCase().contains('melee') ||
-            displayName.toLowerCase().contains('knife') ||
-            displayName.toLowerCase().contains('blade') ||
-            displayName.toLowerCase().contains('sword') ||
-            displayName.toLowerCase().contains('axe') ||
-            displayName.toLowerCase().contains('dagger') ||
-            displayName.toLowerCase().contains('karambit');
+        // Accurate melee detection and price calculation
+        final assetPath = raw['assetPath'] as String? ?? '';
+        final isMelee = SkinPriceHelper.isMelee(
+          displayName: displayName,
+          assetPath: assetPath,
+        );
 
-        int estimatedCost = isMelee ? 3550 : 1775;
-        if (tierName.contains('Ultra') || tierName.contains('Exclusive')) {
-          estimatedCost = isMelee ? 5350 : 2175;
-        } else if (tierName.contains('Premium')) {
-          estimatedCost = isMelee ? 3550 : 1775;
-        } else if (tierName.contains('Deluxe')) {
-          estimatedCost = isMelee ? 2550 : 1275;
-        } else if (tierName.contains('Select')) {
-          estimatedCost = isMelee ? 1750 : 875;
-        }
+        final estimatedCost = SkinPriceHelper.calculateEstimatedPrice(
+          displayName: displayName,
+          isMelee: isMelee,
+          tierName: tierName,
+        );
 
         // Chromas
         final chromasRaw = raw['chromas'] as List<dynamic>? ?? [];
@@ -118,10 +112,11 @@ class ValorantApiRemoteDataSourceImpl implements ValorantApiRemoteDataSource {
           );
         }).toList();
 
-        // Extract weapon name from display name (e.g. "Prime Vandal" -> "Vandal")
+        // Extract weapon name from display name (e.g. "Prime Vandal" -> "Vandal", Melee skins -> "Melee")
         String? weapon;
-        final words = displayName.split(' ');
-        if (words.isNotEmpty) {
+        if (isMelee) {
+          weapon = 'Melee';
+        } else {
           final weapons = [
             'Vandal',
             'Phantom',
@@ -141,13 +136,6 @@ class ValorantApiRemoteDataSourceImpl implements ValorantApiRemoteDataSource {
             'Stinger',
             'Frenzy',
             'Shorty',
-            'Melee',
-            'Knife',
-            'Blade',
-            'Sword',
-            'Axe',
-            'Dagger',
-            'Karambit',
           ];
           for (final w in weapons) {
             if (displayName.toLowerCase().contains(w.toLowerCase())) {

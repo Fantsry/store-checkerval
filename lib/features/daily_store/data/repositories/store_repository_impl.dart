@@ -2,6 +2,7 @@ import 'package:valorant_store_tracker/core/error/exceptions.dart';
 import 'package:valorant_store_tracker/core/error/failures.dart';
 import 'package:valorant_store_tracker/core/error/result.dart';
 import 'package:valorant_store_tracker/core/storage/local_store_service.dart';
+import 'package:valorant_store_tracker/core/utils/skin_price_helper.dart';
 import 'package:valorant_store_tracker/core/storage/secure_storage_service.dart';
 import 'package:valorant_store_tracker/features/daily_store/data/datasources/riot_store_remote_datasource.dart';
 import 'package:valorant_store_tracker/features/daily_store/data/datasources/valorant_api_remote_datasource.dart';
@@ -512,16 +513,36 @@ class StoreRepositoryImpl implements StoreRepository {
     if (catalog.isSuccess) {
       final skins = catalog.valueOrNull!;
       for (final s in skins) {
-        if (s.uuid.toLowerCase() == skinUuid.toLowerCase()) {
-          return Result.success(s);
-        }
-        for (final lvl in s.levels) {
-          if (lvl.uuid.toLowerCase() == skinUuid.toLowerCase()) {
-            return Result.success(s);
+        if (s.uuid.toLowerCase() == skinUuid.toLowerCase() ||
+            s.levels.any((lvl) => lvl.uuid.toLowerCase() == skinUuid.toLowerCase())) {
+          final isMelee = SkinPriceHelper.isMelee(
+            displayName: s.displayName,
+            weaponName: s.weaponName,
+          );
+          if (isMelee) {
+            final expectedPrice = SkinPriceHelper.calculateEstimatedPrice(
+              displayName: s.displayName,
+              isMelee: true,
+              tierName: s.tierName ?? 'Exclusive',
+            );
+            final weapon = (s.weaponName == null || s.weaponName!.toLowerCase() == 'weapon')
+                ? 'Melee'
+                : s.weaponName;
+            return Result.success(s.copyWith(cost: expectedPrice, weaponName: weapon));
           }
+          return Result.success(s);
         }
       }
     }
+
+    // Fallback: check wishlist
+    final wishlistItem = (await _localStore.getWishlist())
+        .where((w) => w.uuid.toLowerCase() == skinUuid.toLowerCase())
+        .firstOrNull;
+    if (wishlistItem != null) {
+      return Result.success(wishlistItem.toSkinItem());
+    }
+
     return const Result.failure(ServerFailure(message: 'Skin not found'));
   }
 }

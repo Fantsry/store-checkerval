@@ -52,5 +52,33 @@ void main() {
       expect(skinItem.uuid, 'uuid-1');
       expect(skinItem.displayName, 'Ion Phantom');
     });
+
+    test('WishlistItem handles Phaseguard Splitter and Power Fist accurately', () {
+      const phaseguard = SkinItem(
+        uuid: 'phaseguard-uuid',
+        displayName: 'Phaseguard Splitter',
+        weaponName: 'Melee',
+        cost: 5350,
+        tierName: 'Exclusive',
+      );
+
+      final wishlistItem = WishlistItem.fromSkinItem(phaseguard);
+      expect(wishlistItem.displayName, equals('Phaseguard Splitter'));
+      expect(wishlistItem.weaponName, equals('Melee'));
+      expect(wishlistItem.cost, equals(5350));
+
+      const powerFist = SkinItem(
+        uuid: 'power-fist-uuid',
+        displayName: 'Power Fist',
+        weaponName: 'Melee',
+        cost: 5950,
+        tierName: 'Exclusive',
+      );
+
+      final powerFistItem = WishlistItem.fromSkinItem(powerFist);
+      expect(powerFistItem.displayName, equals('Power Fist'));
+      expect(powerFistItem.weaponName, equals('Melee'));
+      expect(powerFistItem.cost, equals(5950));
+    });
   });
 }

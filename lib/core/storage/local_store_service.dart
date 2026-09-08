@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:valorant_store_tracker/core/utils/skin_price_helper.dart';
 import 'package:valorant_store_tracker/features/daily_store/domain/entities/daily_store.dart';
 import 'package:valorant_store_tracker/features/daily_store/domain/entities/skin_item.dart';
 import 'package:valorant_store_tracker/features/notifications/domain/entities/store_alert_rule.dart';
@@ -38,7 +39,50 @@ class LocalStoreService {
     for (final value in _wishlistBox.values) {
       try {
         final map = jsonDecode(value) as Map<String, dynamic>;
-        list.add(WishlistItem.fromJson(map));
+        var item = WishlistItem.fromJson(map);
+
+        // Self-heal items with inaccurate price or missing melee weapon tag
+        final isMelee = SkinPriceHelper.isMelee(
+          displayName: item.displayName,
+          weaponName: item.weaponName,
+        );
+
+        var cost = item.cost;
+        var weaponName = item.weaponName;
+        bool needsUpdate = false;
+
+        if (isMelee) {
+          if (weaponName == null || weaponName.toLowerCase() == 'weapon') {
+            weaponName = 'Melee';
+            needsUpdate = true;
+          }
+          final accuratePrice = SkinPriceHelper.calculateEstimatedPrice(
+            displayName: item.displayName,
+            isMelee: true,
+            tierName: item.tierName ?? 'Exclusive',
+          );
+          if (cost != accuratePrice) {
+            cost = accuratePrice;
+            needsUpdate = true;
+          }
+        }
+
+        if (needsUpdate) {
+          item = WishlistItem(
+            uuid: item.uuid,
+            displayName: item.displayName,
+            displayIcon: item.displayIcon,
+            weaponName: weaponName,
+            cost: cost,
+            tierName: item.tierName,
+            tierColor: item.tierColor,
+            tierIcon: item.tierIcon,
+            addedAt: item.addedAt,
+          );
+          await _wishlistBox.put(item.uuid, jsonEncode(item.toJson()));
+        }
+
+        list.add(item);
       } catch (_) {}
     }
     // Sort by newest added first
@@ -47,8 +91,42 @@ class LocalStoreService {
   }
 
   Future<void> addToWishlist(WishlistItem item) async {
-    final jsonStr = jsonEncode(item.toJson());
-    await _wishlistBox.put(item.uuid, jsonStr);
+    final isMelee = SkinPriceHelper.isMelee(
+      displayName: item.displayName,
+      weaponName: item.weaponName,
+    );
+
+    var cost = item.cost;
+    var weaponName = item.weaponName;
+
+    if (isMelee) {
+      if (weaponName == null || weaponName.toLowerCase() == 'weapon') {
+        weaponName = 'Melee';
+      }
+      final accuratePrice = SkinPriceHelper.calculateEstimatedPrice(
+        displayName: item.displayName,
+        isMelee: true,
+        tierName: item.tierName ?? 'Exclusive',
+      );
+      if (cost <= 2175 || cost != accuratePrice) {
+        cost = accuratePrice;
+      }
+    }
+
+    final sanitizedItem = WishlistItem(
+      uuid: item.uuid,
+      displayName: item.displayName,
+      displayIcon: item.displayIcon,
+      weaponName: weaponName,
+      cost: cost,
+      tierName: item.tierName,
+      tierColor: item.tierColor,
+      tierIcon: item.tierIcon,
+      addedAt: item.addedAt,
+    );
+
+    final jsonStr = jsonEncode(sanitizedItem.toJson());
+    await _wishlistBox.put(sanitizedItem.uuid, jsonStr);
   }
 
   Future<void> removeFromWishlist(String uuid) async {
@@ -66,14 +144,33 @@ class LocalStoreService {
   // ─── Skins Catalog Cache ───────────────────────────────────
 
   Future<List<SkinItem>?> getCachedSkins() async {
-    final raw = _skinsCacheBox.get('all_skins');
+    final raw = _skinsCacheBox.get('all_skins_v5');
     if (raw == null || raw.isEmpty) return null;
 
     try {
       final list = jsonDecode(raw) as List<dynamic>;
-      return list
-          .map((e) => SkinItem.fromJson(e as Map<String, dynamic>))
-          .toList();
+      return list.map((e) {
+        final skin = SkinItem.fromJson(e as Map<String, dynamic>);
+        final isMelee = SkinPriceHelper.isMelee(
+          displayName: skin.displayName,
+          weaponName: skin.weaponName,
+        );
+        if (isMelee) {
+          final expectedPrice = SkinPriceHelper.calculateEstimatedPrice(
+            displayName: skin.displayName,
+            isMelee: true,
+            tierName: skin.tierName ?? 'Exclusive',
+          );
+          final weapon = (skin.weaponName == null ||
+                  skin.weaponName!.toLowerCase() == 'weapon')
+              ? 'Melee'
+              : skin.weaponName;
+          if (skin.cost != expectedPrice || skin.weaponName != weapon) {
+            return skin.copyWith(cost: expectedPrice, weaponName: weapon);
+          }
+        }
+        return skin;
+      }).toList();
     } catch (_) {
       return null;
     }
@@ -81,7 +178,7 @@ class LocalStoreService {
 
   Future<void> saveCachedSkins(List<SkinItem> skins) async {
     final jsonStr = jsonEncode(skins.map((s) => s.toJson()).toList());
-    await _skinsCacheBox.put('all_skins', jsonStr);
+    await _skinsCacheBox.put('all_skins_v5', jsonStr);
     await _skinsCacheBox.put(
       'all_skins_timestamp',
       DateTime.now().toIso8601String(),
