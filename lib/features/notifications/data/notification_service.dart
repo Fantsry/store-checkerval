@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:valorant_store_tracker/core/storage/local_store_service.dart';
@@ -37,13 +38,15 @@ class NotificationService {
       },
     );
 
-    // Create Android notification channel
+    // Create Android notification channel with max priority and lock-screen visibility
     final androidChannel = AndroidNotificationChannel(
       storeChannelId,
       storeChannelName,
       description: storeChannelDescription,
-      importance: Importance.high,
+      importance: Importance.max,
       enableVibration: true,
+      enableLights: true,
+      ledColor: const Color(0xFFFF4655),
       playSound: true,
     );
 
@@ -106,8 +109,15 @@ class NotificationService {
       storeChannelId,
       storeChannelName,
       channelDescription: storeChannelDescription,
-      importance: Importance.high,
-      priority: Priority.high,
+      importance: Importance.max,
+      priority: Priority.max,
+      visibility: NotificationVisibility.public,
+      enableVibration: true,
+      enableLights: true,
+      color: const Color(0xFFFF4655),
+      ledColor: const Color(0xFFFF4655),
+      ledOnMs: 1000,
+      ledOffMs: 500,
       ticker: 'Wishlist Skin Alert',
       styleInformation: BigTextStyleInformation(
         body,
@@ -158,8 +168,15 @@ class NotificationService {
       storeChannelId,
       storeChannelName,
       channelDescription: storeChannelDescription,
-      importance: Importance.high,
-      priority: Priority.high,
+      importance: Importance.max,
+      priority: Priority.max,
+      visibility: NotificationVisibility.public,
+      enableVibration: true,
+      enableLights: true,
+      color: const Color(0xFFFF4655),
+      ledColor: const Color(0xFFFF4655),
+      ledOnMs: 1000,
+      ledOffMs: 500,
       ticker: 'Store Custom Alert',
       styleInformation: BigTextStyleInformation(
         body,

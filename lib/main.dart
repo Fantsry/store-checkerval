@@ -40,8 +40,12 @@ Future<void> main() async {
     },
   );
 
-  // Initialize Background Scheduler
+  // Request notification permissions automatically on startup (Android 13+ / iOS)
+  await notificationService.requestPermissions();
+
+  // Initialize Background Scheduler & schedule next shop reset check (00:00 UTC)
   await BackgroundTaskManager.initialize();
+  await BackgroundTaskManager.scheduleNextResetCheck();
   await BackgroundTaskManager.registerPeriodicStoreCheck();
 
   runApp(const ValorantStoreApp());

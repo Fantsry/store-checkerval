@@ -8,6 +8,7 @@ import 'package:valorant_store_tracker/app/di.dart';
 import 'package:valorant_store_tracker/app/theme.dart';
 import 'package:valorant_store_tracker/core/storage/local_store_service.dart';
 import 'package:valorant_store_tracker/core/storage/secure_storage_service.dart';
+import 'package:valorant_store_tracker/core/utils/timezone_helper.dart';
 import 'package:valorant_store_tracker/features/auth/presentation/cubit/auth_cubit.dart';
 import 'package:valorant_store_tracker/features/auth/presentation/cubit/auth_state.dart';
 import 'package:valorant_store_tracker/features/notifications/data/background_task_manager.dart';
@@ -88,8 +89,18 @@ class _SettingsPageState extends State<SettingsPage> {
     if (value) {
       final granted = await getIt<NotificationService>().requestPermissions();
       if (granted) {
+        await BackgroundTaskManager.scheduleNextResetCheck();
         await BackgroundTaskManager.registerPeriodicStoreCheck();
         setState(() => _notificationsEnabled = true);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                  'Notifikasi aktif! Pengecekan otomatis dijadwalkan setiap reset toko (00:00 UTC / 07:00 WIB).'),
+              backgroundColor: AppTheme.surfaceLight,
+            ),
+          );
+        }
       } else {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -454,6 +465,65 @@ class _SettingsPageState extends State<SettingsPage> {
                               }
                             }
                             return const SizedBox.shrink();
+                          },
+                        ),
+                        _SettingsTile(
+                          icon: Icons.schedule_rounded,
+                          title:
+                              'Reset Toko: ${TimezoneHelper.formatDuration(TimezoneHelper.timeUntilReset)} lagi',
+                          subtitle:
+                              'Pemeriksaan background dijadwalkan otomatis setiap reset (00:00 UTC / 07:00 WIB)',
+                          onTap: () {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                    'Pengecekan toko berjalan otomatis di background setiap 00:00 UTC (07:00 WIB) & berkala setiap 1 jam.'),
+                                backgroundColor: AppTheme.surfaceLight,
+                              ),
+                            );
+                          },
+                        ),
+                        _SettingsTile(
+                          icon: Icons.sync_rounded,
+                          title: 'Uji Background Worker Sekarang',
+                          subtitle:
+                              'Jalankan evaluasi store sekarang & kirim notifikasi jika cocok',
+                          onTap: () async {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                    'Menjalankan background store check...'),
+                                duration: Duration(seconds: 1),
+                              ),
+                            );
+                            try {
+                              final success = await BackgroundTaskManager
+                                  .triggerImmediateBackgroundCheck();
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      success
+                                          ? 'Pemeriksaan background sukses! Jika ada skin cocok, notifikasi langsung muncul.'
+                                          : 'Pemeriksaan background selesai. Pastikan sesi login aktif.',
+                                    ),
+                                    backgroundColor: success
+                                        ? const Color(0xFF00C4A8)
+                                        : AppTheme.surfaceLight,
+                                  ),
+                                );
+                              }
+                            } catch (e) {
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                        'Gagal menjalankan background check: $e'),
+                                    backgroundColor: AppTheme.valorantRed,
+                                  ),
+                                );
+                              }
+                            }
                           },
                         ),
                         _SettingsTile(
