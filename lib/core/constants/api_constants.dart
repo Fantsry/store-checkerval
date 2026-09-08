@@ -75,6 +75,41 @@ class ApiConstants {
   static String playerMmrUrl(String shard, String puuid) =>
       '${storeBaseUrl(shard)}/mmr/v1/players/$puuid';
 
+  // ─── Inventory / Entitlements & Contracts (Riot PVP) ─────────
+  static const String weaponSkinItemTypeId =
+      'e7c633d8-b96c-4863-8406-3f1ee677b945';
+
+  static String entitlementsUrl(
+    String shard,
+    String puuid, {
+    String itemTypeId = weaponSkinItemTypeId,
+  }) =>
+      '${storeBaseUrl(shard)}/store/v1/entitlements/$puuid/$itemTypeId';
+
+  static String contractsUrl(String shard, String puuid) =>
+      '${storeBaseUrl(shard)}/contract-service/v1/contracts/$puuid';
+
+  // ─── Live Game / GLZ Endpoints (Pre-Game & Core-Game) ───────
+  static String glzBaseUrl(String region, String shard) {
+    final r = region.toLowerCase().trim();
+    final s = shard.toLowerCase().trim();
+    final effectiveRegion = r.isNotEmpty ? r : (s.isNotEmpty ? s : 'ap');
+    final effectiveShard = s.isNotEmpty ? s : 'ap';
+    return 'https://glz-$effectiveRegion-1.$effectiveShard.a.pvp.net';
+  }
+
+  static String preGamePlayerUrl(String region, String shard, String puuid) =>
+      '${glzBaseUrl(region, shard)}/pregame/v1/players/$puuid';
+
+  static String preGameMatchUrl(String region, String shard, String matchId) =>
+      '${glzBaseUrl(region, shard)}/pregame/v1/matches/$matchId';
+
+  static String coreGamePlayerUrl(String region, String shard, String puuid) =>
+      '${glzBaseUrl(region, shard)}/core-game/v1/players/$puuid';
+
+  static String coreGameMatchUrl(String region, String shard, String matchId) =>
+      '${glzBaseUrl(region, shard)}/core-game/v1/matches/$matchId';
+
   // ─── Valorant API (Community — Skin & Game metadata) ─────────
   static const String valorantApiBaseUrl = 'https://valorant-api.com/v1';
   static const String valorantApiVersion = '$valorantApiBaseUrl/version';
@@ -90,6 +125,12 @@ class ApiConstants {
   static const String valorantApiAgents = '$valorantApiBaseUrl/agents';
   static const String valorantApiCompetitiveTiers =
       '$valorantApiBaseUrl/competitivetiers';
+  static const String valorantApiBundles = '$valorantApiBaseUrl/bundles';
+  static const String valorantApiBuddies = '$valorantApiBaseUrl/buddies';
+  static const String valorantApiSprays = '$valorantApiBaseUrl/sprays';
+  static const String valorantApiMissions = '$valorantApiBaseUrl/missions';
+  static const String valorantApiContracts = '$valorantApiBaseUrl/contracts';
+  static const String valorantApiPlayerCards = '$valorantApiBaseUrl/playercards';
 
   // ─── Auth OAuth2 Parameters ─────────────────────────────────
   static const String riotClientId = 'play-valorant-web-prod';

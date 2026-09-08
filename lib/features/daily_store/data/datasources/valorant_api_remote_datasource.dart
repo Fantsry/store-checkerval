@@ -6,10 +6,15 @@ import 'package:valorant_store_tracker/features/daily_store/domain/entities/skin
 abstract class ValorantApiRemoteDataSource {
   Future<List<SkinItem>> getWeaponSkins();
   Future<Map<String, Map<String, dynamic>>> getContentTiers();
+  Future<Map<String, Map<String, dynamic>>> getBundlesMetadata();
+  Future<Map<String, Map<String, dynamic>>> getAccessoriesMetadata();
 }
 
 class ValorantApiRemoteDataSourceImpl implements ValorantApiRemoteDataSource {
   final Dio _dio;
+
+  Map<String, Map<String, dynamic>>? _cachedBundles;
+  Map<String, Map<String, dynamic>>? _cachedAccessories;
 
   ValorantApiRemoteDataSourceImpl({required Dio dio}) : _dio = dio;
 
@@ -193,6 +198,124 @@ class ValorantApiRemoteDataSourceImpl implements ValorantApiRemoteDataSource {
       );
     } catch (e) {
       throw ServerException(message: 'Error parsing skin catalog: $e');
+    }
+  }
+
+  @override
+  Future<Map<String, Map<String, dynamic>>> getBundlesMetadata() async {
+    if (_cachedBundles != null && _cachedBundles!.isNotEmpty) {
+      return _cachedBundles!;
+    }
+
+    try {
+      final response = await _dio.get(ApiConstants.valorantApiBundles);
+      final data = response.data['data'] as List<dynamic>? ?? [];
+
+      final bundles = <String, Map<String, dynamic>>{};
+      for (final raw in data) {
+        if (raw is Map<String, dynamic>) {
+          final uuid = (raw['uuid'] ?? '').toString().toLowerCase();
+          final displayName = (raw['displayName'] ?? '').toString();
+          final displayIcon = raw['displayIcon']?.toString();
+          final displayIcon2 = raw['displayIcon2']?.toString();
+          final verticalPromo = raw['verticalPromoImage']?.toString();
+          final extraDesc = raw['extraDescription']?.toString();
+
+          final bundleMap = {
+            'displayName': displayName,
+            'displayIcon': displayIcon,
+            'displayIcon2': displayIcon2,
+            'verticalPromoImage': verticalPromo,
+            'extraDescription': extraDesc,
+          };
+
+          if (uuid.isNotEmpty) {
+            bundles[uuid] = bundleMap;
+          }
+        }
+      }
+      _cachedBundles = bundles;
+      return bundles;
+    } catch (_) {
+      return _cachedBundles ?? {};
+    }
+  }
+
+  @override
+  Future<Map<String, Map<String, dynamic>>> getAccessoriesMetadata() async {
+    if (_cachedAccessories != null && _cachedAccessories!.isNotEmpty) {
+      return _cachedAccessories!;
+    }
+
+    try {
+      final accessories = <String, Map<String, dynamic>>{};
+
+      // 1. Buddies
+      try {
+        final res = await _dio.get(ApiConstants.valorantApiBuddies);
+        final list = res.data['data'] as List<dynamic>? ?? [];
+        for (final b in list) {
+          if (b is Map) {
+            final uuid = (b['uuid'] ?? '').toString().toLowerCase();
+            accessories[uuid] = {
+              'displayName': b['displayName']?.toString() ?? 'Gun Buddy',
+              'displayIcon': b['displayIcon']?.toString(),
+              'itemType': 'Gun Buddy',
+            };
+            // Also map levels
+            final lvls = b['levels'] as List?;
+            if (lvls != null) {
+              for (final l in lvls) {
+                if (l is Map) {
+                  final lUuid = (l['uuid'] ?? '').toString().toLowerCase();
+                  accessories[lUuid] = {
+                    'displayName': b['displayName']?.toString() ?? 'Gun Buddy',
+                    'displayIcon': l['displayIcon']?.toString() ?? b['displayIcon']?.toString(),
+                    'itemType': 'Gun Buddy',
+                  };
+                }
+              }
+            }
+          }
+        }
+      } catch (_) {}
+
+      // 2. Sprays
+      try {
+        final res = await _dio.get(ApiConstants.valorantApiSprays);
+        final list = res.data['data'] as List<dynamic>? ?? [];
+        for (final s in list) {
+          if (s is Map) {
+            final uuid = (s['uuid'] ?? '').toString().toLowerCase();
+            accessories[uuid] = {
+              'displayName': s['displayName']?.toString() ?? 'Spray',
+              'displayIcon': s['fullTransparentIcon']?.toString() ?? s['displayIcon']?.toString(),
+              'itemType': 'Spray',
+            };
+          }
+        }
+      } catch (_) {}
+
+      // 3. Player Cards
+      try {
+        final res = await _dio.get(ApiConstants.valorantApiPlayerCards);
+        final list = res.data['data'] as List<dynamic>? ?? [];
+        for (final c in list) {
+          if (c is Map) {
+            final uuid = (c['uuid'] ?? '').toString().toLowerCase();
+            accessories[uuid] = {
+              'displayName': c['displayName']?.toString() ?? 'Player Card',
+              'displayIcon': c['largeArt']?.toString() ?? c['wideArt']?.toString() ?? c['smallArt']?.toString(),
+              'itemType': 'Player Card',
+            };
+          }
+        }
+      } catch (_) {}
+
+      _cachedAccessories = accessories;
+      return accessories;
+    } catch (_) {
+      return _cachedAccessories ?? {};
     }
   }
 }

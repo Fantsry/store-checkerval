@@ -223,36 +223,60 @@ class StoreRepositoryImpl implements StoreRepository {
         }
       }
 
-      // Parse Featured Bundle if present
-      FeaturedBundle? bundle;
+      // ─── 1. Parse Featured Bundles with Valorant-API metadata ────────
+      final bundlesList = <FeaturedBundle>[];
       final featuredBundleData =
           storefrontData['FeaturedBundle'] as Map<String, dynamic>?;
+
       if (featuredBundleData != null) {
-        Map<String, dynamic>? bundleDetails;
+        Map<String, Map<String, dynamic>> bundlesMeta = {};
+        try {
+          bundlesMeta =
+              await _valorantApiRemoteDataSource.getBundlesMetadata();
+        } catch (_) {}
+
+        final rawBundles = <Map<String, dynamic>>[];
         if (featuredBundleData['Bundle'] is Map) {
-          bundleDetails =
-              Map<String, dynamic>.from(featuredBundleData['Bundle'] as Map);
-        } else if (featuredBundleData['Bundles'] is List &&
-            (featuredBundleData['Bundles'] as List).isNotEmpty &&
-            (featuredBundleData['Bundles'] as List).first is Map) {
-          bundleDetails = Map<String, dynamic>.from(
-              (featuredBundleData['Bundles'] as List).first as Map);
+          rawBundles.add(
+              Map<String, dynamic>.from(featuredBundleData['Bundle'] as Map));
+        }
+        if (featuredBundleData['Bundles'] is List) {
+          for (final b in featuredBundleData['Bundles'] as List) {
+            if (b is Map) rawBundles.add(Map<String, dynamic>.from(b));
+          }
         }
 
-        if (bundleDetails != null) {
-          final bUuid = bundleDetails['DataAssetID']?.toString() ?? '';
-          final bRemaining = (featuredBundleData[
-                  'BundleRemainingDurationInSeconds'] as num?)
-              ?.toInt() ??
-              0;
+        final bRemaining = (featuredBundleData[
+                'BundleRemainingDurationInSeconds'] as num?)
+            ?.toInt() ??
+            0;
+
+        for (final bundleDetails in rawBundles) {
+          final bId = (bundleDetails['ID'] ?? '').toString();
+          final bDataAssetId = (bundleDetails['DataAssetID'] ?? '').toString();
+          final effectiveUuid = (bDataAssetId.isNotEmpty ? bDataAssetId : bId).toLowerCase();
+
+          final meta = bundlesMeta[effectiveUuid] ??
+              bundlesMeta[bId.toLowerCase()] ??
+              bundlesMeta[bDataAssetId.toLowerCase()];
+
+          final bName = meta?['displayName']?.toString() ?? 'Featured Collection';
+          final bIcon = meta?['displayIcon']?.toString();
+          final bIcon2 = meta?['displayIcon2']?.toString();
+          final bVertical = meta?['verticalPromoImage']?.toString();
+
           final bundleItemOffers =
               bundleDetails['Items'] as List<dynamic>? ?? [];
 
           final bundleSkins = <SkinItem>[];
           final totalDiscounted = bundleDetails['TotalDiscountedCost'] as Map?;
           final totalBase = bundleDetails['TotalBaseCost'] as Map?;
-          int bundlePrice = (totalDiscounted?[RiotStoreRemoteDataSourceImpl.vpCurrencyUuid] as num?)?.toInt() ??
-              (totalBase?[RiotStoreRemoteDataSourceImpl.vpCurrencyUuid] as num?)?.toInt() ??
+          int bundlePrice = (totalDiscounted?[
+                  RiotStoreRemoteDataSourceImpl.vpCurrencyUuid] as num?)
+              ?.toInt() ??
+              (totalBase?[RiotStoreRemoteDataSourceImpl.vpCurrencyUuid]
+                      as num?)
+                  ?.toInt() ??
               0;
 
           for (final item in bundleItemOffers) {
@@ -263,9 +287,6 @@ class StoreRepositoryImpl implements StoreRepository {
             final price = (item['DiscountedPrice'] as num?)?.toInt() ??
                 (item['BasePrice'] as num?)?.toInt() ??
                 0;
-            if (bundlePrice == 0) {
-              bundlePrice += price;
-            }
 
             final s = skinMap[itemUuid] ?? levelToSkinMap[itemUuid];
             if (s != null) {
@@ -273,20 +294,160 @@ class StoreRepositoryImpl implements StoreRepository {
             }
           }
 
-          bundle = FeaturedBundle(
-            uuid: bUuid,
-            displayName: 'Featured Collection',
-            price: bundlePrice > 0 ? bundlePrice : 7100,
-            remainingDurationSeconds: bRemaining,
-            items: bundleSkins,
+          if (bundlePrice == 0 && bundleSkins.isNotEmpty) {
+            bundlePrice = bundleSkins.fold<int>(0, (sum, s) => sum + s.cost);
+          }
+
+          bundlesList.add(
+            FeaturedBundle(
+              uuid: effectiveUuid,
+              displayName: bName,
+              displayIcon: bIcon,
+              displayIcon2: bIcon2,
+              verticalPromoImage: bVertical,
+              price: bundlePrice > 0 ? bundlePrice : 7100,
+              remainingDurationSeconds: bRemaining,
+              items: bundleSkins,
+            ),
           );
+        }
+      }
+
+      // ─── 2. Parse Night Market (BonusStore) ──────────────────────────
+      NightMarket? nightMarket;
+      final bonusStoreData =
+          storefrontData['BonusStore'] as Map<String, dynamic>?;
+
+      if (bonusStoreData != null) {
+        final nmRemaining = (bonusStoreData[
+                'BonusStoreRemainingDurationInSeconds'] as num?)
+            ?.toInt() ??
+            0;
+        final bonusOffers =
+            bonusStoreData['BonusStoreOffers'] as List<dynamic>? ?? [];
+
+        final nmItems = <NightMarketItem>[];
+        for (final rawOffer in bonusOffers) {
+          if (rawOffer is! Map) continue;
+          final offer = rawOffer['Offer'] as Map?;
+          final offerId =
+              offer?['OfferID']?.toString().toLowerCase() ?? '';
+          final rewards = offer?['Rewards'] as List?;
+          String? rewardId;
+          if (rewards != null && rewards.isNotEmpty && rewards.first is Map) {
+            rewardId = rewards.first['ItemID']?.toString().toLowerCase();
+          }
+
+          final skin = skinMap[offerId] ??
+              levelToSkinMap[offerId] ??
+              (rewardId != null ? (skinMap[rewardId] ?? levelToSkinMap[rewardId]) : null);
+
+          if (skin != null) {
+            final costMap = offer?['Cost'] as Map?;
+            final originalPrice = (costMap?[
+                    RiotStoreRemoteDataSourceImpl.vpCurrencyUuid] as num?)
+                ?.toInt() ??
+                skin.cost;
+
+            final discountCostMap = rawOffer['DiscountCosts'] as Map?;
+            final discountedPrice = (discountCostMap?[
+                    RiotStoreRemoteDataSourceImpl.vpCurrencyUuid] as num?)
+                ?.toInt() ??
+                (originalPrice * 0.65).round();
+
+            final discountPct = (rawOffer['DiscountPercent'] as num?)
+                    ?.toInt() ??
+                (originalPrice > 0
+                    ? (((originalPrice - discountedPrice) / originalPrice) * 100)
+                        .round()
+                    : 35);
+
+            final isSeen = rawOffer['IsSeen'] as bool? ?? true;
+
+            nmItems.add(
+              NightMarketItem(
+                skin: skin.copyWith(cost: discountedPrice),
+                originalCost: originalPrice,
+                discountPercent: discountPct,
+                discountedCost: discountedPrice,
+                isSeen: isSeen,
+              ),
+            );
+          }
+        }
+
+        if (nmItems.isNotEmpty) {
+          nightMarket = NightMarket(
+            offers: nmItems,
+            remainingDurationSeconds: nmRemaining,
+          );
+        }
+      }
+
+      // ─── 3. Parse Accessory Store (Kingdom Credits Shop) ─────────────
+      final accessoryOffers = <AccessoryStoreItem>[];
+      final accessoryStoreData =
+          storefrontData['AccessoryStore'] as Map<String, dynamic>?;
+
+      if (accessoryStoreData != null) {
+        final accRemaining = (accessoryStoreData[
+                'AccessoryStoreRemainingDurationInSeconds'] as num?)
+            ?.toInt() ??
+            0;
+        final rawAccOffers = accessoryStoreData['AccessoryStoreOffers']
+            as List<dynamic>? ??
+            [];
+
+        if (rawAccOffers.isNotEmpty) {
+          Map<String, Map<String, dynamic>> accMeta = {};
+          try {
+            accMeta =
+                await _valorantApiRemoteDataSource.getAccessoriesMetadata();
+          } catch (_) {}
+
+          for (final acc in rawAccOffers) {
+            if (acc is! Map) continue;
+            final offer = acc['Offer'] as Map?;
+            final rewards = offer?['Rewards'] as List?;
+            String? itemId;
+            if (rewards != null && rewards.isNotEmpty && rewards.first is Map) {
+              itemId = rewards.first['ItemID']?.toString().toLowerCase();
+            }
+            itemId ??= offer?['OfferID']?.toString().toLowerCase();
+
+            if (itemId == null || itemId.isEmpty) continue;
+
+            final meta = accMeta[itemId];
+            final name = meta?['displayName']?.toString() ?? 'Accessory';
+            final icon = meta?['displayIcon']?.toString();
+            final itemType = meta?['itemType']?.toString() ?? 'Accessory';
+
+            final costMap = offer?['Cost'] as Map?;
+            const kcCurrencyUuid = '85ca9543-7697-970b-7caa-e2a3d1a3d49e';
+            final kcCost =
+                (costMap?[kcCurrencyUuid] as num?)?.toInt() ?? 4000;
+
+            accessoryOffers.add(
+              AccessoryStoreItem(
+                uuid: itemId,
+                displayName: name,
+                displayIcon: icon,
+                itemType: itemType,
+                kcCost: kcCost,
+                remainingDurationSeconds: accRemaining,
+              ),
+            );
+          }
         }
       }
 
       final store = DailyStore(
         featuredOffers: dailySkins,
         remainingDurationSeconds: remainingSeconds,
-        bundle: bundle,
+        bundles: bundlesList,
+        bundle: bundlesList.isNotEmpty ? bundlesList.first : null,
+        nightMarket: nightMarket,
+        accessoryOffers: accessoryOffers,
         lastFetched: DateTime.now(),
       );
 

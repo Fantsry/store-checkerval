@@ -26,8 +26,11 @@ class ShellPage extends StatelessWidget {
     final location = GoRouterState.of(context).matchedLocation;
     if (location.startsWith('/store')) return 0;
     if (location.startsWith('/career')) return 1;
-    if (location.startsWith('/wishlist')) return 2;
-    if (location.startsWith('/settings')) return 3;
+    if (location.startsWith('/live-match')) return 2;
+    if (location.startsWith('/inventory')) return 3;
+    if (location.startsWith('/settings') || location.startsWith('/wishlist') || location.startsWith('/battlepass')) {
+      return 4;
+    }
     return 0;
   }
 
@@ -38,8 +41,10 @@ class ShellPage extends StatelessWidget {
       case 1:
         context.goNamed('career');
       case 2:
-        context.goNamed('wishlist');
+        context.goNamed('liveMatch');
       case 3:
+        context.goNamed('inventory');
+      case 4:
         context.goNamed('settings');
     }
   }
@@ -67,7 +72,7 @@ class _ValorantBottomNav extends StatelessWidget {
       ),
       child: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
@@ -84,16 +89,22 @@ class _ValorantBottomNav extends StatelessWidget {
                 onTap: () => onTap(1),
               ),
               _NavItem(
-                icon: Icons.favorite_rounded,
-                label: 'Wishlist',
+                icon: Icons.radar_rounded,
+                label: 'Radar',
                 isSelected: currentIndex == 2,
                 onTap: () => onTap(2),
               ),
               _NavItem(
-                icon: Icons.person_rounded,
-                label: 'Profile',
+                icon: Icons.inventory_2_rounded,
+                label: 'Inventory',
                 isSelected: currentIndex == 3,
                 onTap: () => onTap(3),
+              ),
+              _NavItem(
+                icon: Icons.person_rounded,
+                label: 'Profile',
+                isSelected: currentIndex == 4,
+                onTap: () => onTap(4),
               ),
             ],
           ),
@@ -123,7 +134,7 @@ class _NavItem extends StatelessWidget {
       behavior: HitTestBehavior.opaque,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
           color: isSelected
               ? AppTheme.valorantRed.withValues(alpha: 0.15)

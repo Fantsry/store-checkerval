@@ -256,4 +256,20 @@ class LocalStoreService {
   Future<void> clearCareerCache() async {
     await _careerCacheBox.clear();
   }
+
+  // ─── Generic Key-Value Map Cache ───────────────────────────
+
+  Map<String, dynamic>? getMap(String key) {
+    final raw = _storeCacheBox.get(key);
+    if (raw != null) {
+      try {
+        return jsonDecode(raw) as Map<String, dynamic>;
+      } catch (_) {}
+    }
+    return null;
+  }
+
+  Future<void> setMap(String key, Map<String, dynamic> map) async {
+    await _storeCacheBox.put(key, jsonEncode(map));
+  }
 }

@@ -19,6 +19,9 @@ import 'package:valorant_store_tracker/features/career/presentation/pages/career
 import 'package:valorant_store_tracker/features/wishlist/presentation/pages/wishlist_page.dart';
 import 'package:valorant_store_tracker/features/wishlist/presentation/pages/catalog_page.dart';
 import 'package:valorant_store_tracker/features/settings/presentation/settings_page.dart';
+import 'package:valorant_store_tracker/features/inventory/presentation/pages/inventory_page.dart';
+import 'package:valorant_store_tracker/features/battlepass/presentation/pages/battlepass_page.dart';
+import 'package:valorant_store_tracker/features/live_match/presentation/pages/live_match_page.dart';
 import 'package:valorant_store_tracker/app/shell_page.dart';
 
 class AppRouter {
@@ -58,6 +61,27 @@ class AppRouter {
             name: 'career',
             pageBuilder: (context, state) => const NoTransitionPage(
               child: CareerPage(),
+            ),
+          ),
+          GoRoute(
+            path: '/live-match',
+            name: 'liveMatch',
+            pageBuilder: (context, state) => const NoTransitionPage(
+              child: LiveMatchPage(),
+            ),
+          ),
+          GoRoute(
+            path: '/inventory',
+            name: 'inventory',
+            pageBuilder: (context, state) => const NoTransitionPage(
+              child: InventoryPage(),
+            ),
+          ),
+          GoRoute(
+            path: '/battlepass',
+            name: 'battlepass',
+            pageBuilder: (context, state) => const NoTransitionPage(
+              child: BattlepassPage(),
             ),
           ),
           GoRoute(

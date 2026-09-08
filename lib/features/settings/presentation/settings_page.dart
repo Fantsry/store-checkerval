@@ -344,6 +344,55 @@ class _SettingsPageState extends State<SettingsPage> {
                       child: SizedBox(height: 8),
                     ),
 
+                    // ─── Companion Hub Section ───────────────────
+                    SliverToBoxAdapter(
+                      child: _SettingsSection(
+                        title: 'COMPANION HUB',
+                        children: [
+                          _SettingsTile(
+                            icon: Icons.inventory_2_rounded,
+                            title: 'Inventory & Account Value',
+                            subtitle: 'Kalkulator total VP & estimasi Rupiah akun',
+                            trailing: const Icon(
+                              Icons.chevron_right_rounded,
+                              color: AppTheme.textSecondary,
+                            ),
+                            onTap: () => context.pushNamed('inventory'),
+                          ),
+                          _SettingsTile(
+                            icon: Icons.military_tech_rounded,
+                            title: 'Battlepass & Missions Tracker',
+                            subtitle: 'Progress Act tier & misi harian / mingguan',
+                            trailing: const Icon(
+                              Icons.chevron_right_rounded,
+                              color: AppTheme.textSecondary,
+                            ),
+                            onTap: () => context.pushNamed('battlepass'),
+                          ),
+                          _SettingsTile(
+                            icon: Icons.radar_rounded,
+                            title: 'Live Match Lobby Radar',
+                            subtitle: 'Cek rank & peak rank teman / musuh realtime',
+                            trailing: const Icon(
+                              Icons.chevron_right_rounded,
+                              color: AppTheme.textSecondary,
+                            ),
+                            onTap: () => context.pushNamed('liveMatch'),
+                          ),
+                          _SettingsTile(
+                            icon: Icons.favorite_rounded,
+                            title: 'Wishlist & Skin Catalog',
+                            subtitle: 'Kelola wishlist skin impian & katalog lengkap',
+                            trailing: const Icon(
+                              Icons.chevron_right_rounded,
+                              color: AppTheme.textSecondary,
+                            ),
+                            onTap: () => context.pushNamed('wishlist'),
+                          ),
+                        ],
+                      ),
+                    ),
+
                     // ─── Account Section ────────────────────────
                     SliverToBoxAdapter(
                       child: _SettingsSection(

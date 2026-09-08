@@ -6,10 +6,12 @@ import 'package:go_router/go_router.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:valorant_store_tracker/app/theme.dart';
 import 'package:valorant_store_tracker/core/utils/timezone_helper.dart';
-import 'package:valorant_store_tracker/features/daily_store/domain/entities/daily_store.dart';
 import 'package:valorant_store_tracker/features/daily_store/domain/entities/skin_item.dart';
 import 'package:valorant_store_tracker/features/daily_store/presentation/bloc/store_cubit.dart';
 import 'package:valorant_store_tracker/features/daily_store/presentation/bloc/store_state.dart';
+import 'package:valorant_store_tracker/features/daily_store/presentation/widgets/accessory_store_section.dart';
+import 'package:valorant_store_tracker/features/daily_store/presentation/widgets/bundle_card.dart';
+import 'package:valorant_store_tracker/features/daily_store/presentation/widgets/night_market_section.dart';
 import 'package:valorant_store_tracker/features/profile/presentation/cubit/profile_cubit.dart';
 import 'package:valorant_store_tracker/features/profile/presentation/cubit/profile_state.dart';
 import 'package:valorant_store_tracker/features/wishlist/presentation/cubit/wishlist_cubit.dart';
@@ -253,16 +255,34 @@ class _StorePageState extends State<StorePage>
                                         children: [
                                           const Icon(
                                             Icons.monetization_on_outlined,
-                                            size: 15,
+                                            size: 14,
                                             color: AppTheme.valorantRed,
                                           ),
                                           const SizedBox(width: 4),
                                           Text(
-                                            '${state.wallet.valorantPoints} VP',
+                                            '${state.wallet.valorantPoints}',
                                             style: const TextStyle(
                                               fontSize: 12,
                                               fontWeight: FontWeight.bold,
                                               color: AppTheme.textPrimary,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Container(
+                                            width: 7,
+                                            height: 7,
+                                            decoration: const BoxDecoration(
+                                              shape: BoxShape.circle,
+                                              color: Color(0xFF00E5FF),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            '${state.wallet.kingdomCredits}',
+                                            style: const TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.bold,
+                                              color: Color(0xFF00E5FF),
                                             ),
                                           ),
                                         ],
@@ -390,11 +410,38 @@ class _StorePageState extends State<StorePage>
                       ),
                     ),
 
-                    // Featured Bundle (if present)
-                    if (state.store.bundle != null)
+                    // Featured Bundles (if present)
+                    if (state.store.bundles.isNotEmpty) ...[
                       SliverToBoxAdapter(
                         child: Padding(
-                          padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+                          padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+                          child: Text(
+                            'FEATURED COLLECTIONS',
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleLarge
+                                ?.copyWith(letterSpacing: 1.5),
+                          ),
+                        ),
+                      ),
+                      SliverPadding(
+                        padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+                        sliver: SliverList(
+                          delegate: SliverChildBuilderDelegate(
+                            (context, index) => Padding(
+                              padding: const EdgeInsets.only(bottom: 16),
+                              child: BundleCard(
+                                bundle: state.store.bundles[index],
+                              ),
+                            ),
+                            childCount: state.store.bundles.length,
+                          ),
+                        ),
+                      ),
+                    ] else if (state.store.bundle != null) ...[
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -406,8 +453,32 @@ class _StorePageState extends State<StorePage>
                                     ?.copyWith(letterSpacing: 1.5),
                               ),
                               const SizedBox(height: 12),
-                              _BundleCard(bundle: state.store.bundle!),
+                              BundleCard(bundle: state.store.bundle!),
                             ],
+                          ),
+                        ),
+                      ),
+                    ],
+
+                    // Night Market (if active)
+                    if (state.store.nightMarket != null &&
+                        state.store.nightMarket!.offers.isNotEmpty)
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+                          child: NightMarketSection(
+                            nightMarket: state.store.nightMarket!,
+                          ),
+                        ),
+                      ),
+
+                    // Accessory Store (Kingdom Credits rotation)
+                    if (state.store.accessoryOffers.isNotEmpty)
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+                          child: AccessoryStoreSection(
+                            items: state.store.accessoryOffers,
                           ),
                         ),
                       ),
@@ -641,67 +712,6 @@ class _SkinCard extends StatelessWidget {
   }
 }
 
-/// Featured Bundle Card
-class _BundleCard extends StatelessWidget {
-  final FeaturedBundle bundle;
-
-  const _BundleCard({required this.bundle});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: AppTheme.cardGradient,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.08),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                bundle.displayName,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.textPrimary,
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppTheme.valorantRed.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  '${bundle.price} VP',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.valorantRed,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(
-            '${bundle.items.length} items in collection',
-            style: const TextStyle(
-              fontSize: 12,
-              color: AppTheme.textSecondary,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 /// Countdown card showing time until store reset.
 class _CountdownCard extends StatelessWidget {

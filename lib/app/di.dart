@@ -26,6 +26,18 @@ import 'package:valorant_store_tracker/features/career/presentation/cubit/career
 import 'package:valorant_store_tracker/features/wishlist/data/repositories/wishlist_repository_impl.dart';
 import 'package:valorant_store_tracker/features/wishlist/domain/repositories/wishlist_repository.dart';
 import 'package:valorant_store_tracker/features/wishlist/presentation/cubit/wishlist_cubit.dart';
+import 'package:valorant_store_tracker/features/inventory/data/datasources/inventory_remote_datasource.dart';
+import 'package:valorant_store_tracker/features/inventory/data/repositories/inventory_repository_impl.dart';
+import 'package:valorant_store_tracker/features/inventory/domain/repositories/inventory_repository.dart';
+import 'package:valorant_store_tracker/features/inventory/presentation/cubit/inventory_cubit.dart';
+import 'package:valorant_store_tracker/features/battlepass/data/datasources/contracts_remote_datasource.dart';
+import 'package:valorant_store_tracker/features/battlepass/data/repositories/battlepass_repository_impl.dart';
+import 'package:valorant_store_tracker/features/battlepass/domain/repositories/battlepass_repository.dart';
+import 'package:valorant_store_tracker/features/battlepass/presentation/cubit/battlepass_cubit.dart';
+import 'package:valorant_store_tracker/features/live_match/data/datasources/live_match_remote_datasource.dart';
+import 'package:valorant_store_tracker/features/live_match/data/repositories/live_match_repository_impl.dart';
+import 'package:valorant_store_tracker/features/live_match/domain/repositories/live_match_repository.dart';
+import 'package:valorant_store_tracker/features/live_match/presentation/cubit/live_match_cubit.dart';
 
 final getIt = GetIt.instance;
 
@@ -76,6 +88,18 @@ Future<void> setupDI() async {
     () => CareerRemoteDataSourceImpl(dio: getIt<DioClient>().dio),
   );
 
+  getIt.registerLazySingleton<InventoryRemoteDataSource>(
+    () => InventoryRemoteDataSourceImpl(dio: getIt<DioClient>().dio),
+  );
+
+  getIt.registerLazySingleton<ContractsRemoteDataSource>(
+    () => ContractsRemoteDataSourceImpl(dio: getIt<DioClient>().dio),
+  );
+
+  getIt.registerLazySingleton<LiveMatchRemoteDataSource>(
+    () => LiveMatchRemoteDataSourceImpl(dio: getIt<DioClient>().dio),
+  );
+
   // ─── Repositories ───────────────────────────────────────────
   getIt.registerLazySingleton<AuthRepository>(
     () => AuthRepositoryImpl(
@@ -116,6 +140,31 @@ Future<void> setupDI() async {
     ),
   );
 
+  getIt.registerLazySingleton<InventoryRepository>(
+    () => InventoryRepositoryImpl(
+      remoteDataSource: getIt<InventoryRemoteDataSource>(),
+      valorantApiDataSource: getIt<ValorantApiRemoteDataSource>(),
+      storage: getIt<SecureStorageService>(),
+      localStore: getIt<LocalStoreService>(),
+    ),
+  );
+
+  getIt.registerLazySingleton<BattlepassRepository>(
+    () => BattlepassRepositoryImpl(
+      remoteDataSource: getIt<ContractsRemoteDataSource>(),
+      storage: getIt<SecureStorageService>(),
+      localStore: getIt<LocalStoreService>(),
+    ),
+  );
+
+  getIt.registerLazySingleton<LiveMatchRepository>(
+    () => LiveMatchRepositoryImpl(
+      remoteDataSource: getIt<LiveMatchRemoteDataSource>(),
+      careerDataSource: getIt<CareerRemoteDataSource>(),
+      storage: getIt<SecureStorageService>(),
+    ),
+  );
+
   // ─── Cubits ─────────────────────────────────────────────────
   getIt.registerFactory<AuthCubit>(
     () => AuthCubit(authRepository: getIt<AuthRepository>()),
@@ -143,5 +192,17 @@ Future<void> setupDI() async {
 
   getIt.registerFactory<StoreAlertCubit>(
     () => StoreAlertCubit(localStore: getIt<LocalStoreService>()),
+  );
+
+  getIt.registerFactory<InventoryCubit>(
+    () => InventoryCubit(repository: getIt<InventoryRepository>()),
+  );
+
+  getIt.registerFactory<BattlepassCubit>(
+    () => BattlepassCubit(repository: getIt<BattlepassRepository>()),
+  );
+
+  getIt.registerFactory<LiveMatchCubit>(
+    () => LiveMatchCubit(repository: getIt<LiveMatchRepository>()),
   );
 }
