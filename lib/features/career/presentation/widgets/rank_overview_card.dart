@@ -96,7 +96,8 @@ class RankOverviewCard extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        if (overview.currentTier > 0)
+                        if (overview.currentTier > 0 ||
+                            overview.currentRankRating > 0)
                           Text(
                             '${overview.currentRankRating} RR',
                             style: const TextStyle(
@@ -110,7 +111,8 @@ class RankOverviewCard extends StatelessWidget {
                     const SizedBox(height: 4),
 
                     // RR Progress Bar
-                    if (overview.currentTier > 0) ...[
+                    if (overview.currentTier > 0 ||
+                        overview.currentRankRating > 0) ...[
                       ClipRRect(
                         borderRadius: BorderRadius.circular(4),
                         child: LinearProgressIndicator(

@@ -113,12 +113,13 @@ class CareerRepositoryImpl implements CareerRepository {
       final agentsMeta = results[4] as Map<String, Map<String, dynamic>>;
       final tiersMeta = results[5] as Map<int, Map<String, dynamic>>;
 
-      // Map competitive updates by MatchID
+      // Map competitive updates by MatchID (both normal and lowercase for case-insensitivity)
       final compUpdateByMatchId = <String, Map<String, dynamic>>{};
       for (final update in compUpdates) {
         final mId = (update['MatchID'] ?? '').toString();
         if (mId.isNotEmpty) {
           compUpdateByMatchId[mId] = update;
+          compUpdateByMatchId[mId.toLowerCase()] = update;
         }
       }
 
@@ -163,35 +164,79 @@ class CareerRepositoryImpl implements CareerRepository {
         final queueSkills = mmrData['QueueSkills'] as Map?;
         final compQueue = queueSkills?['competitive'] as Map?;
         if (compQueue != null) {
+          // 1. Check direct Tier & RankedRating from compQueue
+          final directTier = (compQueue['Tier'] as num?)?.toInt() ?? 0;
+          final directRR = (compQueue['RankedRating'] as num?)?.toInt() ??
+              (compQueue['RankRating'] as num?)?.toInt() ??
+              0;
+          if (directTier > 0) {
+            currentTier = directTier;
+            currentRR = directRR;
+          }
+
+          // 2. Peak rank & seasonal info
           final seasonalInfo = compQueue['SeasonalInfoBySeasonID'] as Map?;
           if (seasonalInfo != null && seasonalInfo.isNotEmpty) {
             for (final entry in seasonalInfo.entries) {
               final seasonData = entry.value as Map?;
               if (seasonData != null) {
-                final rank = (seasonData['Rank'] as num?)?.toInt() ?? 0;
-                if (rank > (peakTier ?? 0)) {
-                  peakTier = rank;
+                final rank = (seasonData['CompetitiveTier'] as num?)?.toInt() ??
+                    (seasonData['Rank'] as num?)?.toInt() ??
+                    0;
+                final badgeRank =
+                    (seasonData['SeasonalBadgeInfo']?['Rank'] as num?)?.toInt() ??
+                        0;
+                if (rank > (peakTier ?? 0)) peakTier = rank;
+                if (badgeRank > (peakTier ?? 0)) peakTier = badgeRank;
+
+                // Fallback currentTier/RR if not set
+                if (currentTier == 0 && rank > 0) {
+                  currentTier = rank;
+                  currentRR = (seasonData['RankedRating'] as num?)?.toInt() ??
+                      (seasonData['RankRating'] as num?)?.toInt() ??
+                      0;
                 }
               }
             }
+          }
+        }
 
-            // Find current season or latest competitive update
-            final latestCompUpdate = mmrData['LatestCompetitiveUpdate'] as Map?;
-            if (latestCompUpdate != null) {
-              currentTier = (latestCompUpdate['TierAfterUpdate'] as num?)?.toInt() ?? 0;
-              currentRR = (latestCompUpdate['RankRatingAfterUpdate'] as num?)?.toInt() ?? 0;
-            }
+        // 3. LatestCompetitiveUpdate in mmrData
+        final latestCompUpdate = mmrData['LatestCompetitiveUpdate'] as Map?;
+        if (latestCompUpdate != null) {
+          final tierAfter =
+              (latestCompUpdate['TierAfterUpdate'] as num?)?.toInt() ?? 0;
+          final rrAfter =
+              (latestCompUpdate['RankedRatingAfterUpdate'] as num?)?.toInt() ??
+                  (latestCompUpdate['RankRatingAfterUpdate'] as num?)?.toInt() ??
+                  0;
+          if (tierAfter > 0) {
+            currentTier = tierAfter;
+            currentRR = rrAfter;
+          } else if (currentRR == 0 && rrAfter > 0) {
+            currentRR = rrAfter;
           }
         }
       }
 
-      // If MMR rank wasn't found, try the latest competitive match
-      if (currentTier == 0 && compUpdates.isNotEmpty) {
+      // 4. If MMR rank wasn't found or RR is 0, check competitive updates list
+      if (compUpdates.isNotEmpty) {
         final firstComp = compUpdates.first;
-        currentTier = (firstComp['TierAfterUpdate'] as num?)?.toInt() ?? 0;
-        currentRR = (firstComp['RankRatingAfterUpdate'] as num?)?.toInt() ?? 0;
+        final tierAfter =
+            (firstComp['TierAfterUpdate'] as num?)?.toInt() ?? 0;
+        final rrAfter =
+            (firstComp['RankedRatingAfterUpdate'] as num?)?.toInt() ??
+                (firstComp['RankRatingAfterUpdate'] as num?)?.toInt() ??
+                0;
+        if (currentTier == 0 && tierAfter > 0) {
+          currentTier = tierAfter;
+          currentRR = rrAfter;
+        } else if (currentRR == 0 && rrAfter > 0) {
+          currentRR = rrAfter;
+        }
       }
 
+      // 5. If currentTier still 0, check matches
       if (currentTier == 0 && matches.isNotEmpty) {
         for (final m in matches) {
           if (m.competitiveTier != null && m.competitiveTier! > 0) {
@@ -379,9 +424,11 @@ class CareerRepositoryImpl implements CareerRepository {
 
       // Check competitive update for RR change
       int? rrEarned;
-      final compUpdate = compUpdates[matchId];
+      final compUpdate =
+          compUpdates[matchId] ?? compUpdates[matchId.toLowerCase()];
       if (compUpdate != null) {
-        rrEarned = (compUpdate['RankRatingEarned'] as num?)?.toInt();
+        rrEarned = (compUpdate['RankedRatingEarned'] as num?)?.toInt() ??
+            (compUpdate['RankRatingEarned'] as num?)?.toInt();
         final tierAfter = (compUpdate['TierAfterUpdate'] as num?)?.toInt();
         if (tierAfter != null && tierAfter > 0) {
           compTier = tierAfter;

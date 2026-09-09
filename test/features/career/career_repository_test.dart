@@ -235,6 +235,125 @@ void main() {
       verify(() => mockLocalStore.saveCachedCareerJson(tPuuid, any())).called(1);
     });
 
+    test('correctly parses Riot official MMR field names (RankedRatingEarned, RankedRatingAfterUpdate, and compQueue Tier & RankedRating)',
+        () async {
+      when(() => mockSecureStorage.getPuuid()).thenAnswer((_) async => tPuuid);
+      when(() => mockSecureStorage.getShard()).thenAnswer((_) async => tShard);
+      when(() => mockLocalStore.getCachedCareerJson(tPuuid))
+          .thenAnswer((_) async => null);
+      when(() => mockLocalStore.saveCachedCareerJson(tPuuid, any()))
+          .thenAnswer((_) async => {});
+
+      when(() => mockRemote.fetchMatchHistory(
+            shard: tShard,
+            puuid: tPuuid,
+            startIndex: any(named: 'startIndex'),
+            endIndex: any(named: 'endIndex'),
+          )).thenAnswer((_) async => [
+            {'MatchID': 'match-riot-202'},
+          ]);
+
+      // Riot official endpoint returns 'RankedRatingEarned' and 'RankedRatingAfterUpdate'
+      when(() => mockRemote.fetchCompetitiveUpdates(
+            shard: tShard,
+            puuid: tPuuid,
+            startIndex: any(named: 'startIndex'),
+            endIndex: any(named: 'endIndex'),
+          )).thenAnswer((_) async => [
+            {
+              'MatchID': 'match-riot-202',
+              'TierAfterUpdate': 15,
+              'RankedRatingAfterUpdate': 88,
+              'RankedRatingEarned': 18,
+            }
+          ]);
+
+      // Riot MMR returns Tier and RankedRating directly under compQueue
+      when(() => mockRemote.fetchPlayerMmr(shard: tShard, puuid: tPuuid))
+          .thenAnswer((_) async => {
+                'QueueSkills': {
+                  'competitive': {
+                    'Tier': 15,
+                    'RankedRating': 88,
+                    'SeasonalInfoBySeasonID': {
+                      'season-1': {
+                        'CompetitiveTier': 16,
+                        'RankedRating': 50,
+                      },
+                    }
+                  }
+                }
+              });
+
+      when(() => mockRemote.fetchMapsMetadata()).thenAnswer((_) async => {
+            '/game/maps/ascent/ascent': {
+              'displayName': 'Ascent',
+              'splash': 'https://media.valorant-api.com/maps/ascent/splash.png',
+            }
+          });
+
+      when(() => mockRemote.fetchAgentsMetadata()).thenAnswer((_) async => {
+            'agent-jett': {
+              'displayName': 'Jett',
+              'displayIcon': 'https://media.valorant-api.com/agents/jett/icon.png',
+            }
+          });
+
+      when(() => mockRemote.fetchCompetitiveTiersMetadata()).thenAnswer((_) async => {
+            15: {'tierName': 'Platinum 1', 'largeIcon': 'https://media.valorant-api.com/tiers/15.png'},
+            16: {'tierName': 'Platinum 2', 'largeIcon': 'https://media.valorant-api.com/tiers/16.png'},
+          });
+
+      when(() => mockRemote.fetchMatchDetails(shard: tShard, matchId: 'match-riot-202'))
+          .thenAnswer((_) async => {
+                'matchInfo': {
+                  'matchId': 'match-riot-202',
+                  'mapId': '/Game/Maps/Ascent/Ascent',
+                  'gameMode': 'bomb',
+                  'queueID': 'competitive',
+                  'gameLengthMillis': 2000000,
+                  'gameStartMillis': 1700000000000,
+                },
+                'players': [
+                  {
+                    'subject': tPuuid,
+                    'teamId': 'Blue',
+                    'characterId': 'agent-jett',
+                    'stats': {
+                      'score': 4800,
+                      'kills': 20,
+                      'deaths': 10,
+                      'assists': 5,
+                      'roundsPlayed': 20,
+                    },
+                    'competitiveTier': 15,
+                  }
+                ],
+                'teams': [
+                  {
+                    'teamId': 'Blue',
+                    'won': true,
+                    'roundsWon': 13,
+                  },
+                  {
+                    'teamId': 'Red',
+                    'won': false,
+                    'roundsWon': 7,
+                  }
+                ],
+                'roundResults': []
+              });
+
+      final result = await repository.getCareerOverview(forceRefresh: true);
+
+      expect(result.isSuccess, true);
+      final overview = result.valueOrNull!;
+      expect(overview.currentTier, 15);
+      expect(overview.currentRankRating, 88);
+      expect(overview.peakTier, 16);
+      expect(overview.matches.first.rankRatingEarned, 18);
+    });
+
     test('returns failure when no puuid session exists', () async {
       when(() => mockSecureStorage.getPuuid()).thenAnswer((_) async => null);
       when(() => mockSecureStorage.getAccessToken()).thenAnswer((_) async => null);

@@ -86,7 +86,6 @@ class CareerRemoteDataSourceImpl implements CareerRemoteDataSource {
           ),
           options: Options(
             headers: {'Accept': 'application/json'},
-            validateStatus: (status) => status != null && status < 500,
           ),
         );
 
@@ -105,6 +104,8 @@ class CareerRemoteDataSourceImpl implements CareerRemoteDataSource {
               .map((item) => Map<String, dynamic>.from(item))
               .toList();
         }
+      } on DioException catch (e) {
+        if (e.response?.statusCode == 404) continue;
       } catch (_) {
         // Try next shard
       }
@@ -130,7 +131,6 @@ class CareerRemoteDataSourceImpl implements CareerRemoteDataSource {
           ApiConstants.matchDetailsUrl(s, cleanMatchId),
           options: Options(
             headers: {'Accept': 'application/json'},
-            validateStatus: (status) => status != null && status < 500,
           ),
         );
 
@@ -146,6 +146,8 @@ class CareerRemoteDataSourceImpl implements CareerRemoteDataSource {
         if (body is Map) {
           return Map<String, dynamic>.from(body);
         }
+      } on DioException catch (e) {
+        if (e.response?.statusCode == 404) continue;
       } catch (_) {
         // Try next shard
       }
@@ -178,7 +180,6 @@ class CareerRemoteDataSourceImpl implements CareerRemoteDataSource {
           ),
           options: Options(
             headers: {'Accept': 'application/json'},
-            validateStatus: (status) => status != null && status < 500,
           ),
         );
 
@@ -197,6 +198,8 @@ class CareerRemoteDataSourceImpl implements CareerRemoteDataSource {
               .map((item) => Map<String, dynamic>.from(item))
               .toList();
         }
+      } on DioException catch (e) {
+        if (e.response?.statusCode == 404) continue;
       } catch (_) {
         // Try next shard
       }
@@ -222,7 +225,6 @@ class CareerRemoteDataSourceImpl implements CareerRemoteDataSource {
           ApiConstants.playerMmrUrl(s, cleanPuuid),
           options: Options(
             headers: {'Accept': 'application/json'},
-            validateStatus: (status) => status != null && status < 500,
           ),
         );
 
@@ -238,6 +240,8 @@ class CareerRemoteDataSourceImpl implements CareerRemoteDataSource {
         if (body is Map) {
           return Map<String, dynamic>.from(body);
         }
+      } on DioException catch (e) {
+        if (e.response?.statusCode == 404) continue;
       } catch (_) {
         // Try next shard
       }
