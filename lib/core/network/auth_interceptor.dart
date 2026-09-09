@@ -27,16 +27,21 @@ class AuthInterceptor extends Interceptor {
     }
 
     var accessToken = await _storage.getAccessToken();
+    var entitlementsToken = await _storage.getEntitlementsToken();
 
-    // Check if token is expired or expiring in next 60 seconds
-    if (accessToken != null && _isJwtExpired(accessToken)) {
+    // Check if either access_token or entitlements_token is expired (or expiring in next 60 seconds)
+    final isAccessExpired = accessToken != null && _isJwtExpired(accessToken);
+    final isEntitlementsExpired =
+        entitlementsToken != null && _isJwtExpired(entitlementsToken);
+
+    if (isAccessExpired || isEntitlementsExpired) {
       final refreshed = await _refreshToken();
       if (refreshed) {
         accessToken = await _storage.getAccessToken();
+        entitlementsToken = await _storage.getEntitlementsToken();
       }
     }
 
-    final entitlementsToken = await _storage.getEntitlementsToken();
     final clientVersion = await _storage.getClientVersion() ??
         'release-13.05-shipping-11-5350494';
 
@@ -60,8 +65,13 @@ class AuthInterceptor extends Interceptor {
     DioException err,
     ErrorInterceptorHandler handler,
   ) async {
-    // Handle 401 Unauthorized by attempting silent re-authentication once
-    if (err.response?.statusCode == 401 &&
+    final statusCode = err.response?.statusCode;
+    final isUnauthorized = statusCode == 401;
+    final isBadClaims =
+        statusCode == 400 && _isRiotAuthClaimError(err.response?.data);
+
+    // Handle 401 Unauthorized or 400 BAD_CLAIMS (GLZ token expiry) by attempting silent re-authentication once
+    if ((isUnauthorized || isBadClaims) &&
         err.requestOptions.extra['authRetried'] != true &&
         !err.requestOptions.uri.host.contains('valorant-api.com')) {
       err.requestOptions.extra['authRetried'] = true;
@@ -95,6 +105,26 @@ class AuthInterceptor extends Interceptor {
       }
     }
     handler.next(err);
+  }
+
+  bool _isRiotAuthClaimError(dynamic data) {
+    if (data == null) return false;
+    if (data is Map) {
+      final errorCode = data['errorCode']?.toString().toUpperCase() ?? '';
+      final message = data['message']?.toString().toUpperCase() ?? '';
+      if (errorCode == 'BAD_CLAIMS' ||
+          message.contains('BAD_CLAIMS') ||
+          message.contains('RSO ACCESS TOKEN') ||
+          (message.contains('TOKEN') && message.contains('VALIDAT'))) {
+        return true;
+      }
+    } else if (data is String) {
+      final upper = data.toUpperCase();
+      if (upper.contains('BAD_CLAIMS') || upper.contains('RSO ACCESS TOKEN')) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /// Silently reauthenticates with Riot using stored cookieJar.

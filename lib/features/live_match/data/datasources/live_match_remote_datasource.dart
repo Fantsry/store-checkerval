@@ -47,7 +47,43 @@ class LiveMatchRemoteDataSourceImpl implements LiveMatchRemoteDataSource {
     switch (s) {
       case 'latam':
       case 'br':
+      case 'na':
+        return 'na';
       case 'pbe':
+        return 'pbe';
+      case 'eu':
+        return 'eu';
+      case 'kr':
+        return 'kr';
+      case 'ap':
+      default:
+        return 'ap';
+    }
+  }
+
+  static String _normalizeRegion(String region, String shard) {
+    final r = region.trim().toLowerCase();
+    switch (r) {
+      case 'latam':
+      case 'br':
+      case 'pbe':
+      case 'na':
+      case 'eu':
+      case 'kr':
+      case 'ap':
+        return r;
+      default:
+        break;
+    }
+    // Fallback based on shard
+    final s = shard.trim().toLowerCase();
+    switch (s) {
+      case 'latam':
+        return 'latam';
+      case 'br':
+        return 'br';
+      case 'pbe':
+        return 'pbe';
       case 'na':
         return 'na';
       case 'eu':
@@ -60,11 +96,6 @@ class LiveMatchRemoteDataSourceImpl implements LiveMatchRemoteDataSource {
     }
   }
 
-  static String _regionForShard(String shard) {
-    final s = _normalizeShard(shard);
-    return s;
-  }
-
   @override
   Future<Map<String, dynamic>?> fetchCoreGamePlayer({
     required String region,
@@ -72,7 +103,7 @@ class LiveMatchRemoteDataSourceImpl implements LiveMatchRemoteDataSource {
     required String puuid,
   }) async {
     try {
-      final reg = _regionForShard(region);
+      final reg = _normalizeRegion(region, shard);
       final sh = _normalizeShard(shard);
       final url = ApiConstants.coreGamePlayerUrl(reg, sh, puuid);
 
@@ -80,8 +111,14 @@ class LiveMatchRemoteDataSourceImpl implements LiveMatchRemoteDataSource {
       if (response.statusCode == 200 && response.data != null) {
         return response.data as Map<String, dynamic>;
       }
-    } catch (_) {}
-    return null;
+      return null;
+    } on DioException catch (e) {
+      // 404 indicates player is not in a core-game match
+      if (e.response?.statusCode == 404) {
+        return null;
+      }
+      rethrow;
+    }
   }
 
   @override
@@ -91,7 +128,7 @@ class LiveMatchRemoteDataSourceImpl implements LiveMatchRemoteDataSource {
     required String matchId,
   }) async {
     try {
-      final reg = _regionForShard(region);
+      final reg = _normalizeRegion(region, shard);
       final sh = _normalizeShard(shard);
       final url = ApiConstants.coreGameMatchUrl(reg, sh, matchId);
 
@@ -99,8 +136,13 @@ class LiveMatchRemoteDataSourceImpl implements LiveMatchRemoteDataSource {
       if (response.statusCode == 200 && response.data != null) {
         return response.data as Map<String, dynamic>;
       }
-    } catch (_) {}
-    return null;
+      return null;
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 404) {
+        return null;
+      }
+      rethrow;
+    }
   }
 
   @override
@@ -110,7 +152,7 @@ class LiveMatchRemoteDataSourceImpl implements LiveMatchRemoteDataSource {
     required String puuid,
   }) async {
     try {
-      final reg = _regionForShard(region);
+      final reg = _normalizeRegion(region, shard);
       final sh = _normalizeShard(shard);
       final url = ApiConstants.preGamePlayerUrl(reg, sh, puuid);
 
@@ -118,8 +160,14 @@ class LiveMatchRemoteDataSourceImpl implements LiveMatchRemoteDataSource {
       if (response.statusCode == 200 && response.data != null) {
         return response.data as Map<String, dynamic>;
       }
-    } catch (_) {}
-    return null;
+      return null;
+    } on DioException catch (e) {
+      // 404 indicates player is not in agent select
+      if (e.response?.statusCode == 404) {
+        return null;
+      }
+      rethrow;
+    }
   }
 
   @override
@@ -129,7 +177,7 @@ class LiveMatchRemoteDataSourceImpl implements LiveMatchRemoteDataSource {
     required String matchId,
   }) async {
     try {
-      final reg = _regionForShard(region);
+      final reg = _normalizeRegion(region, shard);
       final sh = _normalizeShard(shard);
       final url = ApiConstants.preGameMatchUrl(reg, sh, matchId);
 
@@ -137,8 +185,13 @@ class LiveMatchRemoteDataSourceImpl implements LiveMatchRemoteDataSource {
       if (response.statusCode == 200 && response.data != null) {
         return response.data as Map<String, dynamic>;
       }
-    } catch (_) {}
-    return null;
+      return null;
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 404) {
+        return null;
+      }
+      rethrow;
+    }
   }
 
   @override

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:dio/dio.dart';
 import 'package:valorant_store_tracker/core/error/failures.dart';
 import 'package:valorant_store_tracker/core/error/result.dart';
 import 'package:valorant_store_tracker/core/storage/secure_storage_service.dart';
@@ -80,6 +81,12 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
             matchId: matchId,
             matchData: match,
           );
+        } else {
+          return Result.failure(
+            ServerFailure(
+              message: 'Active match ($matchId) detected, but match details could not be retrieved from Riot servers.',
+            ),
+          );
         }
       }
 
@@ -105,12 +112,38 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
             matchId: matchId,
             matchData: match,
           );
+        } else {
+          return Result.failure(
+            ServerFailure(
+              message: 'Agent select lobby ($matchId) detected, but lobby details could not be retrieved from Riot servers.',
+            ),
+          );
         }
       }
 
       // Step 3: Not in match
       return const Result.success(
         LiveMatchData(phase: LiveMatchPhase.inLobby),
+      );
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 401 ||
+          (e.response?.statusCode == 400 &&
+              (e.response?.data?.toString().contains('BAD_CLAIMS') ?? false))) {
+        return const Result.failure(
+          AuthFailure(message: 'Riot session expired or invalid. Please sign in again.'),
+        );
+      }
+      if (e.type == DioExceptionType.connectionTimeout ||
+          e.type == DioExceptionType.receiveTimeout ||
+          e.type == DioExceptionType.connectionError) {
+        return const Result.failure(
+          NetworkFailure(message: 'Connection timed out while connecting to Valorant GLZ servers.'),
+        );
+      }
+      return Result.failure(
+        ServerFailure(
+          message: 'Failed to contact Valorant servers (${e.response?.statusCode ?? 'Network'}): ${e.message}',
+        ),
       );
     } catch (e) {
       return Result.failure(
@@ -128,16 +161,6 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
     final mapUrl = (matchData['MapID'] ?? '').toString();
     final modeUrl = (matchData['ModeID'] ?? '').toString();
 
-    // Fetch metadata
-    final mapsMeta = await _careerDataSource.fetchMapsMetadata();
-    final agentsMeta = await _careerDataSource.fetchAgentsMetadata();
-    final tiersMeta = await _careerDataSource.fetchCompetitiveTiersMetadata();
-
-    final mapInfo = mapsMeta[mapUrl.toLowerCase()];
-    final mapName = mapInfo?['displayName'] ?? mapUrl.split('/').last;
-    final mapSplash = mapInfo?['splash'];
-    final modeName = _cleanModeName(modeUrl);
-
     final rawPlayers = matchData['Players'] as List<dynamic>? ?? [];
     final List<String> puuids = [];
     for (final p in rawPlayers) {
@@ -146,11 +169,40 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
       }
     }
 
-    // Fetch player names & MMR
-    final namesList = await _remoteDataSource.fetchPlayerNames(
-      shard: shard,
-      puuids: puuids,
-    );
+    // Parallelize metadata, names, and player MMR lookups
+    final results = await Future.wait([
+      _careerDataSource.fetchMapsMetadata(),
+      _careerDataSource.fetchAgentsMetadata(),
+      _careerDataSource.fetchCompetitiveTiersMetadata(),
+      _remoteDataSource.fetchPlayerNames(shard: shard, puuids: puuids),
+      Future.wait(
+        puuids.map((sub) async {
+          try {
+            final mmrData = await _remoteDataSource.fetchPlayerMmr(
+              shard: shard,
+              puuid: sub,
+            );
+            return MapEntry(sub, mmrData);
+          } catch (_) {
+            return MapEntry(sub, null);
+          }
+        }),
+      ),
+    ]);
+
+    final mapsMeta = results[0] as Map<String, Map<String, dynamic>>;
+    final agentsMeta = results[1] as Map<String, Map<String, dynamic>>;
+    final tiersMeta = results[2] as Map<int, Map<String, dynamic>>;
+    final namesList = results[3] as List<Map<String, dynamic>>;
+    final mmrEntries =
+        results[4] as List<MapEntry<String, Map<String, dynamic>?>>;
+    final mmrMap = Map.fromEntries(mmrEntries);
+
+    final mapInfo = mapsMeta[mapUrl.toLowerCase()];
+    final mapName = mapInfo?['displayName'] ?? mapUrl.split('/').last;
+    final mapSplash = mapInfo?['splash'];
+    final modeName = _cleanModeName(modeUrl);
+
     final Map<String, Map<String, String>> namesMap = {};
     for (final n in namesList) {
       final sub = (n['Subject'] ?? '').toString();
@@ -158,6 +210,15 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
         'gameName': (n['GameName'] ?? 'Player').toString(),
         'tagLine': (n['TagLine'] ?? '').toString(),
       };
+    }
+
+    // Find the user's team ID so allies and enemies are assigned correctly
+    String myTeamId = 'Blue';
+    for (final p in rawPlayers) {
+      if (p is Map && (p['Subject'] ?? '').toString() == selfPuuid) {
+        myTeamId = (p['TeamID'] ?? 'Blue').toString();
+        break;
+      }
     }
 
     final List<LivePlayerInfo> blueTeam = [];
@@ -183,20 +244,16 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
         int currentRr = 0;
         var peakRank = 'Unranked';
 
-        try {
-          final mmrData = await _remoteDataSource.fetchPlayerMmr(
-            shard: shard,
-            puuid: sub,
-          );
-          if (mmrData != null) {
-            final parsed = _extractRankFromMmr(mmrData, tiersMeta);
-            rankName = parsed['rankName'] ?? 'Unranked';
-            rankIcon = parsed['rankIcon'];
-            currentRr = parsed['currentRr'] as int? ?? 0;
-            peakRank = parsed['peakRank'] ?? 'Unranked';
-          }
-        } catch (_) {}
+        final mmrData = mmrMap[sub];
+        if (mmrData != null) {
+          final parsed = _extractRankFromMmr(mmrData, tiersMeta);
+          rankName = parsed['rankName'] ?? 'Unranked';
+          rankIcon = parsed['rankIcon'];
+          currentRr = parsed['currentRr'] as int? ?? 0;
+          peakRank = parsed['peakRank'] ?? 'Unranked';
+        }
 
+        final isSelf = sub == selfPuuid;
         final player = LivePlayerInfo(
           puuid: sub,
           gameName: gameName,
@@ -208,11 +265,12 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
           rankIcon: rankIcon,
           currentRr: currentRr,
           peakRankTierName: peakRank,
-          isSelf: sub == selfPuuid,
+          isSelf: isSelf,
           isLocked: true,
         );
 
-        if (teamId.toLowerCase() == 'blue') {
+        // Put user's team into blueTeam (Allies) and opponent team into redTeam (Enemies)
+        if (teamId.toLowerCase() == myTeamId.toLowerCase()) {
           blueTeam.add(player);
         } else {
           redTeam.add(player);
@@ -242,15 +300,6 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
     final mapUrl = (matchData['MapID'] ?? '').toString();
     final modeUrl = (matchData['Mode'] ?? '').toString();
 
-    final mapsMeta = await _careerDataSource.fetchMapsMetadata();
-    final agentsMeta = await _careerDataSource.fetchAgentsMetadata();
-    final tiersMeta = await _careerDataSource.fetchCompetitiveTiersMetadata();
-
-    final mapInfo = mapsMeta[mapUrl.toLowerCase()];
-    final mapName = mapInfo?['displayName'] ?? mapUrl.split('/').last;
-    final mapSplash = mapInfo?['splash'];
-    final modeName = _cleanModeName(modeUrl);
-
     final allyTeamRaw = matchData['AllyTeam'] as Map<String, dynamic>?;
     final rawPlayers = allyTeamRaw?['Players'] as List<dynamic>? ?? [];
 
@@ -261,10 +310,40 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
       }
     }
 
-    final namesList = await _remoteDataSource.fetchPlayerNames(
-      shard: shard,
-      puuids: puuids,
-    );
+    // Parallelize metadata, names, and player MMR lookups
+    final results = await Future.wait([
+      _careerDataSource.fetchMapsMetadata(),
+      _careerDataSource.fetchAgentsMetadata(),
+      _careerDataSource.fetchCompetitiveTiersMetadata(),
+      _remoteDataSource.fetchPlayerNames(shard: shard, puuids: puuids),
+      Future.wait(
+        puuids.map((sub) async {
+          try {
+            final mmrData = await _remoteDataSource.fetchPlayerMmr(
+              shard: shard,
+              puuid: sub,
+            );
+            return MapEntry(sub, mmrData);
+          } catch (_) {
+            return MapEntry(sub, null);
+          }
+        }),
+      ),
+    ]);
+
+    final mapsMeta = results[0] as Map<String, Map<String, dynamic>>;
+    final agentsMeta = results[1] as Map<String, Map<String, dynamic>>;
+    final tiersMeta = results[2] as Map<int, Map<String, dynamic>>;
+    final namesList = results[3] as List<Map<String, dynamic>>;
+    final mmrEntries =
+        results[4] as List<MapEntry<String, Map<String, dynamic>?>>;
+    final mmrMap = Map.fromEntries(mmrEntries);
+
+    final mapInfo = mapsMeta[mapUrl.toLowerCase()];
+    final mapName = mapInfo?['displayName'] ?? mapUrl.split('/').last;
+    final mapSplash = mapInfo?['splash'];
+    final modeName = _cleanModeName(modeUrl);
+
     final Map<String, Map<String, String>> namesMap = {};
     for (final n in namesList) {
       final sub = (n['Subject'] ?? '').toString();
@@ -296,19 +375,14 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
         int currentRr = 0;
         var peakRank = 'Unranked';
 
-        try {
-          final mmrData = await _remoteDataSource.fetchPlayerMmr(
-            shard: shard,
-            puuid: sub,
-          );
-          if (mmrData != null) {
-            final parsed = _extractRankFromMmr(mmrData, tiersMeta);
-            rankName = parsed['rankName'] ?? 'Unranked';
-            rankIcon = parsed['rankIcon'];
-            currentRr = parsed['currentRr'] as int? ?? 0;
-            peakRank = parsed['peakRank'] ?? 'Unranked';
-          }
-        } catch (_) {}
+        final mmrData = mmrMap[sub];
+        if (mmrData != null) {
+          final parsed = _extractRankFromMmr(mmrData, tiersMeta);
+          rankName = parsed['rankName'] ?? 'Unranked';
+          rankIcon = parsed['rankIcon'];
+          currentRr = parsed['currentRr'] as int? ?? 0;
+          peakRank = parsed['peakRank'] ?? 'Unranked';
+        }
 
         allyTeam.add(
           LivePlayerInfo(
@@ -349,8 +423,23 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
     try {
       final queueSkills = mmrData['QueueSkills'] as Map<String, dynamic>?;
       final compSkill = queueSkills?['competitive'] as Map<String, dynamic>?;
-      final currentTier = compSkill?['Tier'] as int? ?? 0;
+      var currentTier = compSkill?['Tier'] as int? ?? 0;
       final currentRr = compSkill?['RankedRating'] as int? ?? 0;
+
+      // Fallback if currentTier is 0: check recent seasonal tier
+      final seasonal =
+          compSkill?['SeasonalInfoBySeasonID'] as Map<String, dynamic>?;
+      if (currentTier == 0 && seasonal != null && seasonal.isNotEmpty) {
+        for (final entry in seasonal.values) {
+          if (entry is Map) {
+            final t = entry['CompetitiveTier'] as int? ?? 0;
+            if (t > 0) {
+              currentTier = t;
+              break;
+            }
+          }
+        }
+      }
 
       final tierInfo = tiersMeta[currentTier];
       final rankName = tierInfo?['tierName'] ?? 'Unranked';
@@ -358,13 +447,14 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
 
       // Peak Rank
       int peakTier = currentTier;
-      final seasonal =
-          compSkill?['SeasonalInfoBySeasonID'] as Map<String, dynamic>?;
       if (seasonal != null) {
         for (final entry in seasonal.values) {
           if (entry is Map) {
             final t = entry['CompetitiveTier'] as int? ?? 0;
             if (t > peakTier) peakTier = t;
+            final badgeRank =
+                entry['SeasonalBadgeInfo']?['Rank'] as int? ?? 0;
+            if (badgeRank > peakTier) peakTier = badgeRank;
           }
         }
       }

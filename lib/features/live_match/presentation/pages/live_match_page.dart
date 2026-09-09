@@ -162,41 +162,74 @@ class _LiveMatchPageState extends State<LiveMatchPage>
                         ),
                       )
                     else if (state is LiveMatchError)
-                      SliverToBoxAdapter(
+                      SliverFillRemaining(
+                        hasScrollBody: false,
                         child: Padding(
-                          padding: const EdgeInsets.all(40),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 32,
+                            vertical: 40,
+                          ),
                           child: Center(
                             child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                const Icon(
-                                  Icons.error_outline_rounded,
-                                  size: 48,
-                                  color: AppTheme.valorantRed,
+                                Container(
+                                  padding: const EdgeInsets.all(20),
+                                  decoration: BoxDecoration(
+                                    color: AppTheme.valorantRed
+                                        .withValues(alpha: 0.1),
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: AppTheme.valorantRed
+                                          .withValues(alpha: 0.3),
+                                    ),
+                                  ),
+                                  child: const Icon(
+                                    Icons.error_outline_rounded,
+                                    size: 48,
+                                    color: AppTheme.valorantRed,
+                                  ),
                                 ),
-                                const SizedBox(height: 16),
+                                const SizedBox(height: 20),
+                                const Text(
+                                  'Radar Scan Failed',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: 1,
+                                    color: AppTheme.textPrimary,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
                                 Text(
                                   state.message,
                                   textAlign: TextAlign.center,
                                   style: const TextStyle(
+                                    fontSize: 13,
                                     color: AppTheme.textSecondary,
+                                    height: 1.5,
                                   ),
                                 ),
-                                const SizedBox(height: 20),
+                                const SizedBox(height: 24),
                                 Wrap(
                                   spacing: 12,
+                                  runSpacing: 12,
+                                  alignment: WrapAlignment.center,
                                   children: [
                                     ElevatedButton.icon(
-                                      onPressed: () => context.pushNamed('login'),
-                                      icon: const Icon(Icons.login_rounded),
-                                      label: const Text('SIGN IN WITH RIOT'),
-                                    ),
-                                    OutlinedButton(
                                       onPressed: () {
                                         context
                                             .read<LiveMatchCubit>()
                                             .scanLiveMatch();
                                       },
-                                      child: const Text('RETRY SCAN'),
+                                      icon: const Icon(Icons.radar_rounded),
+                                      label: const Text('RETRY SCAN'),
+                                    ),
+                                    OutlinedButton.icon(
+                                      onPressed: () =>
+                                          context.pushNamed('login'),
+                                      icon: const Icon(Icons.login_rounded),
+                                      label: const Text('SIGN IN WITH RIOT'),
                                     ),
                                   ],
                                 ),
@@ -244,12 +277,47 @@ class _LiveMatchPageState extends State<LiveMatchPage>
                                   ),
                                   const SizedBox(height: 8),
                                   const Text(
-                                    'You are currently not in Agent Select or a Live Match. Join a game in Valorant, then tap below to view live player ranks and agents!',
+                                    'You are currently not in Agent Select or a Live Match. Join a game in Valorant on PC, then tap below to view live player ranks and agents!',
                                     textAlign: TextAlign.center,
                                     style: TextStyle(
                                       fontSize: 13,
                                       color: AppTheme.textSecondary,
                                       height: 1.5,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 14,
+                                      vertical: 10,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: AppTheme.surfaceLight,
+                                      borderRadius: BorderRadius.circular(10),
+                                      border: Border.all(
+                                        color: Colors.white
+                                            .withValues(alpha: 0.05),
+                                      ),
+                                    ),
+                                    child: const Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          Icons.info_outline_rounded,
+                                          size: 16,
+                                          color: AppTheme.textSecondary,
+                                        ),
+                                        SizedBox(width: 8),
+                                        Flexible(
+                                          child: Text(
+                                            'Tip: Riot servers register matches 2–5s after loading starts.',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              color: AppTheme.textSecondary,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ),
                                   const SizedBox(height: 24),
@@ -385,7 +453,7 @@ class _LiveMatchPageState extends State<LiveMatchPage>
                                 Text(
                                   state.matchData.phase == LiveMatchPhase.preGame
                                       ? 'YOUR TEAM (${state.matchData.blueTeam.length})'
-                                      : 'TEAM BLUE (${state.matchData.blueTeam.length})',
+                                      : 'YOUR TEAM / ALLIES (${state.matchData.blueTeam.length})',
                                   style: const TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w900,
@@ -430,7 +498,7 @@ class _LiveMatchPageState extends State<LiveMatchPage>
                                   ),
                                   const SizedBox(width: 8),
                                   Text(
-                                    'TEAM RED (${state.matchData.redTeam.length})',
+                                    'ENEMY TEAM (${state.matchData.redTeam.length})',
                                     style: const TextStyle(
                                       fontSize: 12,
                                       fontWeight: FontWeight.w900,
