@@ -252,16 +252,28 @@ class DailyStore extends Equatable {
         .map((e) => SkinItem.fromJson(e as Map<String, dynamic>))
         .toList();
 
-    final bundlesList = (json['bundles'] as List<dynamic>? ?? [])
+    final rawBundles = (json['bundles'] as List<dynamic>? ?? [])
         .map((b) => FeaturedBundle.fromJson(b as Map<String, dynamic>))
         .toList();
+
+    // Ensure unique bundles by UUID or displayName
+    final seenBundleKeys = <String>{};
+    final uniqueBundles = <FeaturedBundle>[];
+    for (final b in rawBundles) {
+      final key = b.uuid.isNotEmpty
+          ? b.uuid.toLowerCase()
+          : b.displayName.toLowerCase();
+      if (seenBundleKeys.add(key)) {
+        uniqueBundles.add(b);
+      }
+    }
 
     FeaturedBundle? singleBundle;
     if (json['bundle'] != null) {
       singleBundle =
           FeaturedBundle.fromJson(json['bundle'] as Map<String, dynamic>);
-    } else if (bundlesList.isNotEmpty) {
-      singleBundle = bundlesList.first;
+    } else if (uniqueBundles.isNotEmpty) {
+      singleBundle = uniqueBundles.first;
     }
 
     NightMarket? nm;
@@ -276,7 +288,7 @@ class DailyStore extends Equatable {
     return DailyStore(
       featuredOffers: offers,
       remainingDurationSeconds: json['remainingDurationSeconds'] as int? ?? 0,
-      bundles: bundlesList,
+      bundles: uniqueBundles,
       bundle: singleBundle,
       nightMarket: nm,
       accessoryOffers: accessories,

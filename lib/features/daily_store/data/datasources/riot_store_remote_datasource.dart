@@ -25,6 +25,8 @@ class RiotStoreRemoteDataSourceImpl implements RiotStoreRemoteDataSource {
   static const String vpCurrencyUuid = '85ad13f7-3d1b-5128-9eb2-7cd8ee0b5741';
   // Radianite Points currency UUID
   static const String rpCurrencyUuid = 'e59aa87c-4cbf-517a-5983-6e81511be9b7';
+  // Kingdom Credits currency UUID
+  static const String kcCurrencyUuid = '85ca9543-7697-970b-7caa-e2a3d1a3d49e';
 
   @override
   Future<Map<String, dynamic>> getStorefront({
@@ -69,6 +71,32 @@ class RiotStoreRemoteDataSourceImpl implements RiotStoreRemoteDataSource {
           final data = Map<String, dynamic>.from(rawData);
           // Attach the successfully resolved shard
           data['_resolvedShard'] = s;
+
+          // Riot v3 storefront endpoint often omits AccessoryStore (Kingdom Credits shop)
+          // or BonusStore (Night Market). If missing, enrich with v2 data on the same shard.
+          if (data['AccessoryStore'] == null || data['BonusStore'] == null) {
+            try {
+              final urlV2 = ApiConstants.storefrontUrl(s, cleanPuuid);
+              final responseV2 = await _dio.get(urlV2);
+              dynamic rawV2 = responseV2.data;
+              if (rawV2 is String) {
+                try {
+                  rawV2 = jsonDecode(rawV2);
+                } catch (_) {}
+              }
+              if (rawV2 is Map) {
+                if (data['AccessoryStore'] == null &&
+                    rawV2['AccessoryStore'] != null) {
+                  data['AccessoryStore'] = rawV2['AccessoryStore'];
+                }
+                if (data['BonusStore'] == null &&
+                    rawV2['BonusStore'] != null) {
+                  data['BonusStore'] = rawV2['BonusStore'];
+                }
+              }
+            } catch (_) {}
+          }
+
           return data;
         }
       } on DioException catch (e) {
@@ -160,10 +188,14 @@ class RiotStoreRemoteDataSourceImpl implements RiotStoreRemoteDataSource {
           final balances = (rawData['Balances'] as Map?) ?? {};
           final vp = (balances[vpCurrencyUuid] as num?)?.toInt() ?? 0;
           final rp = (balances[rpCurrencyUuid] as num?)?.toInt() ?? 0;
+          final kc = (balances[kcCurrencyUuid] as num?)?.toInt() ??
+              (balances[kcCurrencyUuid.toUpperCase()] as num?)?.toInt() ??
+              0;
 
           return UserWallet(
             valorantPoints: vp,
             radianitePoints: rp,
+            kingdomCredits: kc,
           );
         }
       } catch (_) {

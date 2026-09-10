@@ -240,14 +240,14 @@ class StoreRepositoryImpl implements StoreRepository {
         } catch (_) {}
 
         final rawBundles = <Map<String, dynamic>>[];
-        if (featuredBundleData['Bundle'] is Map) {
-          rawBundles.add(
-              Map<String, dynamic>.from(featuredBundleData['Bundle'] as Map));
-        }
-        if (featuredBundleData['Bundles'] is List) {
+        if (featuredBundleData['Bundles'] is List &&
+            (featuredBundleData['Bundles'] as List).isNotEmpty) {
           for (final b in featuredBundleData['Bundles'] as List) {
             if (b is Map) rawBundles.add(Map<String, dynamic>.from(b));
           }
+        } else if (featuredBundleData['Bundle'] is Map) {
+          rawBundles.add(
+              Map<String, dynamic>.from(featuredBundleData['Bundle'] as Map));
         }
 
         final bRemaining = (featuredBundleData[
@@ -255,14 +255,29 @@ class StoreRepositoryImpl implements StoreRepository {
             ?.toInt() ??
             0;
 
+        final seenBundleIds = <String>{};
         for (final bundleDetails in rawBundles) {
-          final bId = (bundleDetails['ID'] ?? '').toString();
-          final bDataAssetId = (bundleDetails['DataAssetID'] ?? '').toString();
-          final effectiveUuid = (bDataAssetId.isNotEmpty ? bDataAssetId : bId).toLowerCase();
+          final bId =
+              (bundleDetails['ID'] ?? '').toString().trim().toLowerCase();
+          final bDataAssetId = (bundleDetails['DataAssetID'] ?? '')
+              .toString()
+              .trim()
+              .toLowerCase();
+          final effectiveUuid = (bDataAssetId.isNotEmpty ? bDataAssetId : bId)
+              .toLowerCase();
+
+          if (effectiveUuid.isEmpty) continue;
+          if (seenBundleIds.contains(effectiveUuid) ||
+              (bId.isNotEmpty && seenBundleIds.contains(bId))) {
+            continue; // Skip duplicate bundle
+          }
+          seenBundleIds.add(effectiveUuid);
+          if (bId.isNotEmpty) seenBundleIds.add(bId);
+          if (bDataAssetId.isNotEmpty) seenBundleIds.add(bDataAssetId);
 
           final meta = bundlesMeta[effectiveUuid] ??
-              bundlesMeta[bId.toLowerCase()] ??
-              bundlesMeta[bDataAssetId.toLowerCase()];
+              bundlesMeta[bId] ??
+              bundlesMeta[bDataAssetId];
 
           final bName = meta?['displayName']?.toString() ?? 'Featured Collection';
           final bIcon = meta?['displayIcon']?.toString();
@@ -411,25 +426,53 @@ class StoreRepositoryImpl implements StoreRepository {
 
           for (final acc in rawAccOffers) {
             if (acc is! Map) continue;
-            final offer = acc['Offer'] as Map?;
-            final rewards = offer?['Rewards'] as List?;
+            final offer = (acc['Offer'] is Map)
+                ? (acc['Offer'] as Map)
+                : acc;
+            final rewards = offer['Rewards'] as List?;
             String? itemId;
+            String? itemTypeId;
             if (rewards != null && rewards.isNotEmpty && rewards.first is Map) {
               itemId = rewards.first['ItemID']?.toString().toLowerCase();
+              itemTypeId = rewards.first['ItemTypeID']?.toString().toLowerCase();
             }
-            itemId ??= offer?['OfferID']?.toString().toLowerCase();
+            itemId ??= offer['OfferID']?.toString().toLowerCase();
 
             if (itemId == null || itemId.isEmpty) continue;
 
             final meta = accMeta[itemId];
-            final name = meta?['displayName']?.toString() ?? 'Accessory';
-            final icon = meta?['displayIcon']?.toString();
-            final itemType = meta?['itemType']?.toString() ?? 'Accessory';
+            var name = meta?['displayName']?.toString();
+            var icon = meta?['displayIcon']?.toString();
+            var itemType = meta?['itemType']?.toString();
 
-            final costMap = offer?['Cost'] as Map?;
+            // Infer itemType from known Riot ItemTypeID if meta is unavailable
+            if (itemType == null || itemType == 'Accessory') {
+              if (itemTypeId == 'dd3bf334-87f3-40bd-b043-682a57a8dc3a') {
+                itemType = 'Gun Buddy';
+              } else if (itemTypeId == '3f296c07-64c3-494c-923b-fe692a4fa1bd') {
+                itemType = 'Player Card';
+              } else if (itemTypeId == 'de729d44-44ac-4276-3b01-77a1e7f60434') {
+                itemType = 'Player Title';
+              } else if (itemTypeId == 'dbe38bf7-b6e8-4591-a142-87289beec76e') {
+                itemType = 'Spray';
+              } else {
+                itemType = 'Accessory';
+              }
+            }
+            name ??= itemType;
+
+            final costMap = offer['Cost'] as Map?;
             const kcCurrencyUuid = '85ca9543-7697-970b-7caa-e2a3d1a3d49e';
-            final kcCost =
-                (costMap?[kcCurrencyUuid] as num?)?.toInt() ?? 4000;
+            int kcCost = 4000;
+            if (costMap != null && costMap.isNotEmpty) {
+              final kcEntry = costMap.entries.firstWhere(
+                (e) =>
+                    e.key.toString().toLowerCase() ==
+                    kcCurrencyUuid.toLowerCase(),
+                orElse: () => costMap.entries.first,
+              );
+              kcCost = (kcEntry.value as num?)?.toInt() ?? 4000;
+            }
 
             accessoryOffers.add(
               AccessoryStoreItem(

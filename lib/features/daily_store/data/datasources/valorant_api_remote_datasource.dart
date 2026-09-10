@@ -213,29 +213,54 @@ class ValorantApiRemoteDataSourceImpl implements ValorantApiRemoteDataSource {
     try {
       final accessories = <String, Map<String, dynamic>>{};
 
-      // 1. Buddies
+      // Fetch metadata in parallel for Buddies, Sprays, Player Cards, and Player Titles
+      final results = await Future.wait([
+        _dio.get(ApiConstants.valorantApiBuddies).catchError(
+              (_) => Response(requestOptions: RequestOptions()),
+            ),
+        _dio.get(ApiConstants.valorantApiSprays).catchError(
+              (_) => Response(requestOptions: RequestOptions()),
+            ),
+        _dio.get(ApiConstants.valorantApiPlayerCards).catchError(
+              (_) => Response(requestOptions: RequestOptions()),
+            ),
+        _dio.get(ApiConstants.valorantApiPlayerTitles).catchError(
+              (_) => Response(requestOptions: RequestOptions()),
+            ),
+      ]);
+
+      // 1. Process Buddies
       try {
-        final res = await _dio.get(ApiConstants.valorantApiBuddies);
-        final list = res.data['data'] as List<dynamic>? ?? [];
-        for (final b in list) {
-          if (b is Map) {
-            final uuid = (b['uuid'] ?? '').toString().toLowerCase();
-            accessories[uuid] = {
-              'displayName': b['displayName']?.toString() ?? 'Gun Buddy',
-              'displayIcon': b['displayIcon']?.toString(),
-              'itemType': 'Gun Buddy',
-            };
-            // Also map levels
-            final lvls = b['levels'] as List?;
-            if (lvls != null) {
-              for (final l in lvls) {
-                if (l is Map) {
-                  final lUuid = (l['uuid'] ?? '').toString().toLowerCase();
-                  accessories[lUuid] = {
-                    'displayName': b['displayName']?.toString() ?? 'Gun Buddy',
-                    'displayIcon': l['displayIcon']?.toString() ?? b['displayIcon']?.toString(),
-                    'itemType': 'Gun Buddy',
-                  };
+        final res = results[0];
+        if (res.data is Map) {
+          final list = res.data['data'] as List<dynamic>? ?? [];
+          for (final b in list) {
+            if (b is Map) {
+              final uuid = (b['uuid'] ?? '').toString().toLowerCase();
+              final name = b['displayName']?.toString() ?? 'Gun Buddy';
+              final icon = b['displayIcon']?.toString();
+              if (uuid.isNotEmpty) {
+                accessories[uuid] = {
+                  'displayName': name,
+                  'displayIcon': icon,
+                  'itemType': 'Gun Buddy',
+                };
+              }
+              // Map buddy levels
+              final lvls = b['levels'] as List?;
+              if (lvls != null) {
+                for (final l in lvls) {
+                  if (l is Map) {
+                    final lUuid = (l['uuid'] ?? '').toString().toLowerCase();
+                    if (lUuid.isNotEmpty) {
+                      accessories[lUuid] = {
+                        'displayName': name,
+                        'displayIcon':
+                            l['displayIcon']?.toString() ?? icon,
+                        'itemType': 'Gun Buddy',
+                      };
+                    }
+                  }
                 }
               }
             }
@@ -243,34 +268,89 @@ class ValorantApiRemoteDataSourceImpl implements ValorantApiRemoteDataSource {
         }
       } catch (_) {}
 
-      // 2. Sprays
+      // 2. Process Sprays (including spray levels which Riot uses in accessory offers)
       try {
-        final res = await _dio.get(ApiConstants.valorantApiSprays);
-        final list = res.data['data'] as List<dynamic>? ?? [];
-        for (final s in list) {
-          if (s is Map) {
-            final uuid = (s['uuid'] ?? '').toString().toLowerCase();
-            accessories[uuid] = {
-              'displayName': s['displayName']?.toString() ?? 'Spray',
-              'displayIcon': s['fullTransparentIcon']?.toString() ?? s['displayIcon']?.toString(),
-              'itemType': 'Spray',
-            };
+        final res = results[1];
+        if (res.data is Map) {
+          final list = res.data['data'] as List<dynamic>? ?? [];
+          for (final s in list) {
+            if (s is Map) {
+              final uuid = (s['uuid'] ?? '').toString().toLowerCase();
+              final name = s['displayName']?.toString() ?? 'Spray';
+              final icon = s['fullTransparentIcon']?.toString() ??
+                  s['displayIcon']?.toString();
+              if (uuid.isNotEmpty) {
+                accessories[uuid] = {
+                  'displayName': name,
+                  'displayIcon': icon,
+                  'itemType': 'Spray',
+                };
+              }
+              // Map spray levels (e.g. 1a2d5672-... level UUID)
+              final lvls = s['levels'] as List?;
+              if (lvls != null) {
+                for (final l in lvls) {
+                  if (l is Map) {
+                    final lUuid = (l['uuid'] ?? '').toString().toLowerCase();
+                    if (lUuid.isNotEmpty) {
+                      accessories[lUuid] = {
+                        'displayName': name,
+                        'displayIcon':
+                            l['displayIcon']?.toString() ?? icon,
+                        'itemType': 'Spray',
+                      };
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       } catch (_) {}
 
-      // 3. Player Cards
+      // 3. Process Player Cards
       try {
-        final res = await _dio.get(ApiConstants.valorantApiPlayerCards);
-        final list = res.data['data'] as List<dynamic>? ?? [];
-        for (final c in list) {
-          if (c is Map) {
-            final uuid = (c['uuid'] ?? '').toString().toLowerCase();
-            accessories[uuid] = {
-              'displayName': c['displayName']?.toString() ?? 'Player Card',
-              'displayIcon': c['largeArt']?.toString() ?? c['wideArt']?.toString() ?? c['smallArt']?.toString(),
-              'itemType': 'Player Card',
-            };
+        final res = results[2];
+        if (res.data is Map) {
+          final list = res.data['data'] as List<dynamic>? ?? [];
+          for (final c in list) {
+            if (c is Map) {
+              final uuid = (c['uuid'] ?? '').toString().toLowerCase();
+              if (uuid.isNotEmpty) {
+                accessories[uuid] = {
+                  'displayName': c['displayName']?.toString() ?? 'Player Card',
+                  'displayIcon': c['largeArt']?.toString() ??
+                      c['wideArt']?.toString() ??
+                      c['smallArt']?.toString() ??
+                      c['displayIcon']?.toString(),
+                  'itemType': 'Player Card',
+                };
+              }
+            }
+          }
+        }
+      } catch (_) {}
+
+      // 4. Process Player Titles
+      try {
+        final res = results[3];
+        if (res.data is Map) {
+          final list = res.data['data'] as List<dynamic>? ?? [];
+          for (final t in list) {
+            if (t is Map) {
+              final uuid = (t['uuid'] ?? '').toString().toLowerCase();
+              final titleText = t['titleText']?.toString();
+              final displayName =
+                  t['displayName']?.toString() ?? titleText ?? 'Player Title';
+              if (uuid.isNotEmpty) {
+                accessories[uuid] = {
+                  'displayName': displayName,
+                  'titleText': titleText ?? displayName,
+                  'displayIcon': null,
+                  'itemType': 'Player Title',
+                };
+              }
+            }
           }
         }
       } catch (_) {}

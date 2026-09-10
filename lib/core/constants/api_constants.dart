@@ -134,6 +134,7 @@ class ApiConstants {
   static const String valorantApiMissions = '$valorantApiBaseUrl/missions';
   static const String valorantApiContracts = '$valorantApiBaseUrl/contracts';
   static const String valorantApiPlayerCards = '$valorantApiBaseUrl/playercards';
+  static const String valorantApiPlayerTitles = '$valorantApiBaseUrl/playertitles';
 
   // ─── Auth OAuth2 Parameters ─────────────────────────────────
   static const String riotClientId = 'play-valorant-web-prod';
