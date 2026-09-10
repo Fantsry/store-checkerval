@@ -96,7 +96,7 @@ class _SettingsPageState extends State<SettingsPage> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text(
-                  'Notifikasi aktif! Pengecekan otomatis dijadwalkan setiap reset toko (00:00 UTC / 07:00 WIB).'),
+                  '🔔 Notifikasi aktif! Nanti kita ingetin otomatis tiap toko reset jam 07:00 WIB ya! ⏰'),
               backgroundColor: AppTheme.surfaceLight,
             ),
           );
@@ -105,7 +105,7 @@ class _SettingsPageState extends State<SettingsPage> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Notification permission was denied in system settings'),
+              content: Text('Izin notifikasi ditolak di pengaturan HP kamu 🙏'),
             ),
           );
         }
@@ -553,8 +553,8 @@ class _SettingsPageState extends State<SettingsPage> {
                                   SnackBar(
                                     content: Text(
                                       success
-                                          ? 'Pemeriksaan background sukses! Jika ada skin cocok, notifikasi langsung muncul.'
-                                          : 'Pemeriksaan background selesai. Pastikan sesi login aktif.',
+                                          ? '✨ Pengecekan beres! Kalau ada skin impianmu yang nongol, bakal langsung dikabari kok 😉'
+                                          : 'Pemeriksaan selesai, tapi pastikan kamu udah login ya bro! 🔑',
                                     ),
                                     backgroundColor: success
                                         ? const Color(0xFF00C4A8)
@@ -567,7 +567,7 @@ class _SettingsPageState extends State<SettingsPage> {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
                                     content: Text(
-                                        'Gagal menjalankan background check: $e'),
+                                        'Waduh, gagal cek toko background: $e 😢'),
                                     backgroundColor: AppTheme.valorantRed,
                                   ),
                                 );
@@ -579,7 +579,7 @@ class _SettingsPageState extends State<SettingsPage> {
                           icon: Icons.send_rounded,
                           title: 'Tes Kirim Notifikasi',
                           subtitle:
-                              'Uji suara, banner, & getaran di perangkat Anda',
+                              'Uji suara, banner, & getaran di HP kamu',
                           onTap: () async {
                             await getIt<NotificationService>()
                                 .showTestNotification();
@@ -587,7 +587,7 @@ class _SettingsPageState extends State<SettingsPage> {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
                                   content: Text(
-                                      'Notifikasi tes telah dikirim! Cek panel notifikasi HP Anda.'),
+                                      '📬 Notifikasi tes meluncur! Coba intip bilah notifikasi HP kamu ya 👀'),
                                   backgroundColor: AppTheme.surfaceLight,
                                 ),
                               );
