@@ -155,6 +155,15 @@ class AccountValueCard extends StatelessWidget {
                           color: Color(0xFFE5B94E),
                         ),
                       ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Store purchases',
+                        style: TextStyle(
+                          fontSize: 9,
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.textSecondary.withValues(alpha: 0.8),
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -198,6 +207,15 @@ class AccountValueCard extends StatelessWidget {
                           fontSize: 16,
                           fontWeight: FontWeight.w900,
                           color: Color(0xFF00E5FF),
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '${overview.storeSkinsCount} Store • ${overview.battlepassSkinsCount} BP',
+                        style: TextStyle(
+                          fontSize: 9,
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.textSecondary.withValues(alpha: 0.8),
                         ),
                       ),
                     ],

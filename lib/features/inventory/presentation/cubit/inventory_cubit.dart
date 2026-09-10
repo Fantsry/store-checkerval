@@ -23,6 +23,9 @@ class InventoryCubit extends Cubit<InventoryState> {
         final currentTier = (state is InventoryLoaded)
             ? (state as InventoryLoaded).selectedTier
             : null;
+        final currentSource = (state is InventoryLoaded)
+            ? (state as InventoryLoaded).sourceFilter
+            : InventorySourceFilter.all;
         final currentSearch = (state is InventoryLoaded)
             ? (state as InventoryLoaded).searchQuery
             : '';
@@ -32,6 +35,7 @@ class InventoryCubit extends Cubit<InventoryState> {
 
         final filtered = _applyFilters(
           overview.ownedSkins,
+          currentSource,
           currentTier,
           currentSearch,
           currentSort,
@@ -42,6 +46,7 @@ class InventoryCubit extends Cubit<InventoryState> {
             overview: overview,
             filteredSkins: filtered,
             selectedTier: currentTier,
+            sourceFilter: currentSource,
             searchQuery: currentSearch,
             sortOption: currentSort,
           ),
@@ -55,12 +60,32 @@ class InventoryCubit extends Cubit<InventoryState> {
     );
   }
 
+  void filterBySource(InventorySourceFilter source) {
+    if (state is! InventoryLoaded) return;
+    final s = state as InventoryLoaded;
+    if (s.sourceFilter == source) return;
+
+    final filtered = _applyFilters(
+      s.overview.ownedSkins,
+      source,
+      s.selectedTier,
+      s.searchQuery,
+      s.sortOption,
+    );
+
+    emit(s.copyWith(
+      sourceFilter: source,
+      filteredSkins: filtered,
+    ));
+  }
+
   void filterByTier(String? tier) {
     if (state is! InventoryLoaded) return;
     final s = state as InventoryLoaded;
     final newTier = s.selectedTier == tier ? null : tier;
     final filtered = _applyFilters(
       s.overview.ownedSkins,
+      s.sourceFilter,
       newTier,
       s.searchQuery,
       s.sortOption,
@@ -77,6 +102,7 @@ class InventoryCubit extends Cubit<InventoryState> {
     final s = state as InventoryLoaded;
     final filtered = _applyFilters(
       s.overview.ownedSkins,
+      s.sourceFilter,
       s.selectedTier,
       query,
       s.sortOption,
@@ -93,6 +119,7 @@ class InventoryCubit extends Cubit<InventoryState> {
     final s = state as InventoryLoaded;
     final filtered = _applyFilters(
       s.overview.ownedSkins,
+      s.sourceFilter,
       s.selectedTier,
       s.searchQuery,
       sort,
@@ -106,11 +133,23 @@ class InventoryCubit extends Cubit<InventoryState> {
 
   List<OwnedSkinItem> _applyFilters(
     List<OwnedSkinItem> skins,
+    InventorySourceFilter source,
     String? tier,
     String query,
     InventorySortOption sort,
   ) {
     var list = skins.where((item) {
+      switch (source) {
+        case InventorySourceFilter.all:
+          break;
+        case InventorySourceFilter.store:
+          if (item.isBattlepass) return false;
+          break;
+        case InventorySourceFilter.battlepass:
+          if (!item.isBattlepass) return false;
+          break;
+      }
+
       if (tier != null && tier.isNotEmpty) {
         if (item.tierName?.toLowerCase() != tier.toLowerCase()) {
           return false;

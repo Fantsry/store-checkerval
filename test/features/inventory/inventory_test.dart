@@ -21,6 +21,7 @@ void main() {
     tierColor: '#D1548D',
     weapon: 'Vandal',
     isEquipped: true,
+    isBattlepass: false,
   );
 
   const testSkin2 = OwnedSkinItem(
@@ -31,23 +32,37 @@ void main() {
     tierColor: '#E5B94E',
     weapon: 'Melee',
     isEquipped: false,
+    isBattlepass: false,
+  );
+
+  const testSkin3 = OwnedSkinItem(
+    uuid: 'skin-3',
+    displayName: 'Heartbreaker Odin',
+    cost: 0,
+    tierName: 'Deluxe',
+    tierColor: '#00B1A7',
+    weapon: 'Odin',
+    isEquipped: false,
+    isBattlepass: true,
   );
 
   const testOverview = InventoryOverview(
     totalVpSpent: 7125,
     totalEstimatedIdr: 961875,
-    totalSkinsCount: 2,
+    totalSkinsCount: 3,
     tierBreakdown: {
       'Exclusive': 1,
       'Premium': 1,
+      'Deluxe': 1,
     },
-    ownedSkins: [testSkin1, testSkin2],
+    ownedSkins: [testSkin1, testSkin2, testSkin3],
     equippedWeapons: [
       EquippedWeaponSkin(
         weaponId: 'w-1',
         weaponName: 'Vandal',
         skinId: 'skin-1',
         skinName: 'Prime Vandal',
+        isBattlepass: false,
       ),
     ],
   );
@@ -71,16 +86,24 @@ void main() {
       expect(largeOverview.formattedEstimatedIdr, equals('Rp 24.500.000'));
     });
 
-    test('toJson and fromJson preserves all fields', () {
+    test('toJson and fromJson preserves all fields including isBattlepass', () {
       final json = testOverview.toJson();
       final restored = InventoryOverview.fromJson(json);
 
       expect(restored.totalVpSpent, equals(testOverview.totalVpSpent));
       expect(restored.totalEstimatedIdr, equals(testOverview.totalEstimatedIdr));
       expect(restored.totalSkinsCount, equals(testOverview.totalSkinsCount));
-      expect(restored.ownedSkins.length, equals(2));
+      expect(restored.ownedSkins.length, equals(3));
       expect(restored.ownedSkins.first.displayName, equals('Prime Vandal'));
+      expect(restored.ownedSkins[2].displayName, equals('Heartbreaker Odin'));
+      expect(restored.ownedSkins[2].isBattlepass, isTrue);
       expect(restored.equippedWeapons.first.weaponName, equals('Vandal'));
+      expect(restored.equippedWeapons.first.isBattlepass, isFalse);
+    });
+
+    test('battlepassSkinsCount and storeSkinsCount calculate accurately', () {
+      expect(testOverview.battlepassSkinsCount, equals(1));
+      expect(testOverview.storeSkinsCount, equals(2));
     });
   });
 
@@ -98,12 +121,44 @@ void main() {
         const InventoryLoading(),
         isA<InventoryLoaded>()
             .having((s) => s.overview.totalVpSpent, 'totalVpSpent', 7125)
-            .having((s) => s.filteredSkins.length, 'skinsCount', 2),
+            .having((s) => s.filteredSkins.length, 'skinsCount', 3)
+            .having((s) => s.sourceFilter, 'sourceFilter', InventorySourceFilter.all),
       ];
 
       expectLater(cubit.stream, emitsInOrder(expectedStates));
 
       await cubit.loadInventory();
+    });
+
+    test('filterBySource filters skins by battlepass and store', () async {
+      when(() => mockRepository.getInventoryOverview(forceRefresh: any(named: 'forceRefresh')))
+          .thenAnswer((_) async => const Result.success(testOverview));
+
+      await cubit.loadInventory();
+
+      // Filter by battlepass
+      cubit.filterBySource(InventorySourceFilter.battlepass);
+      expect((cubit.state as InventoryLoaded).filteredSkins.length, equals(1));
+      expect(
+        (cubit.state as InventoryLoaded).filteredSkins.first.displayName,
+        equals('Heartbreaker Odin'),
+      );
+      expect(
+        (cubit.state as InventoryLoaded).filteredSkins.first.isBattlepass,
+        isTrue,
+      );
+
+      // Filter by store
+      cubit.filterBySource(InventorySourceFilter.store);
+      expect((cubit.state as InventoryLoaded).filteredSkins.length, equals(2));
+      expect(
+        (cubit.state as InventoryLoaded).filteredSkins.every((s) => !s.isBattlepass),
+        isTrue,
+      );
+
+      // Reset to all
+      cubit.filterBySource(InventorySourceFilter.all);
+      expect((cubit.state as InventoryLoaded).filteredSkins.length, equals(3));
     });
 
     test('filterByTier filters owned skins by tier name', () async {
@@ -119,6 +174,25 @@ void main() {
         (cubit.state as InventoryLoaded).filteredSkins.first.displayName,
         equals('Kuronami No Yaiba'),
       );
+    });
+
+    test('combined source and tier filtering works correctly', () async {
+      when(() => mockRepository.getInventoryOverview(forceRefresh: any(named: 'forceRefresh')))
+          .thenAnswer((_) async => const Result.success(testOverview));
+
+      await cubit.loadInventory();
+
+      cubit.filterBySource(InventorySourceFilter.battlepass);
+      cubit.filterByTier('Deluxe');
+
+      expect((cubit.state as InventoryLoaded).filteredSkins.length, equals(1));
+      expect(
+        (cubit.state as InventoryLoaded).filteredSkins.first.displayName,
+        equals('Heartbreaker Odin'),
+      );
+
+      cubit.filterByTier('Premium');
+      expect((cubit.state as InventoryLoaded).filteredSkins.length, equals(0));
     });
 
     test('searchSkins filters owned skins by query', () async {

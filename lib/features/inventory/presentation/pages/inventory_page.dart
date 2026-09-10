@@ -258,7 +258,7 @@ class _InventoryPageState extends State<InventoryPage> {
                                         ),
                                       ),
                                     ),
-                                  ),
+                                   ),
                                   const SizedBox(width: 8),
 
                                   // Sort Options Popup
@@ -307,6 +307,49 @@ class _InventoryPageState extends State<InventoryPage> {
                                         child: Text('Name (A-Z)'),
                                       ),
                                     ],
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+
+                              // Source Filter Bar: ALL | STORE | BATTLEPASS
+                              Row(
+                                children: [
+                                  _buildSourceFilterChip(
+                                    label: 'ALL',
+                                    count: state.overview.ownedSkins.length,
+                                    icon: Icons.apps_rounded,
+                                    isSelected: state.sourceFilter ==
+                                        InventorySourceFilter.all,
+                                    onTap: () => context
+                                        .read<InventoryCubit>()
+                                        .filterBySource(
+                                            InventorySourceFilter.all),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  _buildSourceFilterChip(
+                                    label: 'STORE',
+                                    count: state.overview.storeSkinsCount,
+                                    icon: Icons.shopping_bag_outlined,
+                                    isSelected: state.sourceFilter ==
+                                        InventorySourceFilter.store,
+                                    onTap: () => context
+                                        .read<InventoryCubit>()
+                                        .filterBySource(
+                                            InventorySourceFilter.store),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  _buildSourceFilterChip(
+                                    label: 'BATTLEPASS',
+                                    count: state.overview.battlepassSkinsCount,
+                                    icon: Icons.military_tech_rounded,
+                                    isSelected: state.sourceFilter ==
+                                        InventorySourceFilter.battlepass,
+                                    selectedColor: const Color(0xFFFFB300),
+                                    onTap: () => context
+                                        .read<InventoryCubit>()
+                                        .filterBySource(
+                                            InventorySourceFilter.battlepass),
                                   ),
                                 ],
                               ),
@@ -387,6 +430,92 @@ class _InventoryPageState extends State<InventoryPage> {
                 ),
               );
             },
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSourceFilterChip({
+    required String label,
+    required int count,
+    required IconData icon,
+    required bool isSelected,
+    required VoidCallback onTap,
+    Color? selectedColor,
+  }) {
+    final activeColor = selectedColor ?? AppTheme.valorantRed;
+
+    return Expanded(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? activeColor.withValues(alpha: 0.18)
+                : AppTheme.surfaceDark,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: isSelected
+                  ? activeColor
+                  : Colors.white.withValues(alpha: 0.1),
+              width: isSelected ? 1.4 : 1.0,
+            ),
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: activeColor.withValues(alpha: 0.2),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                icon,
+                size: 13,
+                color: isSelected ? activeColor : AppTheme.textSecondary,
+              ),
+              const SizedBox(width: 5),
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.6,
+                    color: isSelected ? Colors.white : AppTheme.textSecondary,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 4),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? activeColor.withValues(alpha: 0.3)
+                      : Colors.white.withValues(alpha: 0.06),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  '$count',
+                  style: TextStyle(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w900,
+                    color: isSelected ? activeColor : AppTheme.textSecondary,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),

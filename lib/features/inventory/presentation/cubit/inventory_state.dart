@@ -8,6 +8,12 @@ enum InventorySortOption {
   equippedFirst,
 }
 
+enum InventorySourceFilter {
+  all,
+  store,
+  battlepass,
+}
+
 abstract class InventoryState extends Equatable {
   const InventoryState();
 
@@ -27,6 +33,7 @@ class InventoryLoaded extends InventoryState {
   final InventoryOverview overview;
   final List<OwnedSkinItem> filteredSkins;
   final String? selectedTier;
+  final InventorySourceFilter sourceFilter;
   final String searchQuery;
   final InventorySortOption sortOption;
 
@@ -34,6 +41,7 @@ class InventoryLoaded extends InventoryState {
     required this.overview,
     required this.filteredSkins,
     this.selectedTier,
+    this.sourceFilter = InventorySourceFilter.all,
     this.searchQuery = '',
     this.sortOption = InventorySortOption.equippedFirst,
   });
@@ -42,6 +50,7 @@ class InventoryLoaded extends InventoryState {
     InventoryOverview? overview,
     List<OwnedSkinItem>? filteredSkins,
     String? Function()? selectedTier,
+    InventorySourceFilter? sourceFilter,
     String? searchQuery,
     InventorySortOption? sortOption,
   }) {
@@ -50,6 +59,7 @@ class InventoryLoaded extends InventoryState {
       filteredSkins: filteredSkins ?? this.filteredSkins,
       selectedTier:
           selectedTier != null ? selectedTier() : this.selectedTier,
+      sourceFilter: sourceFilter ?? this.sourceFilter,
       searchQuery: searchQuery ?? this.searchQuery,
       sortOption: sortOption ?? this.sortOption,
     );
@@ -60,6 +70,7 @@ class InventoryLoaded extends InventoryState {
         overview,
         filteredSkins,
         selectedTier,
+        sourceFilter,
         searchQuery,
         sortOption,
       ];

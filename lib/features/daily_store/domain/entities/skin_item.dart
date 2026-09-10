@@ -83,6 +83,7 @@ class SkinItem extends Equatable {
   final String? streamedVideo;
   final List<SkinChroma> chromas;
   final List<SkinLevel> levels;
+  final bool isBattlepass;
 
   const SkinItem({
     required this.uuid,
@@ -97,6 +98,7 @@ class SkinItem extends Equatable {
     this.streamedVideo,
     this.chromas = const [],
     this.levels = const [],
+    this.isBattlepass = false,
   });
 
   Map<String, dynamic> toJson() => {
@@ -112,6 +114,7 @@ class SkinItem extends Equatable {
         'streamedVideo': streamedVideo,
         'chromas': chromas.map((c) => c.toJson()).toList(),
         'levels': levels.map((l) => l.toJson()).toList(),
+        'isBattlepass': isBattlepass,
       };
 
   factory SkinItem.fromJson(Map<String, dynamic> json) {
@@ -135,6 +138,7 @@ class SkinItem extends Equatable {
       levels: levelsData
           .map((l) => SkinLevel.fromJson(l as Map<String, dynamic>))
           .toList(),
+      isBattlepass: json['isBattlepass'] as bool? ?? false,
     );
   }
 
@@ -151,6 +155,7 @@ class SkinItem extends Equatable {
     String? streamedVideo,
     List<SkinChroma>? chromas,
     List<SkinLevel>? levels,
+    bool? isBattlepass,
   }) {
     return SkinItem(
       uuid: uuid ?? this.uuid,
@@ -165,6 +170,7 @@ class SkinItem extends Equatable {
       streamedVideo: streamedVideo ?? this.streamedVideo,
       chromas: chromas ?? this.chromas,
       levels: levels ?? this.levels,
+      isBattlepass: isBattlepass ?? this.isBattlepass,
     );
   }
 
@@ -182,5 +188,6 @@ class SkinItem extends Equatable {
         streamedVideo,
         chromas,
         levels,
+        isBattlepass,
       ];
 }

@@ -133,6 +133,7 @@ class InventoryRepositoryImpl implements InventoryRepository {
                   skinName: equippedSkin.displayName,
                   skinIcon: equippedSkin.displayIcon,
                   tierColor: equippedSkin.tierColor,
+                  isBattlepass: equippedSkin.isBattlepass,
                 ),
               );
             }
@@ -167,7 +168,8 @@ class InventoryRepositoryImpl implements InventoryRepository {
       final List<OwnedSkinItem> ownedSkinsList = [];
 
       for (final skin in uniqueOwnedSkins.values) {
-        if (skin.cost > 0) {
+        // Only count store skins for purchase valuation; battlepass rewards are earned via XP
+        if (!skin.isBattlepass && skin.cost > 0) {
           totalVp += skin.cost;
         }
 
@@ -198,6 +200,7 @@ class InventoryRepositoryImpl implements InventoryRepository {
             tierColor: skin.tierColor,
             weapon: weaponName,
             isEquipped: isEquipped,
+            isBattlepass: skin.isBattlepass,
           ),
         );
       }

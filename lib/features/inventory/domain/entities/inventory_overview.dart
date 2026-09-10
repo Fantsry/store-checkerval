@@ -9,6 +9,7 @@ class OwnedSkinItem extends Equatable {
   final String? tierColor;
   final String weapon;
   final bool isEquipped;
+  final bool isBattlepass;
 
   const OwnedSkinItem({
     required this.uuid,
@@ -19,6 +20,7 @@ class OwnedSkinItem extends Equatable {
     this.tierColor,
     this.weapon = 'Weapon',
     this.isEquipped = false,
+    this.isBattlepass = false,
   });
 
   Map<String, dynamic> toJson() => {
@@ -30,6 +32,7 @@ class OwnedSkinItem extends Equatable {
         'tierColor': tierColor,
         'weapon': weapon,
         'isEquipped': isEquipped,
+        'isBattlepass': isBattlepass,
       };
 
   factory OwnedSkinItem.fromJson(Map<String, dynamic> json) => OwnedSkinItem(
@@ -41,6 +44,7 @@ class OwnedSkinItem extends Equatable {
         tierColor: json['tierColor'] as String?,
         weapon: json['weapon'] as String? ?? 'Weapon',
         isEquipped: json['isEquipped'] as bool? ?? false,
+        isBattlepass: json['isBattlepass'] as bool? ?? false,
       );
 
   @override
@@ -53,6 +57,7 @@ class OwnedSkinItem extends Equatable {
         tierColor,
         weapon,
         isEquipped,
+        isBattlepass,
       ];
 }
 
@@ -63,6 +68,7 @@ class EquippedWeaponSkin extends Equatable {
   final String skinName;
   final String? skinIcon;
   final String? tierColor;
+  final bool isBattlepass;
 
   const EquippedWeaponSkin({
     required this.weaponId,
@@ -71,6 +77,7 @@ class EquippedWeaponSkin extends Equatable {
     required this.skinName,
     this.skinIcon,
     this.tierColor,
+    this.isBattlepass = false,
   });
 
   Map<String, dynamic> toJson() => {
@@ -80,6 +87,7 @@ class EquippedWeaponSkin extends Equatable {
         'skinName': skinName,
         'skinIcon': skinIcon,
         'tierColor': tierColor,
+        'isBattlepass': isBattlepass,
       };
 
   factory EquippedWeaponSkin.fromJson(Map<String, dynamic> json) =>
@@ -90,6 +98,7 @@ class EquippedWeaponSkin extends Equatable {
         skinName: json['skinName'] as String? ?? '',
         skinIcon: json['skinIcon'] as String?,
         tierColor: json['tierColor'] as String?,
+        isBattlepass: json['isBattlepass'] as bool? ?? false,
       );
 
   @override
@@ -100,6 +109,7 @@ class EquippedWeaponSkin extends Equatable {
         skinName,
         skinIcon,
         tierColor,
+        isBattlepass,
       ];
 }
 
@@ -119,6 +129,14 @@ class InventoryOverview extends Equatable {
     this.ownedSkins = const [],
     this.equippedWeapons = const [],
   });
+
+  /// Count of owned skins obtained from Battlepasses
+  int get battlepassSkinsCount =>
+      ownedSkins.where((s) => s.isBattlepass).length;
+
+  /// Count of owned skins obtained from the Store / direct VP purchases
+  int get storeSkinsCount =>
+      ownedSkins.where((s) => !s.isBattlepass).length;
 
   /// Formatted Rupiah string (e.g. "Rp 1.450.000")
   String get formattedEstimatedIdr {

@@ -9,6 +9,7 @@ abstract class ValorantApiRemoteDataSource {
   Future<Map<String, Map<String, dynamic>>> getContentTiers();
   Future<Map<String, Map<String, dynamic>>> getBundlesMetadata();
   Future<Map<String, Map<String, dynamic>>> getAccessoriesMetadata();
+  Future<Set<String>> getBattlepassRewardUuids();
 }
 
 class ValorantApiRemoteDataSourceImpl implements ValorantApiRemoteDataSource {
@@ -16,6 +17,7 @@ class ValorantApiRemoteDataSourceImpl implements ValorantApiRemoteDataSource {
 
   Map<String, Map<String, dynamic>>? _cachedBundles;
   Map<String, Map<String, dynamic>>? _cachedAccessories;
+  Set<String>? _cachedBattlepassRewardUuids;
 
   ValorantApiRemoteDataSourceImpl({required Dio dio}) : _dio = dio;
 
@@ -43,16 +45,74 @@ class ValorantApiRemoteDataSourceImpl implements ValorantApiRemoteDataSource {
   }
 
   @override
+  Future<Set<String>> getBattlepassRewardUuids() async {
+    if (_cachedBattlepassRewardUuids != null &&
+        _cachedBattlepassRewardUuids!.isNotEmpty) {
+      return _cachedBattlepassRewardUuids!;
+    }
+
+    try {
+      final response = await _dio.get(ApiConstants.valorantApiContracts);
+      final data = response.data['data'] as List<dynamic>? ?? [];
+      final Set<String> bpRewardUuids = {};
+
+      for (final rawContract in data) {
+        if (rawContract is! Map<String, dynamic>) continue;
+        final content = rawContract['content'] as Map<String, dynamic>?;
+        if (content == null) continue;
+
+        // Season relationType represents Battlepass contracts
+        if (content['relationType'] == 'Season') {
+          final chapters = content['chapters'] as List<dynamic>? ?? [];
+          for (final ch in chapters) {
+            if (ch is! Map<String, dynamic>) continue;
+
+            final levels = ch['levels'] as List<dynamic>? ?? [];
+            for (final lvl in levels) {
+              if (lvl is Map<String, dynamic>) {
+                final reward = lvl['reward'] as Map<String, dynamic>?;
+                final uuid = reward?['uuid']?.toString().toLowerCase();
+                if (uuid != null && uuid.isNotEmpty) {
+                  bpRewardUuids.add(uuid);
+                }
+              }
+            }
+
+            final freeRewards = ch['freeRewards'] as List<dynamic>? ?? [];
+            for (final free in freeRewards) {
+              if (free is Map<String, dynamic>) {
+                final uuid = free['uuid']?.toString().toLowerCase();
+                if (uuid != null && uuid.isNotEmpty) {
+                  bpRewardUuids.add(uuid);
+                }
+              }
+            }
+          }
+        }
+      }
+
+      _cachedBattlepassRewardUuids = bpRewardUuids;
+      return bpRewardUuids;
+    } catch (_) {
+      return _cachedBattlepassRewardUuids ?? {};
+    }
+  }
+
+  @override
   Future<List<SkinItem>> getWeaponSkins() async {
     try {
-      final tiers = await getContentTiers();
+      final results = await Future.wait<dynamic>([
+        getContentTiers(),
+        _dio.get(
+          ApiConstants.valorantApiWeapons,
+          queryParameters: {'language': 'en-US'},
+        ),
+        getBattlepassRewardUuids(),
+      ]);
 
-      // Fetch official weapons hierarchy from valorant-api.com/v1/weapons
-      // This groups every skin under its authentic weapon parent and category directly from the data.
-      final response = await _dio.get(
-        ApiConstants.valorantApiWeapons,
-        queryParameters: {'language': 'en-US'},
-      );
+      final tiers = results[0] as Map<String, Map<String, dynamic>>;
+      final response = results[1] as Response;
+      final bpRewardUuids = results[2] as Set<String>;
 
       final weaponsData = response.data['data'] as List<dynamic>? ?? [];
       final result = <SkinItem>[];
@@ -133,6 +193,11 @@ class ValorantApiRemoteDataSourceImpl implements ValorantApiRemoteDataSource {
             icon = chromas.first.displayIcon ?? chromas.first.fullRender;
           }
 
+          // Check if item or any of its levels/chromas comes from a Battlepass
+          final isBp = bpRewardUuids.contains(uuid.toLowerCase()) ||
+              levels.any((l) => bpRewardUuids.contains(l.uuid.toLowerCase())) ||
+              chromas.any((c) => bpRewardUuids.contains(c.uuid.toLowerCase()));
+
           result.add(
             SkinItem(
               uuid: uuid,
@@ -147,6 +212,7 @@ class ValorantApiRemoteDataSourceImpl implements ValorantApiRemoteDataSource {
               streamedVideo: videoUrl,
               chromas: chromas,
               levels: levels,
+              isBattlepass: isBp,
             ),
           );
         }

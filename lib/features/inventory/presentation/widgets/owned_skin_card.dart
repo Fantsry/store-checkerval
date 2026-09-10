@@ -29,7 +29,9 @@ class OwnedSkinCard extends StatelessWidget {
         border: Border.all(
           color: skin.isEquipped
               ? const Color(0xFF00E5FF).withValues(alpha: 0.6)
-              : Colors.white.withValues(alpha: 0.08),
+              : (skin.isBattlepass
+                  ? const Color(0xFFFFB300).withValues(alpha: 0.25)
+                  : Colors.white.withValues(alpha: 0.08)),
           width: skin.isEquipped ? 1.5 : 1.0,
         ),
         boxShadow: skin.isEquipped
@@ -47,28 +49,70 @@ class OwnedSkinCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Top Row: Tier badge & Equipped Tag
+            // Top Row: Tier badge, BP badge & Equipped Tag
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 6,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: tierColor.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    skin.tierName?.toUpperCase() ?? 'SKIN',
-                    style: TextStyle(
-                      fontSize: 8,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 0.5,
-                      color: tierColor,
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: tierColor.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        skin.tierName?.toUpperCase() ?? 'SKIN',
+                        style: TextStyle(
+                          fontSize: 8,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.5,
+                          color: tierColor,
+                        ),
+                      ),
                     ),
-                  ),
+                    if (skin.isBattlepass) ...[
+                      const SizedBox(width: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 5,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFB300).withValues(alpha: 0.18),
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(
+                            color: const Color(0xFFFFB300).withValues(alpha: 0.6),
+                            width: 0.8,
+                          ),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.military_tech_rounded,
+                              size: 9,
+                              color: Color(0xFFFFB300),
+                            ),
+                            SizedBox(width: 2),
+                            Text(
+                              'BP',
+                              style: TextStyle(
+                                fontSize: 8,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 0.5,
+                                color: Color(0xFFFFB300),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
                 if (skin.isEquipped)
                   Container(
@@ -151,16 +195,38 @@ class OwnedSkinCard extends StatelessWidget {
                     color: AppTheme.textSecondary,
                   ),
                 ),
-                Text(
-                  skin.cost > 0 ? '${skin.cost} VP' : 'FREE',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                    color: skin.cost > 0
-                        ? const Color(0xFFE5B94E)
-                        : AppTheme.textSecondary,
+                if (skin.isBattlepass)
+                  const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.military_tech_outlined,
+                        size: 11,
+                        color: Color(0xFFFFB300),
+                      ),
+                      SizedBox(width: 3),
+                      Text(
+                        'BP REWARD',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.4,
+                          color: Color(0xFFFFB300),
+                        ),
+                      ),
+                    ],
+                  )
+                else
+                  Text(
+                    skin.cost > 0 ? '${skin.cost} VP' : 'FREE',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      color: skin.cost > 0
+                          ? const Color(0xFFE5B94E)
+                          : AppTheme.textSecondary,
+                    ),
                   ),
-                ),
               ],
             ),
           ],
