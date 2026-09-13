@@ -513,6 +513,11 @@ class CareerRepositoryImpl implements CareerRepository {
       final mapData = mapsMeta[mapId] ?? mapsMeta[mapId.toLowerCase()];
       final mapName = mapData?['displayName'] ?? _extractMapNameFromPath(mapId);
       final mapImageUrl = mapData?['splash'] ?? mapData?['listViewIcon'];
+      final mapMinimapUrl = mapData?['displayIcon'] as String?;
+      final mapXMultiplier = (mapData?['xMultiplier'] as num?)?.toDouble() ?? 0.0;
+      final mapYMultiplier = (mapData?['yMultiplier'] as num?)?.toDouble() ?? 0.0;
+      final mapXScalarToAdd = (mapData?['xScalarToAdd'] as num?)?.toDouble() ?? 0.0;
+      final mapYScalarToAdd = (mapData?['yScalarToAdd'] as num?)?.toDouble() ?? 0.0;
 
       // Agent metadata
       final agentData = agentsMeta[agentId];
@@ -682,6 +687,34 @@ class CareerRepositoryImpl implements CareerRepository {
                     finishingDmg['DamageType'] ??
                     '')
                 .toString();
+
+            // Parse kill locations
+            final victimLoc = (k['victimLocation'] as Map?) ??
+                (k['VictimLocation'] as Map?) ??
+                {};
+            final double? victimLocX = (victimLoc['x'] as num?)?.toDouble();
+            final double? victimLocY = (victimLoc['y'] as num?)?.toDouble();
+
+            // Killer location from playerLocations
+            double? killerLocX;
+            double? killerLocY;
+            final playerLocs = (k['playerLocations'] as List?) ??
+                (k['PlayerLocations'] as List?) ??
+                [];
+            for (final loc in playerLocs) {
+              if (loc is Map) {
+                final locSubject = (loc['subject'] ?? loc['Subject'] ?? '').toString();
+                if (locSubject.toLowerCase() == killerPuuid.toLowerCase()) {
+                  final locData = (loc['location'] ?? loc['Location'] as Map?) ?? {};
+                  if (locData is Map) {
+                    killerLocX = (locData['x'] as num?)?.toDouble();
+                    killerLocY = (locData['y'] as num?)?.toDouble();
+                  }
+                  break;
+                }
+              }
+            }
+
             final rawAssistants = (k['assistants'] as List?) ??
                 (k['Assistants'] as List?) ??
                 [];
@@ -735,6 +768,10 @@ class CareerRepositoryImpl implements CareerRepository {
                   killerPuuid.toLowerCase() == currentPuuid.toLowerCase(),
               isVictimSelf:
                   victimPuuid.toLowerCase() == currentPuuid.toLowerCase(),
+              killerLocationX: killerLocX,
+              killerLocationY: killerLocY,
+              victimLocationX: victimLocX,
+              victimLocationY: victimLocY,
             ));
           }
         }
@@ -848,6 +885,11 @@ class CareerRepositoryImpl implements CareerRepository {
         mapId: mapId,
         mapName: mapName,
         mapImageUrl: mapImageUrl,
+        mapMinimapUrl: mapMinimapUrl,
+        mapXMultiplier: mapXMultiplier,
+        mapYMultiplier: mapYMultiplier,
+        mapXScalarToAdd: mapXScalarToAdd,
+        mapYScalarToAdd: mapYScalarToAdd,
         gameMode: gameMode,
         queueId: queueId,
         gameStartTime: gameStartTime,

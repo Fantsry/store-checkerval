@@ -267,5 +267,62 @@ void main() {
       expect(dmMatch.matchMvpPuuid, 'p1');
       expect(dmMatch.teamMvpPuuid, 'p1');
     });
+
+    test('MatchSummary hasMinimapData returns true only when URL and multipliers are valid', () {
+      final matchWithMinimap = MatchSummary(
+        matchId: 'minimap-test',
+        mapId: 'ascent',
+        mapName: 'Ascent',
+        mapMinimapUrl: 'https://media.valorant-api.com/maps/displayicon.png',
+        mapXMultiplier: 0.00007,
+        mapYMultiplier: -0.00007,
+        mapXScalarToAdd: 0.81,
+        mapYScalarToAdd: 0.57,
+        gameMode: 'bomb',
+        queueId: 'competitive',
+        gameStartTime: DateTime(2026, 9, 7),
+        agentId: 'jett',
+        agentName: 'Jett',
+      );
+
+      expect(matchWithMinimap.hasMinimapData, true);
+
+      final matchWithoutMinimap = MatchSummary(
+        matchId: 'no-minimap',
+        mapId: 'custom',
+        mapName: 'Custom Map',
+        gameMode: 'bomb',
+        queueId: 'custom',
+        gameStartTime: DateTime(2026, 9, 7),
+        agentId: 'jett',
+        agentName: 'Jett',
+      );
+
+      expect(matchWithoutMinimap.hasMinimapData, false);
+    });
+
+    test('MatchRoundKill location fields serialize to and from JSON correctly', () {
+      const kill = MatchRoundKill(
+        roundTime: 45000,
+        killerPuuid: 'killer-1',
+        killerName: 'Ace#123',
+        killerAgentName: 'Reyna',
+        victimPuuid: 'victim-1',
+        victimName: 'Opponent#456',
+        victimAgentName: 'Sova',
+        killerLocationX: 1234.5,
+        killerLocationY: 5678.9,
+        victimLocationX: -4321.0,
+        victimLocationY: 8765.4,
+      );
+
+      final json = kill.toJson();
+      final restored = MatchRoundKill.fromJson(json);
+
+      expect(restored.killerLocationX, 1234.5);
+      expect(restored.killerLocationY, 5678.9);
+      expect(restored.victimLocationX, -4321.0);
+      expect(restored.victimLocationY, 8765.4);
+    });
   });
 }

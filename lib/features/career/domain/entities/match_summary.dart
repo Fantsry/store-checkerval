@@ -5,6 +5,11 @@ class MatchSummary extends Equatable {
   final String mapId;
   final String mapName;
   final String? mapImageUrl;
+  final String? mapMinimapUrl;
+  final double mapXMultiplier;
+  final double mapYMultiplier;
+  final double mapXScalarToAdd;
+  final double mapYScalarToAdd;
   final String gameMode;
   final String queueId;
   final DateTime gameStartTime;
@@ -39,6 +44,11 @@ class MatchSummary extends Equatable {
     required this.mapId,
     required this.mapName,
     this.mapImageUrl,
+    this.mapMinimapUrl,
+    this.mapXMultiplier = 0,
+    this.mapYMultiplier = 0,
+    this.mapXScalarToAdd = 0,
+    this.mapYScalarToAdd = 0,
     required this.gameMode,
     required this.queueId,
     required this.gameStartTime,
@@ -68,6 +78,11 @@ class MatchSummary extends Equatable {
     this.enemies = const [],
     this.rounds = const [],
   });
+
+  bool get hasMinimapData =>
+      mapMinimapUrl != null &&
+      mapMinimapUrl!.isNotEmpty &&
+      mapXMultiplier != 0;
 
   double get kdRatio => deaths > 0 ? (kills / deaths) : kills.toDouble();
 
@@ -140,6 +155,11 @@ class MatchSummary extends Equatable {
       'mapId': mapId,
       'mapName': mapName,
       'mapImageUrl': mapImageUrl,
+      'mapMinimapUrl': mapMinimapUrl,
+      'mapXMultiplier': mapXMultiplier,
+      'mapYMultiplier': mapYMultiplier,
+      'mapXScalarToAdd': mapXScalarToAdd,
+      'mapYScalarToAdd': mapYScalarToAdd,
       'gameMode': gameMode,
       'queueId': queueId,
       'gameStartTime': gameStartTime.toIso8601String(),
@@ -177,6 +197,11 @@ class MatchSummary extends Equatable {
       mapId: json['mapId'] as String? ?? '',
       mapName: json['mapName'] as String? ?? 'Unknown Map',
       mapImageUrl: json['mapImageUrl'] as String?,
+      mapMinimapUrl: json['mapMinimapUrl'] as String?,
+      mapXMultiplier: (json['mapXMultiplier'] as num?)?.toDouble() ?? 0,
+      mapYMultiplier: (json['mapYMultiplier'] as num?)?.toDouble() ?? 0,
+      mapXScalarToAdd: (json['mapXScalarToAdd'] as num?)?.toDouble() ?? 0,
+      mapYScalarToAdd: (json['mapYScalarToAdd'] as num?)?.toDouble() ?? 0,
       gameMode: json['gameMode'] as String? ?? '',
       queueId: json['queueId'] as String? ?? 'unrated',
       gameStartTime: DateTime.tryParse(json['gameStartTime'] as String? ?? '') ??
@@ -227,6 +252,11 @@ class MatchSummary extends Equatable {
         mapId,
         mapName,
         mapImageUrl,
+        mapMinimapUrl,
+        mapXMultiplier,
+        mapYMultiplier,
+        mapXScalarToAdd,
+        mapYScalarToAdd,
         gameMode,
         queueId,
         gameStartTime,
@@ -391,6 +421,10 @@ class MatchRoundKill extends Equatable {
   final String? weaponId;
   final bool isKillerSelf;
   final bool isVictimSelf;
+  final double? killerLocationX;
+  final double? killerLocationY;
+  final double? victimLocationX;
+  final double? victimLocationY;
 
   const MatchRoundKill({
     this.roundTime = 0,
@@ -409,6 +443,10 @@ class MatchRoundKill extends Equatable {
     this.weaponId,
     this.isKillerSelf = false,
     this.isVictimSelf = false,
+    this.killerLocationX,
+    this.killerLocationY,
+    this.victimLocationX,
+    this.victimLocationY,
   });
 
   Map<String, dynamic> toJson() => {
@@ -428,6 +466,10 @@ class MatchRoundKill extends Equatable {
         'weaponId': weaponId,
         'isKillerSelf': isKillerSelf,
         'isVictimSelf': isVictimSelf,
+        'killerLocationX': killerLocationX,
+        'killerLocationY': killerLocationY,
+        'victimLocationX': victimLocationX,
+        'victimLocationY': victimLocationY,
       };
 
   factory MatchRoundKill.fromJson(Map<String, dynamic> json) => MatchRoundKill(
@@ -453,6 +495,10 @@ class MatchRoundKill extends Equatable {
         weaponId: json['weaponId'] as String?,
         isKillerSelf: json['isKillerSelf'] as bool? ?? false,
         isVictimSelf: json['isVictimSelf'] as bool? ?? false,
+        killerLocationX: (json['killerLocationX'] as num?)?.toDouble(),
+        killerLocationY: (json['killerLocationY'] as num?)?.toDouble(),
+        victimLocationX: (json['victimLocationX'] as num?)?.toDouble(),
+        victimLocationY: (json['victimLocationY'] as num?)?.toDouble(),
       );
 
   @override
@@ -473,6 +519,10 @@ class MatchRoundKill extends Equatable {
         weaponId,
         isKillerSelf,
         isVictimSelf,
+        killerLocationX,
+        killerLocationY,
+        victimLocationX,
+        victimLocationY,
       ];
 }
 

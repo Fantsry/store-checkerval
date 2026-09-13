@@ -291,6 +291,11 @@ class CareerRemoteDataSourceImpl implements CareerRemoteDataSource {
                 'displayName': displayName,
                 'splash': splash,
                 'listViewIcon': listViewIcon,
+                'displayIcon': (item['displayIcon'] ?? '').toString(),
+                'xMultiplier': (item['xMultiplier'] as num?)?.toDouble() ?? 0.0,
+                'yMultiplier': (item['yMultiplier'] as num?)?.toDouble() ?? 0.0,
+                'xScalarToAdd': (item['xScalarToAdd'] as num?)?.toDouble() ?? 0.0,
+                'yScalarToAdd': (item['yScalarToAdd'] as num?)?.toDouble() ?? 0.0,
               };
 
               if (mapPath.isNotEmpty) maps[mapPath] = mapData;
