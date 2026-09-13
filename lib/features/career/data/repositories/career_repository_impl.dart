@@ -123,15 +123,34 @@ class CareerRepositoryImpl implements CareerRepository {
         }
       }
 
-      // Fetch match details for the recent matches in history
+      // Fetch match details for the recent matches in history with persistent caching
       final matchFutures = rawHistory.take(10).map((h) async {
         final matchId = (h['MatchID'] ?? '').toString();
         if (matchId.isEmpty) return null;
+
+        // 1. Check persistent match details cache first (0ms)
         try {
-          return await _remoteDataSource.fetchMatchDetails(
+          final cachedStr = await _localStore.getCachedMatchDetails(matchId);
+          if (cachedStr != null && cachedStr.isNotEmpty) {
+            final decoded = jsonDecode(cachedStr);
+            if (decoded is Map) {
+              return Map<String, dynamic>.from(decoded);
+            }
+          }
+        } catch (_) {}
+
+        // 2. Fetch from remote and persist to cache
+        try {
+          final matchData = await _remoteDataSource.fetchMatchDetails(
             shard: shard,
             matchId: matchId,
           );
+          if (matchData != null) {
+            _localStore
+                .saveCachedMatchDetails(matchId, jsonEncode(matchData))
+                .ignore();
+          }
+          return matchData;
         } catch (_) {
           return null;
         }
@@ -586,10 +605,28 @@ class CareerRepositoryImpl implements CareerRepository {
         );
       }
 
-      final matchData = await _remoteDataSource.fetchMatchDetails(
-        shard: shard,
-        matchId: matchId,
-      );
+      Map<String, dynamic>? matchData;
+      try {
+        final cachedStr = await _localStore.getCachedMatchDetails(matchId);
+        if (cachedStr != null && cachedStr.isNotEmpty) {
+          final decoded = jsonDecode(cachedStr);
+          if (decoded is Map) {
+            matchData = Map<String, dynamic>.from(decoded);
+          }
+        }
+      } catch (_) {}
+
+      if (matchData == null) {
+        matchData = await _remoteDataSource.fetchMatchDetails(
+          shard: shard,
+          matchId: matchId,
+        );
+        if (matchData != null) {
+          _localStore
+              .saveCachedMatchDetails(matchId, jsonEncode(matchData))
+              .ignore();
+        }
+      }
 
       if (matchData == null) {
         return const Result.failure(

@@ -368,6 +368,14 @@ class LocalStoreService {
     await _careerCacheBox.put('career_$puuid', jsonStr);
   }
 
+  Future<String?> getCachedMatchDetails(String matchId) async {
+    return _careerCacheBox.get('match_raw_$matchId');
+  }
+
+  Future<void> saveCachedMatchDetails(String matchId, String jsonStr) async {
+    await _careerCacheBox.put('match_raw_$matchId', jsonStr);
+  }
+
   Future<void> clearCareerCache() async {
     await _careerCacheBox.clear();
   }

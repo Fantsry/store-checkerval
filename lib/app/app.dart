@@ -27,7 +27,7 @@ class ValorantStoreApp extends StatelessWidget {
           create: (_) => getIt<ProfileCubit>()..loadProfile(),
         ),
         BlocProvider<CareerCubit>(
-          create: (_) => getIt<CareerCubit>(),
+          create: (_) => getIt<CareerCubit>()..loadCareer(),
         ),
         BlocProvider<StoreCubit>(
           create: (_) => getIt<StoreCubit>()..fetchStore(),
@@ -39,7 +39,7 @@ class ValorantStoreApp extends StatelessWidget {
           create: (_) => getIt<StoreAlertCubit>()..loadRules(),
         ),
         BlocProvider<InventoryCubit>(
-          create: (_) => getIt<InventoryCubit>(),
+          create: (_) => getIt<InventoryCubit>()..loadInventory(),
         ),
         BlocProvider<BattlepassCubit>(
           create: (_) => getIt<BattlepassCubit>(),

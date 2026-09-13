@@ -7,10 +7,14 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:valorant_store_tracker/app/theme.dart';
 import 'package:valorant_store_tracker/features/career/presentation/cubit/career_cubit.dart';
+import 'package:valorant_store_tracker/features/career/presentation/cubit/career_state.dart';
 import 'package:valorant_store_tracker/features/daily_store/presentation/bloc/store_cubit.dart';
+import 'package:valorant_store_tracker/features/daily_store/presentation/bloc/store_state.dart';
 import 'package:valorant_store_tracker/features/inventory/presentation/cubit/inventory_cubit.dart';
+import 'package:valorant_store_tracker/features/inventory/presentation/cubit/inventory_state.dart';
 import 'package:valorant_store_tracker/features/live_match/presentation/cubit/live_match_cubit.dart';
 import 'package:valorant_store_tracker/features/profile/presentation/cubit/profile_cubit.dart';
+import 'package:valorant_store_tracker/features/profile/presentation/cubit/profile_state.dart';
 
 class ShellPage extends StatelessWidget {
   final Widget child;
@@ -46,20 +50,30 @@ class ShellPage extends StatelessWidget {
     switch (index) {
       case 0:
         context.goNamed('store');
-        context.read<StoreCubit>().fetchStore(forceRefresh: true);
-        context.read<ProfileCubit>().loadProfile(forceRefresh: true);
+        if (context.read<StoreCubit>().state is StoreInitial) {
+          context.read<StoreCubit>().fetchStore();
+        }
+        if (context.read<ProfileCubit>().state is ProfileInitial) {
+          context.read<ProfileCubit>().loadProfile();
+        }
       case 1:
         context.goNamed('career');
-        context.read<CareerCubit>().loadCareer(forceRefresh: true);
+        if (context.read<CareerCubit>().state is CareerInitial) {
+          context.read<CareerCubit>().loadCareer();
+        }
       case 2:
         context.goNamed('liveMatch');
         context.read<LiveMatchCubit>().scanLiveMatch();
       case 3:
         context.goNamed('inventory');
-        context.read<InventoryCubit>().loadInventory(forceRefresh: true);
+        if (context.read<InventoryCubit>().state is InventoryInitial) {
+          context.read<InventoryCubit>().loadInventory();
+        }
       case 4:
         context.goNamed('settings');
-        context.read<ProfileCubit>().loadProfile(forceRefresh: true);
+        if (context.read<ProfileCubit>().state is ProfileInitial) {
+          context.read<ProfileCubit>().loadProfile();
+        }
     }
   }
 }

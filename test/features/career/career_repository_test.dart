@@ -68,6 +68,10 @@ void main() {
     mockLocalStore = MockLocalStoreService();
 
     when(() => mockSecureStorage.getShard()).thenAnswer((_) async => tShard);
+    when(() => mockLocalStore.getCachedMatchDetails(any()))
+        .thenAnswer((_) async => null);
+    when(() => mockLocalStore.saveCachedMatchDetails(any(), any()))
+        .thenAnswer((_) async => {});
 
     repository = CareerRepositoryImpl(
       remoteDataSource: mockRemote,
@@ -394,6 +398,68 @@ void main() {
       expect(overview.currentRankRating, 88);
       expect(overview.peakTier, 16);
       expect(overview.matches.first.rankRatingEarned, 18);
+    });
+
+    test('uses cached match details from LocalStore without calling remote fetchMatchDetails', () async {
+      when(() => mockSecureStorage.getPuuid()).thenAnswer((_) async => tPuuid);
+      when(() => mockSecureStorage.getShard()).thenAnswer((_) async => tShard);
+      when(() => mockLocalStore.getCachedCareerJson(tPuuid)).thenAnswer((_) async => null);
+      when(() => mockLocalStore.saveCachedCareerJson(tPuuid, any())).thenAnswer((_) async => {});
+
+      when(() => mockRemote.fetchMatchHistory(
+            shard: tShard,
+            puuid: tPuuid,
+            startIndex: any(named: 'startIndex'),
+            endIndex: any(named: 'endIndex'),
+          )).thenAnswer((_) async => [
+            {'MatchID': 'cached-match-999'},
+          ]);
+
+      when(() => mockRemote.fetchCompetitiveUpdates(
+            shard: tShard,
+            puuid: tPuuid,
+            startIndex: any(named: 'startIndex'),
+            endIndex: any(named: 'endIndex'),
+          )).thenAnswer((_) async => []);
+
+      when(() => mockRemote.fetchPlayerMmr(shard: tShard, puuid: tPuuid))
+          .thenAnswer((_) async => null);
+      when(() => mockRemote.fetchMapsMetadata()).thenAnswer((_) async => {});
+      when(() => mockRemote.fetchAgentsMetadata()).thenAnswer((_) async => {});
+      when(() => mockRemote.fetchCompetitiveTiersMetadata()).thenAnswer((_) async => {});
+
+      final cachedMatchMap = {
+        'matchInfo': {
+          'matchId': 'cached-match-999',
+          'mapId': 'ascent',
+          'gameMode': 'bomb',
+          'queueID': 'competitive',
+          'gameStartMillis': 1700000000000,
+        },
+        'players': [
+          {
+            'subject': tPuuid,
+            'teamId': 'Blue',
+            'characterId': 'agent-jett',
+            'stats': {'score': 3000, 'kills': 15, 'deaths': 10, 'assists': 3, 'roundsPlayed': 18},
+            'competitiveTier': 15,
+          }
+        ],
+        'teams': [
+          {'teamId': 'Blue', 'won': true, 'roundsWon': 13},
+          {'teamId': 'Red', 'won': false, 'roundsWon': 5}
+        ],
+        'roundResults': [],
+      };
+
+      when(() => mockLocalStore.getCachedMatchDetails('cached-match-999'))
+          .thenAnswer((_) async => jsonEncode(cachedMatchMap));
+
+      final result = await repository.getCareerOverview(forceRefresh: true);
+
+      expect(result.isSuccess, true);
+      expect(result.valueOrNull?.matches.first.matchId, 'cached-match-999');
+      verifyNever(() => mockRemote.fetchMatchDetails(shard: any(named: 'shard'), matchId: 'cached-match-999'));
     });
 
     test('returns failure when no puuid session exists', () async {
