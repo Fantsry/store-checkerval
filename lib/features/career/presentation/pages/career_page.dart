@@ -15,6 +15,7 @@ class CareerPage extends StatefulWidget {
 
 class _CareerPageState extends State<CareerPage> {
   bool _expandAll = false;
+  bool _hasAutoRefreshedStale = false;
 
   @override
   void initState() {
@@ -80,7 +81,25 @@ class _CareerPageState extends State<CareerPage> {
           ),
         ],
       ),
-      body: BlocBuilder<CareerCubit, CareerState>(
+      body: BlocConsumer<CareerCubit, CareerState>(
+        listener: (context, state) {
+          if (!_hasAutoRefreshedStale && state is CareerLoaded) {
+            final hasStaleMatches = state.overview.matches.any(
+              (m) =>
+                  !m.isDeathmatch &&
+                  m.roundsPlayed > 0 &&
+                  m.rounds.isEmpty,
+            );
+            if (hasStaleMatches) {
+              _hasAutoRefreshedStale = true;
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) {
+                  context.read<CareerCubit>().refresh();
+                }
+              });
+            }
+          }
+        },
         builder: (context, state) {
           if (state is CareerLoading && state.cachedOverview == null) {
             return const Center(

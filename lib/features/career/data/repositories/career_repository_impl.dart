@@ -66,9 +66,13 @@ class CareerRepositoryImpl implements CareerRepository {
           try {
             final map = jsonDecode(cachedJson) as Map<String, dynamic>;
             final overview = CareerOverview.fromJson(map);
-            // Silently refresh in background
-            _fetchFreshCareerOverview(shard: shard, puuid: puuid).ignore();
-            return Result.success(overview);
+            // If the cached overview has matches that played rounds but have no round details,
+            // it's an obsolete cache from before round history was added. Discard and fetch fresh!
+            final isStale = overview.matches
+                .any((m) => m.rounds.isEmpty && m.roundsPlayed > 0);
+            if (!isStale) {
+              return Result.success(overview);
+            }
           } catch (_) {}
         }
       }
@@ -134,7 +138,19 @@ class CareerRepositoryImpl implements CareerRepository {
           if (cachedStr != null && cachedStr.isNotEmpty) {
             final decoded = jsonDecode(cachedStr);
             if (decoded is Map) {
-              return Map<String, dynamic>.from(decoded);
+              final cachedMap = Map<String, dynamic>.from(decoded);
+              final cachedRounds = (cachedMap['roundResults'] as List?) ??
+                  (cachedMap['RoundResults'] as List?);
+              final queue = (cachedMap['matchInfo']?['queueID'] ??
+                      cachedMap['matchInfo']?['queueId'] ??
+                      '')
+                  .toString()
+                  .toLowerCase();
+              // Only reuse cache if it has roundResults or if it's deathmatch (where rounds don't exist)
+              if (queue == 'deathmatch' ||
+                  (cachedRounds != null && cachedRounds.isNotEmpty)) {
+                return cachedMap;
+              }
             }
           }
         } catch (_) {}
@@ -416,7 +432,7 @@ class CareerRepositoryImpl implements CareerRepository {
       final deaths = (playerStats['deaths'] as num?)?.toInt() ?? 0;
       final assists = (playerStats['assists'] as num?)?.toInt() ?? 0;
       final score = (playerStats['score'] as num?)?.toInt() ?? 0;
-      final roundsPlayed = (playerStats['roundsPlayed'] as num?)?.toInt() ?? 0;
+      var roundsPlayed = (playerStats['roundsPlayed'] as num?)?.toInt() ?? 0;
       int compTier = (userPlayer['competitiveTier'] as num?)?.toInt() ?? 0;
 
       // Find team results
@@ -441,6 +457,10 @@ class CareerRepositoryImpl implements CareerRepository {
         }
       }
 
+      if (roundsPlayed == 0 && (scoreWon > 0 || scoreLost > 0)) {
+        roundsPlayed = scoreWon + scoreLost;
+      }
+
       if (scoreWon == scoreLost && scoreWon > 0) {
         isDraw = true;
         won = null;
@@ -452,7 +472,10 @@ class CareerRepositoryImpl implements CareerRepository {
       int totalLs = 0;
       int totalDmg = 0;
 
-      final roundResults = (matchData['roundResults'] as List?) ?? [];
+      final roundResults = (matchData['roundResults'] as List?) ??
+          (matchData['RoundResults'] as List?) ??
+          (matchData['round_results'] as List?) ??
+          [];
       for (final r in roundResults) {
         if (r is Map) {
           final playerStatsList = (r['playerStats'] as List?) ?? [];
@@ -593,30 +616,90 @@ class CareerRepositoryImpl implements CareerRepository {
       final rounds = <MatchRoundSummary>[];
       for (final r in roundResults) {
         if (r is! Map) continue;
-        final roundNum = (r['roundNum'] as num?)?.toInt() ?? 0;
-        final winningTeam = (r['winningTeam'] ?? '').toString();
-        final roundResult =
-            (r['roundResult'] ?? r['roundResultCode'] ?? '').toString();
+        final roundNum = (r['roundNum'] as num?)?.toInt() ??
+            (r['RoundNum'] as num?)?.toInt() ??
+            (r['round_num'] as num?)?.toInt() ??
+            0;
+        final winningTeam = (r['winningTeam'] ??
+                r['WinningTeam'] ??
+                r['winning_team'] ??
+                '')
+            .toString();
+        final roundResult = (r['roundResult'] ??
+                r['RoundResult'] ??
+                r['roundResultCode'] ??
+                r['RoundResultCode'] ??
+                r['round_result'] ??
+                '')
+            .toString();
         final bool? roundWon = winningTeam.isEmpty
             ? null
             : (winningTeam.toLowerCase() == teamId.toLowerCase());
 
-        final playerStatsList = (r['playerStats'] as List?) ?? [];
+        final playerStatsList = (r['playerStats'] as List?) ??
+            (r['PlayerStats'] as List?) ??
+            (r['player_stats'] as List?) ??
+            [];
         final roundKills = <MatchRoundKill>[];
 
+        // 1. Parse kills from playerStats
         for (final ps in playerStatsList) {
           if (ps is! Map) continue;
-          final killsList = (ps['kills'] as List?) ?? [];
+          final killsList = (ps['kills'] as List?) ??
+              (ps['Kills'] as List?) ??
+              [];
           for (final k in killsList) {
             if (k is! Map) continue;
-            final killerPuuid =
-                (k['killer'] ?? ps['subject'] ?? ps['puuid'] ?? '').toString();
-            final victimPuuid = (k['victim'] ?? '').toString();
-            final roundTime = (k['roundTime'] as num?)?.toInt() ?? 0;
-            final finishingDmg = (k['finishingDamage'] as Map?) ?? {};
-            final weaponId = (finishingDmg['damageItem'] ?? '').toString();
-            final assistantPuuids = ((k['assistants'] as List?) ?? [])
-                .map((a) => a.toString())
+            final killerPuuid = (k['killer'] ??
+                    k['Killer'] ??
+                    k['killerPuuid'] ??
+                    k['KillerPuuid'] ??
+                    ps['subject'] ??
+                    ps['Subject'] ??
+                    ps['puuid'] ??
+                    ps['Puuid'] ??
+                    '')
+                .toString();
+            final victimPuuid = (k['victim'] ??
+                    k['Victim'] ??
+                    k['victimPuuid'] ??
+                    k['VictimPuuid'] ??
+                    k['receiver'] ??
+                    k['Receiver'] ??
+                    '')
+                .toString();
+            final roundTime = (k['roundTime'] as num?)?.toInt() ??
+                (k['RoundTime'] as num?)?.toInt() ??
+                (k['gameTime'] as num?)?.toInt() ??
+                (k['GameTime'] as num?)?.toInt() ??
+                0;
+            final finishingDmg = (k['finishingDamage'] as Map?) ??
+                (k['FinishingDamage'] as Map?) ??
+                {};
+            final weaponId = (finishingDmg['damageItem'] ??
+                    finishingDmg['DamageItem'] ??
+                    finishingDmg['damageType'] ??
+                    finishingDmg['DamageType'] ??
+                    '')
+                .toString();
+            final rawAssistants = (k['assistants'] as List?) ??
+                (k['Assistants'] as List?) ??
+                [];
+            final assistantPuuids = rawAssistants
+                .map((a) {
+                  if (a is Map) {
+                    return (a['assistantPuuid'] ??
+                            a['AssistantPuuid'] ??
+                            a['subject'] ??
+                            a['Subject'] ??
+                            a['puuid'] ??
+                            a['Puuid'] ??
+                            '')
+                        .toString();
+                  }
+                  return a.toString();
+                })
+                .where((a) => a.isNotEmpty)
                 .toList();
 
             final killer = playerMetaMap[killerPuuid.toLowerCase()];
@@ -656,6 +739,91 @@ class CareerRepositoryImpl implements CareerRepository {
           }
         }
 
+        // 2. Also parse direct round-level kills if present (e.g. r['kills'])
+        final directKillsList = (r['kills'] as List?) ??
+            (r['Kills'] as List?) ??
+            (r['killEvents'] as List?) ??
+            (r['KillEvents'] as List?) ??
+            (r['kill_events'] as List?) ??
+            [];
+        for (final k in directKillsList) {
+          if (k is! Map) continue;
+          final killerPuuid = (k['killer'] ??
+                  k['Killer'] ??
+                  k['killerPuuid'] ??
+                  k['KillerPuuid'] ??
+                  '')
+              .toString();
+          final victimPuuid = (k['victim'] ??
+                  k['Victim'] ??
+                  k['victimPuuid'] ??
+                  k['VictimPuuid'] ??
+                  '')
+              .toString();
+          final roundTime = (k['roundTime'] as num?)?.toInt() ??
+              (k['RoundTime'] as num?)?.toInt() ??
+              0;
+
+          // Deduplicate if already parsed from playerStats
+          final isDuplicate = roundKills.any((existing) =>
+              existing.killerPuuid.toLowerCase() == killerPuuid.toLowerCase() &&
+              existing.victimPuuid.toLowerCase() == victimPuuid.toLowerCase() &&
+              existing.roundTime == roundTime);
+          if (isDuplicate) continue;
+
+          final finishingDmg = (k['finishingDamage'] as Map?) ??
+              (k['FinishingDamage'] as Map?) ??
+              {};
+          final weaponId = (finishingDmg['damageItem'] ??
+                  finishingDmg['DamageItem'] ??
+                  '')
+              .toString();
+          final rawAssistants = (k['assistants'] as List?) ??
+              (k['Assistants'] as List?) ??
+              [];
+          final assistantPuuids = rawAssistants
+              .map((a) => a is Map
+                  ? (a['assistantPuuid'] ?? a['subject'] ?? '').toString()
+                  : a.toString())
+              .where((a) => a.isNotEmpty)
+              .toList();
+
+          final killer = playerMetaMap[killerPuuid.toLowerCase()];
+          final victim = playerMetaMap[victimPuuid.toLowerCase()];
+
+          final assistantNames = assistantPuuids
+              .map((a) => playerMetaMap[a.toLowerCase()]?.displayName ?? '')
+              .where((n) => n.isNotEmpty)
+              .toList();
+
+          roundKills.add(MatchRoundKill(
+            roundTime: roundTime,
+            killerPuuid: killerPuuid,
+            killerName: killer?.displayName ??
+                (killerPuuid.toLowerCase() == currentPuuid.toLowerCase()
+                    ? 'YOU'
+                    : 'Player'),
+            killerAgentName: killer?.agentName ?? 'Agent',
+            killerAgentIconUrl: killer?.agentIconUrl,
+            killerTeamId: killer?.teamId ?? '',
+            victimPuuid: victimPuuid,
+            victimName: victim?.displayName ??
+                (victimPuuid.toLowerCase() == currentPuuid.toLowerCase()
+                    ? 'YOU'
+                    : 'Player'),
+            victimAgentName: victim?.agentName ?? 'Agent',
+            victimAgentIconUrl: victim?.agentIconUrl,
+            victimTeamId: victim?.teamId ?? '',
+            assistantPuuids: assistantPuuids,
+            assistantNames: assistantNames,
+            weaponId: weaponId.isNotEmpty ? weaponId : null,
+            isKillerSelf:
+                killerPuuid.toLowerCase() == currentPuuid.toLowerCase(),
+            isVictimSelf:
+                victimPuuid.toLowerCase() == currentPuuid.toLowerCase(),
+          ));
+        }
+
         // Sort kills chronologically
         roundKills.sort((a, b) => a.roundTime.compareTo(b.roundTime));
 
@@ -670,6 +838,10 @@ class CareerRepositoryImpl implements CareerRepository {
 
       // Sort rounds by roundNum ascending
       rounds.sort((a, b) => a.roundNum.compareTo(b.roundNum));
+
+      if (rounds.isNotEmpty && rounds.length > roundsPlayed) {
+        roundsPlayed = rounds.length;
+      }
 
       return MatchSummary(
         matchId: matchId,
@@ -736,7 +908,20 @@ class CareerRepositoryImpl implements CareerRepository {
         if (cachedStr != null && cachedStr.isNotEmpty) {
           final decoded = jsonDecode(cachedStr);
           if (decoded is Map) {
-            matchData = Map<String, dynamic>.from(decoded);
+            final cachedMap = Map<String, dynamic>.from(decoded);
+            final cachedRounds = (cachedMap['roundResults'] as List?) ??
+                (cachedMap['RoundResults'] as List?) ??
+                (cachedMap['round_results'] as List?);
+            final queue = (cachedMap['matchInfo']?['queueID'] ??
+                    cachedMap['matchInfo']?['queueId'] ??
+                    cachedMap['matchInfo']?['QueueID'] ??
+                    '')
+                .toString()
+                .toLowerCase();
+            if (queue == 'deathmatch' ||
+                (cachedRounds != null && cachedRounds.isNotEmpty)) {
+              matchData = cachedMap;
+            }
           }
         }
       } catch (_) {}

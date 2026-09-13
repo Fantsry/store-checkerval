@@ -234,9 +234,23 @@ void main() {
                 ],
                 'roundResults': [
                   {
+                    'roundNum': 0,
+                    'winningTeam': 'Blue',
+                    'roundResult': 'Eliminated',
                     'playerStats': [
                       {
                         'subject': tPuuid,
+                        'kills': [
+                          {
+                            'roundTime': 45000,
+                            'killer': tPuuid,
+                            'victim': 'enemy-reyna',
+                            'assistants': ['ally-sage'],
+                            'finishingDamage': {
+                              'damageItem': 'vandal-uuid',
+                            }
+                          }
+                        ],
                         'damage': [
                           {
                             'receiver': 'enemy-1',
@@ -276,6 +290,22 @@ void main() {
       expect(overview.matches.first.enemies.first.rankName, 'Platinum 1');
       expect(overview.matches.first.enemies.first.rankIconUrl,
           contains('15.png'));
+
+      // Verify Round Kills
+      expect(overview.matches.first.rounds.length, 1);
+      final round = overview.matches.first.rounds.first;
+      expect(round.roundNum, 0);
+      expect(round.won, true);
+      expect(round.roundResult, 'Eliminated');
+      expect(round.kills.length, 1);
+      final kill = round.kills.first;
+      expect(kill.killerPuuid, tPuuid);
+      expect(kill.killerName, 'MyPlayer#111');
+      expect(kill.isKillerSelf, true);
+      expect(kill.victimPuuid, 'enemy-reyna');
+      expect(kill.victimName, 'EnemyReyna#333');
+      expect(kill.assistantNames, ['SageHeal#222']);
+      expect(kill.weaponId, 'vandal-uuid');
 
       verify(() => mockLocalStore.saveCachedCareerJson(tPuuid, any()))
           .called(1);
@@ -449,7 +479,19 @@ void main() {
           {'teamId': 'Blue', 'won': true, 'roundsWon': 13},
           {'teamId': 'Red', 'won': false, 'roundsWon': 5}
         ],
-        'roundResults': [],
+        'roundResults': [
+          {
+            'roundNum': 0,
+            'winningTeam': 'Blue',
+            'roundResult': 'Eliminated',
+            'playerStats': [
+              {
+                'subject': tPuuid,
+                'kills': [],
+              }
+            ],
+          }
+        ],
       };
 
       when(() => mockLocalStore.getCachedMatchDetails('cached-match-999'))
