@@ -161,7 +161,9 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
     final mapUrl = (matchData['MapID'] ?? '').toString();
     final modeUrl = (matchData['ModeID'] ?? '').toString();
 
-    final rawPlayers = matchData['Players'] as List<dynamic>? ?? [];
+    final rawPlayers = matchData['Players'] is List
+        ? (matchData['Players'] as List)
+        : const [];
     final List<String> puuids = [];
     for (final p in rawPlayers) {
       if (p is Map && p['Subject'] != null) {
@@ -300,8 +302,12 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
     final mapUrl = (matchData['MapID'] ?? '').toString();
     final modeUrl = (matchData['Mode'] ?? '').toString();
 
-    final allyTeamRaw = matchData['AllyTeam'] as Map<String, dynamic>?;
-    final rawPlayers = allyTeamRaw?['Players'] as List<dynamic>? ?? [];
+    final allyTeamRaw = matchData['AllyTeam'] is Map
+        ? Map<String, dynamic>.from(matchData['AllyTeam'] as Map)
+        : null;
+    final rawPlayers = allyTeamRaw?['Players'] is List
+        ? (allyTeamRaw!['Players'] as List)
+        : const [];
 
     final List<String> puuids = [];
     for (final p in rawPlayers) {
@@ -421,14 +427,19 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
     Map<int, Map<String, dynamic>> tiersMeta,
   ) {
     try {
-      final queueSkills = mmrData['QueueSkills'] as Map<String, dynamic>?;
-      final compSkill = queueSkills?['competitive'] as Map<String, dynamic>?;
+      final queueSkills = mmrData['QueueSkills'] is Map
+          ? Map<String, dynamic>.from(mmrData['QueueSkills'] as Map)
+          : null;
+      final compSkill = queueSkills?['competitive'] is Map
+          ? Map<String, dynamic>.from(queueSkills!['competitive'] as Map)
+          : null;
       var currentTier = compSkill?['Tier'] as int? ?? 0;
       final currentRr = compSkill?['RankedRating'] as int? ?? 0;
 
       // Fallback if currentTier is 0: check recent seasonal tier
-      final seasonal =
-          compSkill?['SeasonalInfoBySeasonID'] as Map<String, dynamic>?;
+      final seasonal = compSkill?['SeasonalInfoBySeasonID'] is Map
+          ? Map<String, dynamic>.from(compSkill!['SeasonalInfoBySeasonID'] as Map)
+          : null;
       if (currentTier == 0 && seasonal != null && seasonal.isNotEmpty) {
         for (final entry in seasonal.values) {
           if (entry is Map) {

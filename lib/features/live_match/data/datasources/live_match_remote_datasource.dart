@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:valorant_store_tracker/core/constants/api_constants.dart';
 
@@ -41,6 +42,24 @@ class LiveMatchRemoteDataSourceImpl implements LiveMatchRemoteDataSource {
   final Dio _dio;
 
   LiveMatchRemoteDataSourceImpl({required Dio dio}) : _dio = dio;
+
+  static Map<String, dynamic>? _parseMapResponse(dynamic data) {
+    if (data == null) return null;
+    dynamic raw = data;
+    if (raw is String) {
+      final trimmed = raw.trim();
+      if (trimmed.isEmpty) return null;
+      try {
+        raw = jsonDecode(trimmed);
+      } catch (_) {
+        return null;
+      }
+    }
+    if (raw is Map) {
+      return Map<String, dynamic>.from(raw);
+    }
+    return null;
+  }
 
   static String _normalizeShard(String shard) {
     final s = shard.trim().toLowerCase();
@@ -109,7 +128,7 @@ class LiveMatchRemoteDataSourceImpl implements LiveMatchRemoteDataSource {
 
       final response = await _dio.get(url);
       if (response.statusCode == 200 && response.data != null) {
-        return response.data as Map<String, dynamic>;
+        return _parseMapResponse(response.data);
       }
       return null;
     } on DioException catch (e) {
@@ -134,7 +153,7 @@ class LiveMatchRemoteDataSourceImpl implements LiveMatchRemoteDataSource {
 
       final response = await _dio.get(url);
       if (response.statusCode == 200 && response.data != null) {
-        return response.data as Map<String, dynamic>;
+        return _parseMapResponse(response.data);
       }
       return null;
     } on DioException catch (e) {
@@ -158,7 +177,7 @@ class LiveMatchRemoteDataSourceImpl implements LiveMatchRemoteDataSource {
 
       final response = await _dio.get(url);
       if (response.statusCode == 200 && response.data != null) {
-        return response.data as Map<String, dynamic>;
+        return _parseMapResponse(response.data);
       }
       return null;
     } on DioException catch (e) {
@@ -183,7 +202,7 @@ class LiveMatchRemoteDataSourceImpl implements LiveMatchRemoteDataSource {
 
       final response = await _dio.get(url);
       if (response.statusCode == 200 && response.data != null) {
-        return response.data as Map<String, dynamic>;
+        return _parseMapResponse(response.data);
       }
       return null;
     } on DioException catch (e) {
@@ -208,10 +227,23 @@ class LiveMatchRemoteDataSourceImpl implements LiveMatchRemoteDataSource {
         url,
         data: puuids,
       );
-      if (response.statusCode == 200 && response.data is List) {
-        return (response.data as List<dynamic>)
-            .map((e) => e as Map<String, dynamic>)
-            .toList();
+      if (response.statusCode == 200 && response.data != null) {
+        dynamic raw = response.data;
+        if (raw is String) {
+          final trimmed = raw.trim();
+          if (trimmed.isEmpty) return [];
+          try {
+            raw = jsonDecode(trimmed);
+          } catch (_) {
+            return [];
+          }
+        }
+        if (raw is List) {
+          return raw
+              .whereType<Map>()
+              .map((e) => Map<String, dynamic>.from(e))
+              .toList();
+        }
       }
     } catch (_) {}
     return [];
@@ -228,7 +260,7 @@ class LiveMatchRemoteDataSourceImpl implements LiveMatchRemoteDataSource {
 
       final response = await _dio.get(url);
       if (response.statusCode == 200 && response.data != null) {
-        return response.data as Map<String, dynamic>;
+        return _parseMapResponse(response.data);
       }
     } catch (_) {}
     return null;

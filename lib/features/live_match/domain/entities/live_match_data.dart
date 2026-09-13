@@ -39,8 +39,10 @@ class LiveMatchData extends Equatable {
       };
 
   factory LiveMatchData.fromJson(Map<String, dynamic> json) {
-    final blueRaw = json['blueTeam'] as List<dynamic>? ?? [];
-    final redRaw = json['redTeam'] as List<dynamic>? ?? [];
+    final blueRaw =
+        json['blueTeam'] is List ? (json['blueTeam'] as List) : const [];
+    final redRaw =
+        json['redTeam'] is List ? (json['redTeam'] as List) : const [];
 
     return LiveMatchData(
       phase: LiveMatchPhase.values.firstWhere(
@@ -52,10 +54,12 @@ class LiveMatchData extends Equatable {
       mapSplash: json['mapSplash'] as String?,
       modeName: json['modeName'] as String? ?? 'Competitive',
       blueTeam: blueRaw
-          .map((p) => LivePlayerInfo.fromJson(p as Map<String, dynamic>))
+          .whereType<Map>()
+          .map((p) => LivePlayerInfo.fromJson(Map<String, dynamic>.from(p)))
           .toList(),
       redTeam: redRaw
-          .map((p) => LivePlayerInfo.fromJson(p as Map<String, dynamic>))
+          .whereType<Map>()
+          .map((p) => LivePlayerInfo.fromJson(Map<String, dynamic>.from(p)))
           .toList(),
     );
   }
