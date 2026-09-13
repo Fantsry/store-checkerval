@@ -59,6 +59,32 @@ void main() {
       expect(diff.isNegative, false);
       expect(diff.inHours, lessThanOrEqualTo(24));
     });
+
+    test('formatWeeklyDuration formats days, hours, minutes, seconds properly', () {
+      const durationMultiDay = Duration(days: 3, hours: 14, minutes: 25, seconds: 8);
+      expect(TimezoneHelper.formatWeeklyDuration(durationMultiDay), '3d 14:25:08');
+
+      const durationSingleDay = Duration(hours: 18, minutes: 5, seconds: 2);
+      expect(TimezoneHelper.formatWeeklyDuration(durationSingleDay), '18:05:02');
+
+      expect(TimezoneHelper.formatWeeklyDuration(Duration.zero), '00:00:00');
+    });
+
+    test('nextAccessoryStoreReset calculates Wednesday 00:00 UTC correctly in the future', () {
+      final reset = TimezoneHelper.nextAccessoryStoreReset;
+      final now = DateTime.now().toUtc();
+      final resetUtc = reset.toUtc();
+
+      expect(resetUtc.weekday, DateTime.wednesday);
+      expect(resetUtc.hour, 0);
+      expect(resetUtc.minute, 0);
+      expect(resetUtc.second, 0);
+      expect(resetUtc.isAfter(now), true);
+
+      final diff = TimezoneHelper.timeUntilAccessoryReset;
+      expect(diff.isNegative, false);
+      expect(diff.inDays, lessThanOrEqualTo(7));
+    });
   });
 
   group('NotificationService Store Evaluation & Deduplication Tests', () {

@@ -21,21 +21,37 @@ class _AccessoryStoreSectionState extends State<AccessoryStoreSection> {
   @override
   void initState() {
     super.initState();
-    _remainingSeconds = widget.items.isNotEmpty
+    _initRemainingSeconds();
+    _startTimer();
+  }
+
+  void _initRemainingSeconds() {
+    final rawRemaining = widget.items.isNotEmpty
         ? widget.items.first.remainingDurationSeconds
         : 0;
-    if (_remainingSeconds > 0) {
-      _timer = Timer.periodic(const Duration(seconds: 1), (_) {
-        if (!mounted) return;
-        if (_remainingSeconds > 0) {
-          setState(() {
-            _remainingSeconds--;
-          });
-        } else {
-          _timer?.cancel();
-        }
-      });
+    if (rawRemaining > 0) {
+      _remainingSeconds = rawRemaining;
+    } else {
+      _remainingSeconds = TimezoneHelper.timeUntilAccessoryReset.inSeconds;
     }
+  }
+
+  void _startTimer() {
+    _timer?.cancel();
+    if (_remainingSeconds <= 0) {
+      _initRemainingSeconds();
+    }
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted) return;
+      if (_remainingSeconds > 0) {
+        setState(() {
+          _remainingSeconds--;
+        });
+      } else {
+        _initRemainingSeconds();
+        if (mounted) setState(() {});
+      }
+    });
   }
 
   @override
@@ -43,8 +59,11 @@ class _AccessoryStoreSectionState extends State<AccessoryStoreSection> {
     super.didUpdateWidget(oldWidget);
     if (widget.items.isNotEmpty) {
       final newRemaining = widget.items.first.remainingDurationSeconds;
-      if (newRemaining != _remainingSeconds && newRemaining > 0) {
-        _remainingSeconds = newRemaining;
+      if (newRemaining > 0 && newRemaining != _remainingSeconds) {
+        setState(() {
+          _remainingSeconds = newRemaining;
+        });
+        _startTimer();
       }
     }
   }
@@ -64,7 +83,7 @@ class _AccessoryStoreSectionState extends State<AccessoryStoreSection> {
       children: [
         // Accessory Store Header
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           decoration: BoxDecoration(
             color: AppTheme.surfaceDark,
             borderRadius: BorderRadius.circular(16),
@@ -73,46 +92,54 @@ class _AccessoryStoreSectionState extends State<AccessoryStoreSection> {
             ),
           ),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF00E5FF).withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: const Icon(
-                      Icons.storefront_rounded,
-                      color: Color(0xFF00E5FF),
-                      size: 20,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  const Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'ACCESSORY STORE',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 1.5,
-                          color: AppTheme.textPrimary,
-                        ),
+              Expanded(
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF00E5FF).withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(10),
                       ),
-                      Text(
-                        'Weekly Kingdom Credits rotation',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: AppTheme.textSecondary,
-                        ),
+                      child: const Icon(
+                        Icons.storefront_rounded,
+                        color: Color(0xFF00E5FF),
+                        size: 20,
                       ),
-                    ],
-                  ),
-                ],
+                    ),
+                    const SizedBox(width: 10),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'ACCESSORY STORE',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 1.0,
+                              color: AppTheme.textPrimary,
+                            ),
+                          ),
+                          Text(
+                            'Weekly Kingdom Credits rotation',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 10.5,
+                              color: AppTheme.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
+              const SizedBox(width: 8),
               if (_remainingSeconds > 0)
                 Container(
                   padding: const EdgeInsets.symmetric(
@@ -120,10 +147,14 @@ class _AccessoryStoreSectionState extends State<AccessoryStoreSection> {
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.4),
+                    color: Colors.black.withValues(alpha: 0.5),
                     borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: const Color(0xFF00E5FF).withValues(alpha: 0.3),
+                    ),
                   ),
                   child: Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       const Icon(
                         Icons.access_time_rounded,
@@ -132,7 +163,7 @@ class _AccessoryStoreSectionState extends State<AccessoryStoreSection> {
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        TimezoneHelper.formatDuration(
+                        TimezoneHelper.formatWeeklyDuration(
                           Duration(seconds: _remainingSeconds),
                         ),
                         style: const TextStyle(

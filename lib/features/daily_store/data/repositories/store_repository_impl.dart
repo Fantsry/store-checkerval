@@ -3,6 +3,7 @@ import 'package:valorant_store_tracker/core/error/failures.dart';
 import 'package:valorant_store_tracker/core/error/result.dart';
 import 'package:valorant_store_tracker/core/storage/local_store_service.dart';
 import 'package:valorant_store_tracker/core/utils/skin_price_helper.dart';
+import 'package:valorant_store_tracker/core/utils/timezone_helper.dart';
 import 'package:valorant_store_tracker/core/storage/secure_storage_service.dart';
 import 'package:valorant_store_tracker/features/daily_store/data/datasources/riot_store_remote_datasource.dart';
 import 'package:valorant_store_tracker/features/daily_store/data/datasources/valorant_api_remote_datasource.dart';
@@ -411,10 +412,18 @@ class StoreRepositoryImpl implements StoreRepository {
           storefrontData['AccessoryStore'] as Map<String, dynamic>?;
 
       if (accessoryStoreData != null) {
-        final accRemaining = (accessoryStoreData[
+        var accRemaining = (accessoryStoreData[
                 'AccessoryStoreRemainingDurationInSeconds'] as num?)
             ?.toInt() ??
+            (accessoryStoreData['remainingDurationInSeconds'] as num?)?.toInt() ??
+            (accessoryStoreData['RemainingDurationInSeconds'] as num?)?.toInt() ??
+            (accessoryStoreData['AccessoryStoreRemainingDuration'] as num?)?.toInt() ??
             0;
+
+        if (accRemaining <= 0) {
+          accRemaining = TimezoneHelper.timeUntilAccessoryReset.inSeconds;
+        }
+
         final rawAccOffers = accessoryStoreData['AccessoryStoreOffers']
             as List<dynamic>? ??
             [];
