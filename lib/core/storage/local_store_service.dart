@@ -160,12 +160,13 @@ class LocalStoreService {
   // ─── Skins Catalog Cache ───────────────────────────────────
 
   Future<List<SkinItem>?> getCachedSkins() async {
-    final raw = _skinsCacheBox.get('all_skins_v5');
+    final raw = _skinsCacheBox.get('all_skins_v6') ??
+        _skinsCacheBox.get('all_skins_v5');
     if (raw == null || raw.isEmpty) return null;
 
     try {
       final list = jsonDecode(raw) as List<dynamic>;
-      return list.map((e) {
+      final skins = list.map((e) {
         final skin = SkinItem.fromJson(e as Map<String, dynamic>);
         final isMelee = SkinPriceHelper.isMelee(
           displayName: skin.displayName,
@@ -189,6 +190,14 @@ class LocalStoreService {
         }
         return skin;
       }).toList();
+
+      // If cache has many skins but 0 marked as Battlepass, it is obsolete
+      // (created before BP detection was implemented). Discard to force fresh fetch.
+      if (skins.length > 50 && !skins.any((s) => s.isBattlepass)) {
+        return null;
+      }
+
+      return skins;
     } catch (_) {
       return null;
     }
@@ -196,11 +205,13 @@ class LocalStoreService {
 
   Future<void> saveCachedSkins(List<SkinItem> skins) async {
     final jsonStr = jsonEncode(skins.map((s) => s.toJson()).toList());
-    await _skinsCacheBox.put('all_skins_v5', jsonStr);
+    await _skinsCacheBox.put('all_skins_v6', jsonStr);
     await _skinsCacheBox.put(
       'all_skins_timestamp',
       DateTime.now().toIso8601String(),
     );
+    // Cleanup old v5 cache key if present
+    await _skinsCacheBox.delete('all_skins_v5');
   }
 
   // ─── Daily Store Offline Cache ─────────────────────────────
@@ -394,5 +405,9 @@ class LocalStoreService {
 
   Future<void> setMap(String key, Map<String, dynamic> map) async {
     await _storeCacheBox.put(key, jsonEncode(map));
+  }
+
+  Future<void> deleteMap(String key) async {
+    await _storeCacheBox.delete(key);
   }
 }

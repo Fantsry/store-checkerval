@@ -458,7 +458,7 @@ class _SettingsPageState extends State<SettingsPage> {
                           subtitle: 'Notifikasi saat skin wishlist ada di store',
                           trailing: Switch(
                             value: _notificationsEnabled,
-                            activeColor: AppTheme.valorantRed,
+                            activeThumbColor: AppTheme.valorantRed,
                             onChanged: _toggleNotifications,
                           ),
                         ),
@@ -616,7 +616,7 @@ class _SettingsPageState extends State<SettingsPage> {
                           subtitle: 'Require fingerprint to unlock app',
                           trailing: Switch(
                             value: _biometricEnabled,
-                            activeColor: AppTheme.valorantRed,
+                            activeThumbColor: AppTheme.valorantRed,
                             onChanged: _toggleBiometric,
                           ),
                         ),

@@ -43,17 +43,7 @@ class InventoryRepositoryImpl implements InventoryRepository {
     bool forceRefresh = false,
   }) async {
     try {
-      // 1. Check local cache first if not force refresh
-      if (!forceRefresh) {
-        final cached = _localStore.getMap('cached_inventory_overview');
-        if (cached != null && cached.isNotEmpty) {
-          try {
-            return Result.success(InventoryOverview.fromJson(cached));
-          } catch (_) {}
-        }
-      }
-
-      // 2. Resolve credentials
+      // 1. Resolve credentials
       var puuid = await _storage.getPuuid();
       if (puuid == null || puuid.isEmpty) {
         final token = await _storage.getAccessToken();
@@ -74,7 +64,26 @@ class InventoryRepositoryImpl implements InventoryRepository {
         );
       }
 
-      // 3. Fetch entitlements, loadout, and all skin database
+      final cacheKey = 'cached_inventory_overview_v2_$puuid';
+
+      // 2. Check local cache first if not force refresh
+      if (!forceRefresh) {
+        final cached = _localStore.getMap(cacheKey);
+        if (cached != null && cached.isNotEmpty) {
+          try {
+            final overview = InventoryOverview.fromJson(cached);
+            // If the cached overview has skins but 0 battlepass skins while owning > 3 skins,
+            // it's likely a stale cache from an older version. Discard and re-fetch!
+            final isStale =
+                overview.totalSkinsCount > 3 && overview.battlepassSkinsCount == 0;
+            if (!isStale) {
+              return Result.success(overview);
+            }
+          } catch (_) {}
+        }
+      }
+
+      // 3. Fetch entitlements, loadout, all skins database, and battlepass contract reward UUIDs
       final futures = await Future.wait<dynamic>([
         _remoteDataSource.fetchSkinEntitlements(shard: shard, puuid: puuid),
         _remoteDataSource.fetchPlayerLoadout(shard: shard, puuid: puuid),
@@ -83,12 +92,21 @@ class InventoryRepositoryImpl implements InventoryRepository {
           return cached ?? <SkinItem>[];
         }),
         _remoteDataSource.fetchWeaponsMetadata(),
+        _valorantApiDataSource
+            .getBattlepassRewardUuids()
+            .catchError((_) => <String>{}),
       ]);
 
       final ownedItemIds = futures[0] as List<String>;
       final loadoutData = futures[1] as Map<String, dynamic>?;
       final allSkins = futures[2] as List<SkinItem>;
       final weaponsMap = futures[3] as Map<String, String>;
+      final bpRewardUuids = futures[4] as Set<String>;
+
+      // If fresh skins catalog was obtained, save it to local catalog cache
+      if (allSkins.isNotEmpty) {
+        await _localStore.saveCachedSkins(allSkins);
+      }
 
       // 4. Index skin catalog:
       // itemId -> SkinItem
@@ -125,6 +143,13 @@ class InventoryRepositoryImpl implements InventoryRepository {
               final weaponName = weaponsMap[weaponId] ??
                   equippedSkin.displayName.split(' ').last;
 
+              final isBpEquipped = equippedSkin.isBattlepass ||
+                  bpRewardUuids.contains(equippedSkin.uuid.toLowerCase()) ||
+                  equippedSkin.levels.any(
+                      (l) => bpRewardUuids.contains(l.uuid.toLowerCase())) ||
+                  equippedSkin.chromas.any(
+                      (c) => bpRewardUuids.contains(c.uuid.toLowerCase()));
+
               equippedWeapons.add(
                 EquippedWeaponSkin(
                   weaponId: weaponId,
@@ -133,7 +158,7 @@ class InventoryRepositoryImpl implements InventoryRepository {
                   skinName: equippedSkin.displayName,
                   skinIcon: equippedSkin.displayIcon,
                   tierColor: equippedSkin.tierColor,
-                  isBattlepass: equippedSkin.isBattlepass,
+                  isBattlepass: isBpEquipped,
                 ),
               );
             }
@@ -168,12 +193,20 @@ class InventoryRepositoryImpl implements InventoryRepository {
       final List<OwnedSkinItem> ownedSkinsList = [];
 
       for (final skin in uniqueOwnedSkins.values) {
+        final skinUuidLower = skin.uuid.toLowerCase();
+        final isBpSkin = skin.isBattlepass ||
+            bpRewardUuids.contains(skinUuidLower) ||
+            skin.levels
+                .any((l) => bpRewardUuids.contains(l.uuid.toLowerCase())) ||
+            skin.chromas
+                .any((c) => bpRewardUuids.contains(c.uuid.toLowerCase()));
+
         // Only count store skins for purchase valuation; battlepass rewards are earned via XP
-        if (!skin.isBattlepass && skin.cost > 0) {
+        if (!isBpSkin && skin.cost > 0) {
           totalVp += skin.cost;
         }
 
-        final tier = skin.tierName ?? 'Exclusive';
+        final tier = skin.tierName ?? 'Select';
         if (tierBreakdown.containsKey(tier)) {
           tierBreakdown[tier] = (tierBreakdown[tier] ?? 0) + 1;
         } else {
@@ -195,12 +228,12 @@ class InventoryRepositoryImpl implements InventoryRepository {
             uuid: skin.uuid,
             displayName: skin.displayName,
             displayIcon: skin.displayIcon,
-            cost: skin.cost,
+            cost: isBpSkin ? 0 : skin.cost,
             tierName: skin.tierName,
             tierColor: skin.tierColor,
             weapon: weaponName,
             isEquipped: isEquipped,
-            isBattlepass: skin.isBattlepass,
+            isBattlepass: isBpSkin,
           ),
         );
       }
@@ -224,13 +257,19 @@ class InventoryRepositoryImpl implements InventoryRepository {
         equippedWeapons: equippedWeapons,
       );
 
-      // Cache overview locally
-      await _localStore.setMap('cached_inventory_overview', overview.toJson());
+      // Cache overview locally per puuid and clear legacy unversioned key
+      await _localStore.setMap(cacheKey, overview.toJson());
+      await _localStore.deleteMap('cached_inventory_overview');
 
       return Result.success(overview);
     } catch (e) {
       // If error occurs, fallback to cached overview if available
-      final cached = _localStore.getMap('cached_inventory_overview');
+      final puuid = await _storage.getPuuid();
+      final cacheKey = puuid != null && puuid.isNotEmpty
+          ? 'cached_inventory_overview_v2_$puuid'
+          : 'cached_inventory_overview';
+      final cached = _localStore.getMap(cacheKey) ??
+          _localStore.getMap('cached_inventory_overview');
       if (cached != null && cached.isNotEmpty) {
         try {
           return Result.success(InventoryOverview.fromJson(cached));
@@ -247,7 +286,8 @@ class InventoryRepositoryImpl implements InventoryRepository {
 
       return Result.failure(
         ServerFailure(
-          message: 'Failed to calculate account inventory: ${e.toString().replaceAll(RegExp(r'DioException.*?:'), '').trim()}',
+          message:
+              'Failed to calculate account inventory: ${e.toString().replaceAll(RegExp(r'DioException.*?:'), '').trim()}',
         ),
       );
     }

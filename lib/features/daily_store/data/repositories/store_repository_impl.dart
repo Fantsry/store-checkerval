@@ -30,7 +30,9 @@ class StoreRepositoryImpl implements StoreRepository {
   Future<Result<List<SkinItem>>> getAllCatalogSkins() async {
     try {
       final cached = await _localStore.getCachedSkins();
-      if (cached != null && cached.isNotEmpty) {
+      if (cached != null &&
+          cached.isNotEmpty &&
+          cached.any((s) => s.isBattlepass)) {
         return Result.success(cached);
       }
 
@@ -465,13 +467,16 @@ class StoreRepositoryImpl implements StoreRepository {
             const kcCurrencyUuid = '85ca9543-7697-970b-7caa-e2a3d1a3d49e';
             int kcCost = 4000;
             if (costMap != null && costMap.isNotEmpty) {
-              final kcEntry = costMap.entries.firstWhere(
-                (e) =>
-                    e.key.toString().toLowerCase() ==
-                    kcCurrencyUuid.toLowerCase(),
-                orElse: () => costMap.entries.first,
-              );
-              kcCost = (kcEntry.value as num?)?.toInt() ?? 4000;
+              int? foundCost;
+              for (final entry in costMap.entries) {
+                if (entry.key.toString().toLowerCase() ==
+                    kcCurrencyUuid.toLowerCase()) {
+                  foundCost = (entry.value as num?)?.toInt();
+                  break;
+                }
+              }
+              foundCost ??= (costMap.values.firstOrNull as num?)?.toInt();
+              kcCost = foundCost ?? 4000;
             }
 
             accessoryOffers.add(

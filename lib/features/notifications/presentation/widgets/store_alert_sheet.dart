@@ -286,7 +286,7 @@ class _RuleCard extends StatelessWidget {
           ),
           Switch(
             value: rule.isEnabled,
-            activeColor: AppTheme.valorantRed,
+            activeThumbColor: AppTheme.valorantRed,
             onChanged: (val) {
               context.read<StoreAlertCubit>().toggleRule(rule.id, val);
             },

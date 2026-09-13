@@ -19,6 +19,7 @@ class InventoryPage extends StatefulWidget {
 
 class _InventoryPageState extends State<InventoryPage> {
   final TextEditingController _searchController = TextEditingController();
+  bool _autoRefreshedStale = false;
 
   @override
   void initState() {
@@ -38,7 +39,18 @@ class _InventoryPageState extends State<InventoryPage> {
       body: Container(
         decoration: const BoxDecoration(gradient: AppTheme.backgroundGradient),
         child: SafeArea(
-          child: BlocBuilder<InventoryCubit, InventoryState>(
+          child: BlocConsumer<InventoryCubit, InventoryState>(
+            listener: (context, state) {
+              if (state is InventoryLoaded &&
+                  state.overview.totalSkinsCount > 3 &&
+                  state.overview.battlepassSkinsCount == 0 &&
+                  !_autoRefreshedStale) {
+                _autoRefreshedStale = true;
+                context
+                    .read<InventoryCubit>()
+                    .loadInventory(forceRefresh: true);
+              }
+            },
             builder: (context, state) {
               return RefreshIndicator(
                 color: AppTheme.valorantRed,

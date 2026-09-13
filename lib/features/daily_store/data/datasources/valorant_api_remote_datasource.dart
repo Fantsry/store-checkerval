@@ -57,20 +57,21 @@ class ValorantApiRemoteDataSourceImpl implements ValorantApiRemoteDataSource {
       final Set<String> bpRewardUuids = {};
 
       for (final rawContract in data) {
-        if (rawContract is! Map<String, dynamic>) continue;
-        final content = rawContract['content'] as Map<String, dynamic>?;
+        if (rawContract is! Map) continue;
+        final content = rawContract['content'] as Map?;
         if (content == null) continue;
 
-        // Season relationType represents Battlepass contracts
-        if (content['relationType'] == 'Season') {
+        // Season, Agent, and Event contracts represent non-store / free gameplay rewards
+        final relType = (content['relationType'] ?? '').toString().toLowerCase();
+        if (relType == 'season' || relType == 'agent' || relType == 'event') {
           final chapters = content['chapters'] as List<dynamic>? ?? [];
           for (final ch in chapters) {
-            if (ch is! Map<String, dynamic>) continue;
+            if (ch is! Map) continue;
 
             final levels = ch['levels'] as List<dynamic>? ?? [];
             for (final lvl in levels) {
-              if (lvl is Map<String, dynamic>) {
-                final reward = lvl['reward'] as Map<String, dynamic>?;
+              if (lvl is Map) {
+                final reward = lvl['reward'] as Map?;
                 final uuid = reward?['uuid']?.toString().toLowerCase();
                 if (uuid != null && uuid.isNotEmpty) {
                   bpRewardUuids.add(uuid);
@@ -80,7 +81,7 @@ class ValorantApiRemoteDataSourceImpl implements ValorantApiRemoteDataSource {
 
             final freeRewards = ch['freeRewards'] as List<dynamic>? ?? [];
             for (final free in freeRewards) {
-              if (free is Map<String, dynamic>) {
+              if (free is Map) {
                 final uuid = free['uuid']?.toString().toLowerCase();
                 if (uuid != null && uuid.isNotEmpty) {
                   bpRewardUuids.add(uuid);
@@ -91,8 +92,12 @@ class ValorantApiRemoteDataSourceImpl implements ValorantApiRemoteDataSource {
         }
       }
 
-      _cachedBattlepassRewardUuids = bpRewardUuids;
-      return bpRewardUuids;
+      if (bpRewardUuids.isNotEmpty) {
+        _cachedBattlepassRewardUuids = bpRewardUuids;
+      }
+      return bpRewardUuids.isNotEmpty
+          ? bpRewardUuids
+          : (_cachedBattlepassRewardUuids ?? {});
     } catch (_) {
       return _cachedBattlepassRewardUuids ?? {};
     }
@@ -204,7 +209,7 @@ class ValorantApiRemoteDataSourceImpl implements ValorantApiRemoteDataSource {
               displayName: displayName,
               displayIcon: icon,
               weaponName: effectiveWeaponName,
-              cost: estimatedCost,
+              cost: isBp ? 0 : estimatedCost,
               contentTierUuid: contentTierUuid,
               tierName: tierName,
               tierColor: tierColor,
