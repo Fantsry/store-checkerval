@@ -96,7 +96,7 @@ class _SettingsPageState extends State<SettingsPage> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text(
-                  '🔔 Notifikasi aktif! Nanti kita ingetin otomatis tiap toko reset jam 07:00 WIB ya! ⏰'),
+                  'Notifikasi aktif! Pengingat otomatis saat toko reset jam 07:00 WIB.'),
               backgroundColor: AppTheme.surfaceLight,
             ),
           );
@@ -105,7 +105,7 @@ class _SettingsPageState extends State<SettingsPage> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Izin notifikasi ditolak di pengaturan HP kamu 🙏'),
+              content: Text('Izin notifikasi ditolak di pengaturan HP kamu.'),
             ),
           );
         }
@@ -553,8 +553,8 @@ class _SettingsPageState extends State<SettingsPage> {
                                   SnackBar(
                                     content: Text(
                                       success
-                                          ? '✨ Pengecekan beres! Kalau ada skin impianmu yang nongol, bakal langsung dikabari kok 😉'
-                                          : 'Pemeriksaan selesai, tapi pastikan kamu udah login ya bro! 🔑',
+                                          ? 'Pengecekan beres! Jika ada skin incaran, akan langsung diberitahukan.'
+                                          : 'Pemeriksaan selesai, tapi pastikan kamu sudah login.',
                                     ),
                                     backgroundColor: success
                                         ? const Color(0xFF00C4A8)
@@ -567,7 +567,7 @@ class _SettingsPageState extends State<SettingsPage> {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
                                     content: Text(
-                                        'Waduh, gagal cek toko background: $e 😢'),
+                                        'Gagal cek toko background: $e'),
                                     backgroundColor: AppTheme.valorantRed,
                                   ),
                                 );
@@ -587,7 +587,7 @@ class _SettingsPageState extends State<SettingsPage> {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
                                   content: Text(
-                                      '📬 Notifikasi tes meluncur! Coba intip bilah notifikasi HP kamu ya 👀'),
+                                      'Notifikasi tes meluncur! Silakan periksa bilah notifikasi HP kamu.'),
                                   backgroundColor: AppTheme.surfaceLight,
                                 ),
                               );

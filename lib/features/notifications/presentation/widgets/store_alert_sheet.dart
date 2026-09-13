@@ -407,64 +407,64 @@ class _AddRuleDialogState extends State<_AddRuleDialog> {
                     final String label;
                     switch (w) {
                       case 'Any':
-                        label = '🌟 Semua Senjata (All Weapons)';
+                        label = 'Semua Senjata (All Weapons)';
                         break;
                       case 'Melee':
-                        label = '🗡️ Melee / Pisau / Karambit';
+                        label = 'Melee / Pisau / Karambit';
                         break;
                       case 'Vandal':
-                        label = '🎯 Vandal (Rifle)';
+                        label = 'Vandal (Rifle)';
                         break;
                       case 'Phantom':
-                        label = '👻 Phantom (Rifle)';
+                        label = 'Phantom (Rifle)';
                         break;
                       case 'Ghost':
-                        label = '🔫 Ghost (Sidearm)';
+                        label = 'Ghost (Sidearm)';
                         break;
                       case 'Sheriff':
-                        label = '🔫 Sheriff (Sidearm)';
+                        label = 'Sheriff (Sidearm)';
                         break;
                       case 'Operator':
-                        label = '🔭 Operator (Sniper)';
+                        label = 'Operator (Sniper)';
                         break;
                       case 'Classic':
-                        label = '🔫 Classic (Sidearm)';
+                        label = 'Classic (Sidearm)';
                         break;
                       case 'Spectre':
-                        label = '⚡ Spectre (SMG)';
+                        label = 'Spectre (SMG)';
                         break;
                       case 'Guardian':
-                        label = '🛡️ Guardian (Rifle)';
+                        label = 'Guardian (Rifle)';
                         break;
                       case 'Bulldog':
-                        label = '🛡️ Bulldog (Rifle)';
+                        label = 'Bulldog (Rifle)';
                         break;
                       case 'Marshal':
-                        label = '🔭 Marshal (Sniper)';
+                        label = 'Marshal (Sniper)';
                         break;
                       case 'Outlaw':
-                        label = '🔭 Outlaw (Sniper)';
+                        label = 'Outlaw (Sniper)';
                         break;
                       case 'Judge':
-                        label = '💥 Judge (Shotgun)';
+                        label = 'Judge (Shotgun)';
                         break;
                       case 'Bucky':
-                        label = '💥 Bucky (Shotgun)';
+                        label = 'Bucky (Shotgun)';
                         break;
                       case 'Odin':
-                        label = '🔥 Odin (Heavy)';
+                        label = 'Odin (Heavy)';
                         break;
                       case 'Ares':
-                        label = '🔥 Ares (Heavy)';
+                        label = 'Ares (Heavy)';
                         break;
                       case 'Stinger':
-                        label = '⚡ Stinger (SMG)';
+                        label = 'Stinger (SMG)';
                         break;
                       case 'Frenzy':
-                        label = '🔫 Frenzy (Sidearm)';
+                        label = 'Frenzy (Sidearm)';
                         break;
                       case 'Shorty':
-                        label = '🔫 Shorty (Sidearm)';
+                        label = 'Shorty (Sidearm)';
                         break;
                       default:
                         label = w;
@@ -549,7 +549,7 @@ class _AddRuleDialogState extends State<_AddRuleDialog> {
               controller: _customNameController,
               decoration: InputDecoration(
                 hintText: _selectedWeapon == 'Melee'
-                    ? '🗡️ Setiap Melee'
+                    ? 'Setiap Melee'
                     : '$_selectedWeapon ${_selectedTiers.isEmpty ? "Semua Tier" : _selectedTiers.join("/")}',
                 hintStyle: TextStyle(
                   color: Colors.white.withValues(alpha: 0.3),

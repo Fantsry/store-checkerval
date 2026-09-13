@@ -264,42 +264,42 @@ class LocalStoreService {
       weapon: 'Melee',
       tiers: [],
       isEnabled: true,
-      customName: '🗡️ Setiap Melee / Pisau',
+      customName: 'Setiap Melee / Pisau',
     ),
     const StoreAlertRule(
       id: 'default_vandal_premium',
       weapon: 'Vandal',
       tiers: ['Premium', 'Exclusive', 'Ultra'],
       isEnabled: true,
-      customName: '🎯 Vandal (Tier Premium+)',
+      customName: 'Vandal (Tier Premium+)',
     ),
     const StoreAlertRule(
       id: 'default_phantom_premium',
       weapon: 'Phantom',
       tiers: ['Premium', 'Exclusive', 'Ultra'],
       isEnabled: true,
-      customName: '👻 Phantom (Tier Premium+)',
+      customName: 'Phantom (Tier Premium+)',
     ),
     const StoreAlertRule(
       id: 'default_operator',
       weapon: 'Operator',
       tiers: ['Premium', 'Exclusive', 'Ultra'],
       isEnabled: false,
-      customName: '🔭 Operator (Tier Premium+)',
+      customName: 'Operator (Tier Premium+)',
     ),
     const StoreAlertRule(
       id: 'default_sheriff',
       weapon: 'Sheriff',
       tiers: ['Deluxe', 'Premium', 'Exclusive', 'Ultra'],
       isEnabled: false,
-      customName: '🎯 Sheriff (Deluxe/Premium+)',
+      customName: 'Sheriff (Deluxe/Premium+)',
     ),
     const StoreAlertRule(
       id: 'default_ghost',
       weapon: 'Ghost',
       tiers: ['Deluxe', 'Premium', 'Exclusive'],
       isEnabled: false,
-      customName: '🔫 Ghost (Deluxe/Premium)',
+      customName: 'Ghost (Deluxe/Premium)',
     ),
   ];
 
@@ -327,7 +327,7 @@ class LocalStoreService {
         weapon: 'Phantom',
         tiers: ['Premium', 'Exclusive', 'Ultra'],
         isEnabled: true,
-        customName: '👻 Phantom (Tier Premium+)',
+        customName: 'Phantom (Tier Premium+)',
       );
       await _alertRulesBox.put(
         phantomRule.id,

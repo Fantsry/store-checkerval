@@ -292,7 +292,7 @@ class _WishlistItemCard extends StatelessWidget {
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: const Text(
-                          '🎯 IN STORE TODAY!',
+                          'IN STORE TODAY!',
                           style: TextStyle(
                             fontSize: 9,
                             fontWeight: FontWeight.w900,

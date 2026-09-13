@@ -98,12 +98,12 @@ class NotificationService {
     if (matchedSkinNames.isEmpty) return;
 
     final title = matchedSkinNames.length == 1
-        ? '👀 Skin incaranmu nongol di store nih!'
-        : '🎉 Hoki parah! Ada ${matchedSkinNames.length} skin wishlist kamu!';
+        ? 'Skin incaranmu ada di store!'
+        : 'Ada ${matchedSkinNames.length} skin wishlist kamu di store!';
 
     final body = matchedSkinNames.length == 1
-        ? 'Wih rezeki! ${matchedSkinNames.first} lagi mejeng di daily store kamu hari ini. Buruan bungkus sebelum reset! 🛒🔥'
-        : 'Gokil! ${matchedSkinNames.join(", ")} nongol barengan di daily store kamu hari ini. Gas amankan sebelum kelewatan ya! 💸✨';
+        ? '${matchedSkinNames.first} tersedia di daily store kamu hari ini. Cek sebelum reset!'
+        : '${matchedSkinNames.join(", ")} tersedia di daily store kamu hari ini. Cek sebelum reset!';
 
     final androidDetails = AndroidNotificationDetails(
       storeChannelId,
@@ -118,7 +118,7 @@ class NotificationService {
       ledColor: const Color(0xFFFF4655),
       ledOnMs: 1000,
       ledOffMs: 500,
-      ticker: '🔥 Skin Wishlist Muncul!',
+      ticker: 'Skin Wishlist Muncul',
       styleInformation: BigTextStyleInformation(
         body,
         contentTitle: title,
@@ -155,14 +155,14 @@ class NotificationService {
     final totalItems =
         ruleMatches.values.fold<int>(0, (prev, list) => prev + list.length);
     final title = totalItems == 1
-        ? '🚨 Masuk radar! Ada skin incaranmu nih'
-        : '🚨 Masuk radar! Ada $totalItems skin incaran kamu';
+        ? 'Masuk radar! Ada skin incaranmu'
+        : 'Masuk radar! Ada $totalItems skin incaran kamu';
 
     final buffer = StringBuffer();
     for (final entry in ruleMatches.entries) {
-      buffer.writeln('🎯 ${entry.key}: ${entry.value.join(", ")}');
+      buffer.writeln('${entry.key}: ${entry.value.join(", ")}');
     }
-    buffer.write('Yuk intip store-nya sekarang sebelum rotasinya ganti! 🏃‍♂️💨');
+    buffer.write('Silakan cek store kamu sekarang sebelum rotasi berganti.');
     final body = buffer.toString().trim();
 
     final androidDetails = AndroidNotificationDetails(
@@ -178,7 +178,7 @@ class NotificationService {
       ledColor: const Color(0xFFFF4655),
       ledOnMs: 1000,
       ledOffMs: 500,
-      ticker: '⚡ Radar Skin Valorant!',
+      ticker: 'Radar Skin Valorant',
       styleInformation: BigTextStyleInformation(
         body,
         contentTitle: title,
@@ -208,9 +208,9 @@ class NotificationService {
 
   /// Sends a test notification to verify sounds, banners, and vibration.
   Future<void> showTestNotification() async {
-    const title = '🔔 Mantap! Notifikasi toko udah nyala!';
+    const title = 'Notifikasi toko sudah aktif';
     const body =
-        'Tes sukses! Tenang aja, pas skin impianmu atau skin incaranmu (Melee, Vandal, dll.) nongol di store, kita langsung colek kamu. Siapin VP-mu ya! 🎮💸';
+        'Tes sukses! Saat skin incaranmu muncul di store, kamu akan langsung mendapatkan notifikasi.';
 
     const androidDetails = AndroidNotificationDetails(
       storeChannelId,
@@ -218,7 +218,7 @@ class NotificationService {
       channelDescription: storeChannelDescription,
       importance: Importance.high,
       priority: Priority.high,
-      ticker: '🔔 Tes Notifikasi Berhasil',
+      ticker: 'Tes Notifikasi Berhasil',
       styleInformation: BigTextStyleInformation(
         body,
         contentTitle: title,
