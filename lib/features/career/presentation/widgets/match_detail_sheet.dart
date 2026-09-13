@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:valorant_store_tracker/app/theme.dart';
@@ -236,43 +237,77 @@ class MatchDetailSheet extends StatelessWidget {
 
                         // Rank & RR
                         if (match.rankRatingEarned != null) ...[
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              color: (match.rankRatingEarned! >= 0
-                                      ? const Color(0xFF00C4A8)
-                                      : AppTheme.valorantRed)
-                                  .withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(
-                                color: (match.rankRatingEarned! >= 0
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (match.rankIconUrl != null &&
+                                  match.rankIconUrl!.isNotEmpty) ...[
+                                CachedNetworkImage(
+                                  imageUrl: match.rankIconUrl!,
+                                  width: 30,
+                                  height: 30,
+                                  fit: BoxFit.contain,
+                                  errorWidget: (_, __, ___) =>
+                                      const SizedBox.shrink(),
+                                ),
+                                const SizedBox(width: 8),
+                              ],
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: (match.rankRatingEarned! >= 0
+                                          ? const Color(0xFF00C4A8)
+                                          : AppTheme.valorantRed)
+                                      .withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: (match.rankRatingEarned! >= 0
+                                            ? const Color(0xFF00C4A8)
+                                            : AppTheme.valorantRed)
+                                        .withValues(alpha: 0.4),
+                                  ),
+                                ),
+                                child: Text(
+                                  '${match.rankRatingEarned! >= 0 ? '+' : ''}${match.rankRatingEarned} RR',
+                                  style: TextStyle(
+                                    color: match.rankRatingEarned! >= 0
                                         ? const Color(0xFF00C4A8)
-                                        : AppTheme.valorantRed)
-                                    .withValues(alpha: 0.4),
+                                        : AppTheme.valorantRed,
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 13,
+                                  ),
+                                ),
                               ),
-                            ),
-                            child: Text(
-                              '${match.rankRatingEarned! >= 0 ? '+' : ''}${match.rankRatingEarned} RR',
-                              style: TextStyle(
-                                color: match.rankRatingEarned! >= 0
-                                    ? const Color(0xFF00C4A8)
-                                    : AppTheme.valorantRed,
-                                fontWeight: FontWeight.w800,
-                                fontSize: 13,
-                              ),
-                            ),
+                            ],
                           ),
                         ] else if (match.rankName != null) ...[
-                          Text(
-                            match.rankName!,
-                            style: const TextStyle(
-                              color: AppTheme.textSecondary,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                            ),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (match.rankIconUrl != null &&
+                                  match.rankIconUrl!.isNotEmpty) ...[
+                                CachedNetworkImage(
+                                  imageUrl: match.rankIconUrl!,
+                                  width: 28,
+                                  height: 28,
+                                  fit: BoxFit.contain,
+                                  errorWidget: (_, __, ___) =>
+                                      const SizedBox.shrink(),
+                                ),
+                                const SizedBox(width: 6),
+                              ],
+                              Text(
+                                match.rankName!,
+                                style: const TextStyle(
+                                  color: AppTheme.textSecondary,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ],
@@ -423,6 +458,41 @@ class MatchDetailSheet extends StatelessWidget {
                     ),
                   ),
 
+                  // Teams & Scoreboard Section
+                  if (match.teammates.isNotEmpty || match.enemies.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    const Text(
+                      'TEAMS & SCOREBOARD',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: AppTheme.textMuted,
+                        letterSpacing: 0.8,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+
+                    if (match.teammates.isNotEmpty)
+                      _TeamScoreboardCard(
+                        teamTitle: 'YOUR TEAM (ALLIES)',
+                        teamScore: match.scoreWon,
+                        teamColor: const Color(0xFF00E5FF),
+                        isWinner: match.won == true,
+                        players: match.teammates,
+                      ),
+
+                    if (match.enemies.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      _TeamScoreboardCard(
+                        teamTitle: 'ENEMY TEAM (OPPONENTS)',
+                        teamScore: match.scoreLost,
+                        teamColor: AppTheme.valorantRed,
+                        isWinner: match.won == false,
+                        players: match.enemies,
+                      ),
+                    ],
+                  ],
+
                   const SizedBox(height: 16),
 
                   // Match ID & Copy
@@ -558,6 +628,296 @@ class _HitStat extends StatelessWidget {
           ],
         ),
       ],
+    );
+  }
+}
+
+class _TeamScoreboardCard extends StatelessWidget {
+  final String teamTitle;
+  final int teamScore;
+  final Color teamColor;
+  final bool isWinner;
+  final List<MatchPlayerSummary> players;
+
+  const _TeamScoreboardCard({
+    required this.teamTitle,
+    required this.teamScore,
+    required this.teamColor,
+    required this.isWinner,
+    required this.players,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppTheme.surfaceDark,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: teamColor.withValues(alpha: 0.3),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Team Header
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: teamColor.withValues(alpha: 0.1),
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(13)),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: teamColor,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      teamTitle,
+                      style: TextStyle(
+                        color: teamColor,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 12,
+                        letterSpacing: 0.6,
+                      ),
+                    ),
+                  ],
+                ),
+                Text(
+                  '$teamScore Rounds',
+                  style: TextStyle(
+                    color: isWinner
+                        ? const Color(0xFF00C4A8)
+                        : AppTheme.textSecondary,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Players List
+          ListView.separated(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: players.length,
+            separatorBuilder: (_, __) => Divider(
+              height: 1,
+              color: Colors.white.withValues(alpha: 0.05),
+            ),
+            itemBuilder: (context, index) {
+              final player = players[index];
+              return _PlayerScoreTile(
+                player: player,
+                teamColor: teamColor,
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PlayerScoreTile extends StatelessWidget {
+  final MatchPlayerSummary player;
+  final Color teamColor;
+
+  const _PlayerScoreTile({
+    required this.player,
+    required this.teamColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isSelf = player.isSelf;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      color: isSelf
+          ? const Color(0xFFE5B94E).withValues(alpha: 0.08)
+          : Colors.transparent,
+      child: Row(
+        children: [
+          // Agent Portrait
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.3),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: isSelf
+                    ? const Color(0xFFE5B94E)
+                    : teamColor.withValues(alpha: 0.4),
+                width: isSelf ? 1.5 : 1.0,
+              ),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(7),
+              child: player.agentIconUrl != null &&
+                      player.agentIconUrl!.isNotEmpty
+                  ? CachedNetworkImage(
+                      imageUrl: player.agentIconUrl!,
+                      fit: BoxFit.cover,
+                      errorWidget: (_, __, ___) => const Icon(
+                        Icons.person,
+                        size: 20,
+                        color: AppTheme.textMuted,
+                      ),
+                    )
+                  : const Icon(
+                      Icons.person,
+                      size: 20,
+                      color: AppTheme.textMuted,
+                    ),
+            ),
+          ),
+          const SizedBox(width: 8),
+
+          // Player Name & Agent Pick
+          Expanded(
+            flex: 4,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        player.displayName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: isSelf
+                              ? const Color(0xFFE5B94E)
+                              : AppTheme.textPrimary,
+                        ),
+                      ),
+                    ),
+                    if (isSelf) ...[
+                      const SizedBox(width: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 4,
+                          vertical: 1,
+                        ),
+                        decoration: BoxDecoration(
+                          color:
+                              const Color(0xFFE5B94E).withValues(alpha: 0.25),
+                          borderRadius: BorderRadius.circular(3),
+                        ),
+                        child: const Text(
+                          'YOU',
+                          style: TextStyle(
+                            fontSize: 8.5,
+                            fontWeight: FontWeight.w900,
+                            color: Color(0xFFE5B94E),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 1),
+                Text(
+                  player.agentName,
+                  style: const TextStyle(
+                    fontSize: 10,
+                    color: AppTheme.textMuted,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 6),
+
+          // Rank Badge + Name
+          Expanded(
+            flex: 4,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 26,
+                  height: 26,
+                  alignment: Alignment.center,
+                  child: player.rankIconUrl != null &&
+                          player.rankIconUrl!.isNotEmpty
+                      ? CachedNetworkImage(
+                          imageUrl: player.rankIconUrl!,
+                          width: 24,
+                          height: 24,
+                          fit: BoxFit.contain,
+                          errorWidget: (_, __, ___) => const Icon(
+                            Icons.shield_outlined,
+                            size: 18,
+                            color: AppTheme.textMuted,
+                          ),
+                        )
+                      : const Icon(
+                          Icons.shield_outlined,
+                          size: 18,
+                          color: AppTheme.textMuted,
+                        ),
+                ),
+                const SizedBox(width: 4),
+                Flexible(
+                  child: Text(
+                    player.rankName ?? 'Unrated',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.textSecondary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 6),
+
+          // Combat Stats: KDA & ACS
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                player.kdaDisplay,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  color: AppTheme.textPrimary,
+                ),
+              ),
+              Text(
+                '${player.averageCombatScore} ACS',
+                style: const TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.valorantCyan,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }

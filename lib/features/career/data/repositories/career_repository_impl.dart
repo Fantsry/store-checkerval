@@ -452,6 +452,82 @@ class CareerRepositoryImpl implements CareerRepository {
 
       final acs = roundsPlayed > 0 ? (score / roundsPlayed).round() : 0;
 
+      // Parse teammates and enemies with ranks & stats
+      final teammates = <MatchPlayerSummary>[];
+      final enemies = <MatchPlayerSummary>[];
+
+      for (final p in players) {
+        if (p is! Map) continue;
+        final pPuuid = (p['subject'] ?? p['puuid'] ?? '').toString();
+        final pTeamId = (p['teamId'] ?? '').toString();
+        final pGameName = (p['gameName'] ?? '').toString();
+        final pTagLine = (p['tagLine'] ?? '').toString();
+        final pAgentId = (p['characterId'] ?? '').toString().toLowerCase();
+        final pCompTier = (p['competitiveTier'] as num?)?.toInt() ?? 0;
+        final pStats = (p['stats'] as Map?) ?? {};
+        final pKills = (p['stats'] != null
+                ? (pStats['kills'] as num?)?.toInt()
+                : (p['kills'] as num?)?.toInt()) ??
+            0;
+        final pDeaths = (p['stats'] != null
+                ? (pStats['deaths'] as num?)?.toInt()
+                : (p['deaths'] as num?)?.toInt()) ??
+            0;
+        final pAssists = (p['stats'] != null
+                ? (pStats['assists'] as num?)?.toInt()
+                : (p['assists'] as num?)?.toInt()) ??
+            0;
+        final pScore = (p['stats'] != null
+                ? (pStats['score'] as num?)?.toInt()
+                : (p['score'] as num?)?.toInt()) ??
+            0;
+        final pRoundsPlayed = (p['stats'] != null
+                ? (pStats['roundsPlayed'] as num?)?.toInt()
+                : (p['roundsPlayed'] as num?)?.toInt()) ??
+            0;
+        final pAcs = pRoundsPlayed > 0 ? (pScore / pRoundsPlayed).round() : 0;
+        final pIsSelf = pPuuid.toLowerCase() == currentPuuid.toLowerCase();
+
+        final pAgentData = agentsMeta[pAgentId];
+        final pAgentName = pAgentData?['displayName'] ?? 'Agent';
+        final pAgentIcon = pAgentData?['displayIcon'];
+
+        final pTierData = tiersMeta[pCompTier];
+        final pRankName = pTierData?['tierName'] ??
+            (pCompTier > 0 ? 'Rank $pCompTier' : 'Unrated');
+        final pRankIcon = pTierData?['largeIcon'] ?? pTierData?['smallIcon'];
+
+        final playerSummary = MatchPlayerSummary(
+          puuid: pPuuid,
+          gameName: pGameName,
+          tagLine: pTagLine,
+          teamId: pTeamId,
+          agentId: pAgentId,
+          agentName: pAgentName,
+          agentIconUrl: pAgentIcon,
+          competitiveTier: pCompTier > 0 ? pCompTier : null,
+          rankName: pRankName,
+          rankIconUrl: pRankIcon,
+          kills: pKills,
+          deaths: pDeaths,
+          assists: pAssists,
+          score: pScore,
+          roundsPlayed: pRoundsPlayed,
+          averageCombatScore: pAcs,
+          isSelf: pIsSelf,
+        );
+
+        if (pTeamId.toLowerCase() == teamId.toLowerCase()) {
+          teammates.add(playerSummary);
+        } else {
+          enemies.add(playerSummary);
+        }
+      }
+
+      // Sort by score or ACS descending
+      teammates.sort((a, b) => b.score.compareTo(a.score));
+      enemies.sort((a, b) => b.score.compareTo(a.score));
+
       return MatchSummary(
         matchId: matchId,
         mapId: mapId,
@@ -482,6 +558,8 @@ class CareerRepositoryImpl implements CareerRepository {
         competitiveTier: compTier > 0 ? compTier : null,
         rankName: rankName,
         rankIconUrl: rankIconUrl,
+        teammates: teammates,
+        enemies: enemies,
       );
     } catch (_) {
       return null;

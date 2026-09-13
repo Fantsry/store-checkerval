@@ -81,16 +81,73 @@ void main() {
       expect(drawMatch.scoreDisplay, '14 - 14');
     });
 
-    test('MatchSummary serialization toJson and fromJson preserves data', () {
-      final json = sampleMatch.toJson();
+    test('MatchSummary serialization toJson and fromJson preserves data including teammates and enemies', () {
+      final teammate = MatchPlayerSummary(
+        puuid: 'puuid-ally-1',
+        gameName: 'AllyOne',
+        tagLine: '123',
+        teamId: 'Blue',
+        agentId: 'agent-sova',
+        agentName: 'Sova',
+        agentIconUrl: 'https://media.valorant-api.com/agents/sova.png',
+        competitiveTier: 16,
+        rankName: 'Platinum 2',
+        rankIconUrl: 'https://media.valorant-api.com/tiers/16.png',
+        kills: 18,
+        deaths: 12,
+        assists: 9,
+        score: 4200,
+        roundsPlayed: 22,
+        averageCombatScore: 191,
+      );
+
+      final enemy = MatchPlayerSummary(
+        puuid: 'puuid-enemy-1',
+        gameName: 'EnemyOne',
+        tagLine: '999',
+        teamId: 'Red',
+        agentId: 'agent-reyna',
+        agentName: 'Reyna',
+        competitiveTier: 17,
+        rankName: 'Platinum 3',
+        kills: 25,
+        deaths: 15,
+        assists: 3,
+        score: 6100,
+        roundsPlayed: 22,
+        averageCombatScore: 277,
+      );
+
+      final matchWithTeams = MatchSummary(
+        matchId: sampleMatch.matchId,
+        mapId: sampleMatch.mapId,
+        mapName: sampleMatch.mapName,
+        gameMode: sampleMatch.gameMode,
+        queueId: sampleMatch.queueId,
+        gameStartTime: sampleMatch.gameStartTime,
+        won: true,
+        agentId: sampleMatch.agentId,
+        agentName: sampleMatch.agentName,
+        teammates: [teammate],
+        enemies: [enemy],
+      );
+
+      expect(teammate.kdRatio, 1.5);
+      expect(teammate.kdaDisplay, '18 / 12 / 9');
+      expect(teammate.displayName, 'AllyOne#123');
+
+      final json = matchWithTeams.toJson();
       final reconstructed = MatchSummary.fromJson(json);
 
       expect(reconstructed.matchId, sampleMatch.matchId);
       expect(reconstructed.mapName, 'Ascent');
       expect(reconstructed.won, true);
-      expect(reconstructed.kills, 22);
-      expect(reconstructed.rankRatingEarned, 24);
-      expect(reconstructed.rankName, 'Platinum 1');
+      expect(reconstructed.teammates.length, 1);
+      expect(reconstructed.enemies.length, 1);
+      expect(reconstructed.teammates.first.displayName, 'AllyOne#123');
+      expect(reconstructed.teammates.first.rankName, 'Platinum 2');
+      expect(reconstructed.enemies.first.displayName, 'EnemyOne#999');
+      expect(reconstructed.enemies.first.rankName, 'Platinum 3');
     });
 
     test('CareerOverview calculates stats and serializes to/from json', () {

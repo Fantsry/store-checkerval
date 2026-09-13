@@ -30,6 +30,8 @@ class MatchSummary extends Equatable {
   final int? competitiveTier;
   final String? rankName;
   final String? rankIconUrl;
+  final List<MatchPlayerSummary> teammates;
+  final List<MatchPlayerSummary> enemies;
 
   const MatchSummary({
     required this.matchId,
@@ -61,6 +63,8 @@ class MatchSummary extends Equatable {
     this.competitiveTier,
     this.rankName,
     this.rankIconUrl,
+    this.teammates = const [],
+    this.enemies = const [],
   });
 
   double get kdRatio => deaths > 0 ? (kills / deaths) : kills.toDouble();
@@ -140,6 +144,8 @@ class MatchSummary extends Equatable {
       'competitiveTier': competitiveTier,
       'rankName': rankName,
       'rankIconUrl': rankIconUrl,
+      'teammates': teammates.map((p) => p.toJson()).toList(),
+      'enemies': enemies.map((p) => p.toJson()).toList(),
     };
   }
 
@@ -175,6 +181,16 @@ class MatchSummary extends Equatable {
       competitiveTier: (json['competitiveTier'] as num?)?.toInt(),
       rankName: json['rankName'] as String?,
       rankIconUrl: json['rankIconUrl'] as String?,
+      teammates: (json['teammates'] as List?)
+              ?.map((e) =>
+                  MatchPlayerSummary.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          const [],
+      enemies: (json['enemies'] as List?)
+              ?.map((e) =>
+                  MatchPlayerSummary.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          const [],
     );
   }
 
@@ -209,5 +225,123 @@ class MatchSummary extends Equatable {
         competitiveTier,
         rankName,
         rankIconUrl,
+        teammates,
+        enemies,
+      ];
+}
+
+class MatchPlayerSummary extends Equatable {
+  final String puuid;
+  final String gameName;
+  final String tagLine;
+  final String teamId;
+  final String agentId;
+  final String agentName;
+  final String? agentIconUrl;
+  final int? competitiveTier;
+  final String? rankName;
+  final String? rankIconUrl;
+  final int kills;
+  final int deaths;
+  final int assists;
+  final int score;
+  final int roundsPlayed;
+  final int averageCombatScore;
+  final bool isSelf;
+
+  const MatchPlayerSummary({
+    required this.puuid,
+    this.gameName = '',
+    this.tagLine = '',
+    required this.teamId,
+    required this.agentId,
+    required this.agentName,
+    this.agentIconUrl,
+    this.competitiveTier,
+    this.rankName,
+    this.rankIconUrl,
+    this.kills = 0,
+    this.deaths = 0,
+    this.assists = 0,
+    this.score = 0,
+    this.roundsPlayed = 0,
+    this.averageCombatScore = 0,
+    this.isSelf = false,
+  });
+
+  double get kdRatio => deaths > 0 ? (kills / deaths) : kills.toDouble();
+
+  String get kdaDisplay => '$kills / $deaths / $assists';
+
+  String get displayName {
+    if (gameName.isNotEmpty) {
+      return tagLine.isNotEmpty ? '$gameName#$tagLine' : gameName;
+    }
+    return agentName;
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'puuid': puuid,
+      'gameName': gameName,
+      'tagLine': tagLine,
+      'teamId': teamId,
+      'agentId': agentId,
+      'agentName': agentName,
+      'agentIconUrl': agentIconUrl,
+      'competitiveTier': competitiveTier,
+      'rankName': rankName,
+      'rankIconUrl': rankIconUrl,
+      'kills': kills,
+      'deaths': deaths,
+      'assists': assists,
+      'score': score,
+      'roundsPlayed': roundsPlayed,
+      'averageCombatScore': averageCombatScore,
+      'isSelf': isSelf,
+    };
+  }
+
+  factory MatchPlayerSummary.fromJson(Map<String, dynamic> json) {
+    return MatchPlayerSummary(
+      puuid: json['puuid'] as String? ?? '',
+      gameName: json['gameName'] as String? ?? '',
+      tagLine: json['tagLine'] as String? ?? '',
+      teamId: json['teamId'] as String? ?? '',
+      agentId: json['agentId'] as String? ?? '',
+      agentName: json['agentName'] as String? ?? 'Agent',
+      agentIconUrl: json['agentIconUrl'] as String?,
+      competitiveTier: (json['competitiveTier'] as num?)?.toInt(),
+      rankName: json['rankName'] as String?,
+      rankIconUrl: json['rankIconUrl'] as String?,
+      kills: (json['kills'] as num?)?.toInt() ?? 0,
+      deaths: (json['deaths'] as num?)?.toInt() ?? 0,
+      assists: (json['assists'] as num?)?.toInt() ?? 0,
+      score: (json['score'] as num?)?.toInt() ?? 0,
+      roundsPlayed: (json['roundsPlayed'] as num?)?.toInt() ?? 0,
+      averageCombatScore: (json['averageCombatScore'] as num?)?.toInt() ?? 0,
+      isSelf: json['isSelf'] as bool? ?? false,
+    );
+  }
+
+  @override
+  List<Object?> get props => [
+        puuid,
+        gameName,
+        tagLine,
+        teamId,
+        agentId,
+        agentName,
+        agentIconUrl,
+        competitiveTier,
+        rankName,
+        rankIconUrl,
+        kills,
+        deaths,
+        assists,
+        score,
+        roundsPlayed,
+        averageCombatScore,
+        isSelf,
       ];
 }

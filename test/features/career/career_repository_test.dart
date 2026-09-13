@@ -172,6 +172,8 @@ void main() {
                 'players': [
                   {
                     'subject': tPuuid,
+                    'gameName': 'MyPlayer',
+                    'tagLine': '111',
                     'teamId': 'Blue',
                     'characterId': 'agent-jett',
                     'stats': {
@@ -182,7 +184,37 @@ void main() {
                       'roundsPlayed': 20,
                     },
                     'competitiveTier': 15,
-                  }
+                  },
+                  {
+                    'subject': 'ally-sage',
+                    'gameName': 'SageHeal',
+                    'tagLine': '222',
+                    'teamId': 'Blue',
+                    'characterId': 'agent-sage',
+                    'stats': {
+                      'score': 3200,
+                      'kills': 14,
+                      'deaths': 12,
+                      'assists': 10,
+                      'roundsPlayed': 20,
+                    },
+                    'competitiveTier': 16,
+                  },
+                  {
+                    'subject': 'enemy-reyna',
+                    'gameName': 'EnemyReyna',
+                    'tagLine': '333',
+                    'teamId': 'Red',
+                    'characterId': 'agent-reyna',
+                    'stats': {
+                      'score': 5100,
+                      'kills': 22,
+                      'deaths': 14,
+                      'assists': 4,
+                      'roundsPlayed': 20,
+                    },
+                    'competitiveTier': 15,
+                  },
                 ],
                 'teams': [
                   {
@@ -231,8 +263,18 @@ void main() {
       expect(overview.matches.length, 1);
       expect(overview.matches.first.matchId, 'match-101');
       expect(overview.matches.first.rankRatingEarned, 24);
+      expect(overview.matches.first.teammates.length, 2);
+      expect(overview.matches.first.enemies.length, 1);
+      expect(overview.matches.first.teammates.first.isSelf, true);
+      expect(overview.matches.first.teammates[1].displayName, 'SageHeal#222');
+      expect(overview.matches.first.teammates[1].rankName, 'Platinum 2');
+      expect(overview.matches.first.enemies.first.displayName, 'EnemyReyna#333');
+      expect(overview.matches.first.enemies.first.rankName, 'Platinum 1');
+      expect(overview.matches.first.enemies.first.rankIconUrl,
+          contains('15.png'));
 
-      verify(() => mockLocalStore.saveCachedCareerJson(tPuuid, any())).called(1);
+      verify(() => mockLocalStore.saveCachedCareerJson(tPuuid, any()))
+          .called(1);
     });
 
     test('correctly parses Riot official MMR field names (RankedRatingEarned, RankedRatingAfterUpdate, and compQueue Tier & RankedRating)',
