@@ -4,6 +4,7 @@ import 'package:valorant_store_tracker/app/theme.dart';
 import 'package:valorant_store_tracker/features/career/presentation/cubit/career_cubit.dart';
 import 'package:valorant_store_tracker/features/career/presentation/cubit/career_state.dart';
 import 'package:valorant_store_tracker/features/career/presentation/widgets/match_card.dart';
+import 'package:valorant_store_tracker/features/career/presentation/widgets/performance_stats_card.dart';
 import 'package:valorant_store_tracker/features/career/presentation/widgets/rank_overview_card.dart';
 
 class CareerPage extends StatefulWidget {
@@ -192,6 +193,12 @@ class _CareerPageState extends State<CareerPage> {
 
                 // Rank & Overview Card
                 RankOverviewCard(overview: overview),
+
+                // Performance Insights (Recent Form, Streak, Top Agents & Maps)
+                if (overview.matches.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  PerformanceStatsCard(overview: overview),
+                ],
 
                 const SizedBox(height: 8),
 

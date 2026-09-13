@@ -4,6 +4,7 @@ import 'package:valorant_store_tracker/app/theme.dart';
 import 'package:valorant_store_tracker/features/career/domain/entities/match_summary.dart';
 import 'package:valorant_store_tracker/features/career/presentation/widgets/kills_by_round_widget.dart';
 import 'package:valorant_store_tracker/features/career/presentation/widgets/match_detail_sheet.dart';
+import 'package:valorant_store_tracker/features/career/presentation/widgets/performance_rating_utils.dart';
 
 class MatchCard extends StatefulWidget {
   final MatchSummary match;
@@ -58,6 +59,15 @@ class _MatchCardState extends State<MatchCard> {
     final outcomeColor = isWin
         ? const Color(0xFF00C4A8)
         : (isDraw ? Colors.amber : AppTheme.valorantRed);
+
+    final selfPlayer = match.allPlayers.where((p) => p.isSelf).firstOrNull;
+    final isMatchMvp = selfPlayer != null && match.matchMvpPuuid == selfPlayer.puuid;
+    final isTeamMvp = !isMatchMvp && selfPlayer != null && match.teamMvpPuuid == selfPlayer.puuid;
+    final rating = PerformanceRating.calculate(
+      acs: match.averageCombatScore,
+      kdRatio: match.kdRatio,
+      headshotPct: match.headshotPercentage,
+    );
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
@@ -171,14 +181,31 @@ class _MatchCardState extends State<MatchCard> {
                                     ],
                                   ),
                                   const SizedBox(height: 3),
-                                  Text(
-                                    match.mapName.toUpperCase(),
-                                    style: const TextStyle(
-                                      color: AppTheme.textPrimary,
-                                      fontWeight: FontWeight.w700,
-                                      fontSize: 14,
-                                      letterSpacing: 0.5,
-                                    ),
+                                  Row(
+                                    children: [
+                                      Flexible(
+                                        child: Text(
+                                          match.mapName.toUpperCase(),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(
+                                            color: AppTheme.textPrimary,
+                                            fontWeight: FontWeight.w700,
+                                            fontSize: 13,
+                                            letterSpacing: 0.5,
+                                          ),
+                                        ),
+                                      ),
+                                      if (isMatchMvp) ...[
+                                        const SizedBox(width: 5),
+                                        const _MvpPill(isMatchMvp: true),
+                                      ] else if (isTeamMvp) ...[
+                                        const SizedBox(width: 5),
+                                        const _MvpPill(isMatchMvp: false),
+                                      ],
+                                      const SizedBox(width: 5),
+                                      _PerformanceGradePill(rating: rating),
+                                    ],
                                   ),
                                   const SizedBox(height: 2),
                                   Text(
@@ -1265,6 +1292,80 @@ class _MiniPlayerAvatar extends StatelessWidget {
                   size: 12,
                   color: AppTheme.textMuted,
                 ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MvpPill extends StatelessWidget {
+  final bool isMatchMvp;
+
+  const _MvpPill({required this.isMatchMvp});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = isMatchMvp ? const Color(0xFFFFD700) : const Color(0xFF00E5FF);
+    final label = isMatchMvp ? 'MVP' : 'TEAM MVP';
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(
+          color: color.withValues(alpha: 0.5),
+          width: 0.8,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            isMatchMvp ? Icons.workspace_premium_rounded : Icons.star_rounded,
+            size: 10,
+            color: color,
+          ),
+          const SizedBox(width: 2.5),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 8.5,
+              fontWeight: FontWeight.w900,
+              color: color,
+              letterSpacing: 0.4,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PerformanceGradePill extends StatelessWidget {
+  final PerformanceRating rating;
+
+  const _PerformanceGradePill({required this.rating});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+      decoration: BoxDecoration(
+        color: rating.backgroundColor,
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(
+          color: rating.color.withValues(alpha: 0.6),
+          width: 0.8,
+        ),
+      ),
+      child: Text(
+        rating.grade,
+        style: TextStyle(
+          fontSize: 8.5,
+          fontWeight: FontWeight.w900,
+          color: rating.color,
+          letterSpacing: 0.4,
         ),
       ),
     );
