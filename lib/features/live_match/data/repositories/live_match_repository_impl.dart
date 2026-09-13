@@ -171,7 +171,7 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
       }
     }
 
-    // Parallelize metadata, names, and player MMR lookups
+    // Parallelize metadata, names, and player MMR + Competitive lookups
     final results = await Future.wait([
       _careerDataSource.fetchMapsMetadata(),
       _careerDataSource.fetchAgentsMetadata(),
@@ -179,15 +179,23 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
       _remoteDataSource.fetchPlayerNames(shard: shard, puuids: puuids),
       Future.wait(
         puuids.map((sub) async {
+          Map<String, dynamic>? mmrData;
+          List<Map<String, dynamic>> compUpdates = const [];
           try {
-            final mmrData = await _remoteDataSource.fetchPlayerMmr(
+            mmrData = await _remoteDataSource.fetchPlayerMmr(
               shard: shard,
               puuid: sub,
             );
-            return MapEntry(sub, mmrData);
-          } catch (_) {
-            return MapEntry(sub, null);
-          }
+          } catch (_) {}
+          try {
+            compUpdates = await _careerDataSource.fetchCompetitiveUpdates(
+              shard: shard,
+              puuid: sub,
+              startIndex: 0,
+              endIndex: 10,
+            );
+          } catch (_) {}
+          return MapEntry(sub, _PlayerStats(mmr: mmrData, updates: compUpdates));
         }),
       ),
     ]);
@@ -196,9 +204,9 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
     final agentsMeta = results[1] as Map<String, Map<String, dynamic>>;
     final tiersMeta = results[2] as Map<int, Map<String, dynamic>>;
     final namesList = results[3] as List<Map<String, dynamic>>;
-    final mmrEntries =
-        results[4] as List<MapEntry<String, Map<String, dynamic>?>>;
-    final mmrMap = Map.fromEntries(mmrEntries);
+    final statsEntries =
+        results[4] as List<MapEntry<String, _PlayerStats>>;
+    final statsMap = Map.fromEntries(statsEntries);
 
     final mapInfo = mapsMeta[mapUrl.toLowerCase()];
     final mapName = mapInfo?['displayName'] ?? mapUrl.split('/').last;
@@ -240,20 +248,31 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
         final agentName = agentInfo?['displayName'];
         final agentIcon = agentInfo?['displayIcon'];
 
-        // Player MMR
+        // Player MMR & Competitive Updates
         var rankName = 'Unranked';
         String? rankIcon;
         int currentRr = 0;
         var peakRank = 'Unranked';
+        String? peakRankIcon;
 
-        final mmrData = mmrMap[sub];
-        if (mmrData != null) {
-          final parsed = _extractRankFromMmr(mmrData, tiersMeta);
+        final playerStats = statsMap[sub];
+        final mmrData = playerStats?.mmr;
+        final compUpdates = playerStats?.updates ?? const [];
+
+        if (mmrData != null || compUpdates.isNotEmpty) {
+          final parsed = _extractRankFromMmr(
+            mmrData ?? const {},
+            tiersMeta,
+            competitiveUpdates: compUpdates,
+          );
           rankName = parsed['rankName'] ?? 'Unranked';
           rankIcon = parsed['rankIcon'];
           currentRr = parsed['currentRr'] as int? ?? 0;
           peakRank = parsed['peakRank'] ?? 'Unranked';
+          peakRankIcon = parsed['peakRankIcon'];
         }
+
+        final wl = _calculateRecentWinLoss(compUpdates);
 
         final isSelf = sub == selfPuuid;
         final player = LivePlayerInfo(
@@ -267,8 +286,12 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
           rankIcon: rankIcon,
           currentRr: currentRr,
           peakRankTierName: peakRank,
+          peakRankIcon: peakRankIcon,
           isSelf: isSelf,
           isLocked: true,
+          recentWins: wl.wins,
+          recentLosses: wl.losses,
+          recentMatchOutcomes: wl.outcomes,
         );
 
         // Put user's team into blueTeam (Allies) and opponent team into redTeam (Enemies)
@@ -316,7 +339,7 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
       }
     }
 
-    // Parallelize metadata, names, and player MMR lookups
+    // Parallelize metadata, names, and player MMR + Competitive lookups
     final results = await Future.wait([
       _careerDataSource.fetchMapsMetadata(),
       _careerDataSource.fetchAgentsMetadata(),
@@ -324,15 +347,23 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
       _remoteDataSource.fetchPlayerNames(shard: shard, puuids: puuids),
       Future.wait(
         puuids.map((sub) async {
+          Map<String, dynamic>? mmrData;
+          List<Map<String, dynamic>> compUpdates = const [];
           try {
-            final mmrData = await _remoteDataSource.fetchPlayerMmr(
+            mmrData = await _remoteDataSource.fetchPlayerMmr(
               shard: shard,
               puuid: sub,
             );
-            return MapEntry(sub, mmrData);
-          } catch (_) {
-            return MapEntry(sub, null);
-          }
+          } catch (_) {}
+          try {
+            compUpdates = await _careerDataSource.fetchCompetitiveUpdates(
+              shard: shard,
+              puuid: sub,
+              startIndex: 0,
+              endIndex: 10,
+            );
+          } catch (_) {}
+          return MapEntry(sub, _PlayerStats(mmr: mmrData, updates: compUpdates));
         }),
       ),
     ]);
@@ -341,9 +372,9 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
     final agentsMeta = results[1] as Map<String, Map<String, dynamic>>;
     final tiersMeta = results[2] as Map<int, Map<String, dynamic>>;
     final namesList = results[3] as List<Map<String, dynamic>>;
-    final mmrEntries =
-        results[4] as List<MapEntry<String, Map<String, dynamic>?>>;
-    final mmrMap = Map.fromEntries(mmrEntries);
+    final statsEntries =
+        results[4] as List<MapEntry<String, _PlayerStats>>;
+    final statsMap = Map.fromEntries(statsEntries);
 
     final mapInfo = mapsMeta[mapUrl.toLowerCase()];
     final mapName = mapInfo?['displayName'] ?? mapUrl.split('/').last;
@@ -380,15 +411,26 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
         String? rankIcon;
         int currentRr = 0;
         var peakRank = 'Unranked';
+        String? peakRankIcon;
 
-        final mmrData = mmrMap[sub];
-        if (mmrData != null) {
-          final parsed = _extractRankFromMmr(mmrData, tiersMeta);
+        final playerStats = statsMap[sub];
+        final mmrData = playerStats?.mmr;
+        final compUpdates = playerStats?.updates ?? const [];
+
+        if (mmrData != null || compUpdates.isNotEmpty) {
+          final parsed = _extractRankFromMmr(
+            mmrData ?? const {},
+            tiersMeta,
+            competitiveUpdates: compUpdates,
+          );
           rankName = parsed['rankName'] ?? 'Unranked';
           rankIcon = parsed['rankIcon'];
           currentRr = parsed['currentRr'] as int? ?? 0;
           peakRank = parsed['peakRank'] ?? 'Unranked';
+          peakRankIcon = parsed['peakRankIcon'];
         }
+
+        final wl = _calculateRecentWinLoss(compUpdates);
 
         allyTeam.add(
           LivePlayerInfo(
@@ -402,8 +444,12 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
             rankIcon: rankIcon,
             currentRr: currentRr,
             peakRankTierName: peakRank,
+            peakRankIcon: peakRankIcon,
             isSelf: sub == selfPuuid,
             isLocked: charState == 'locked',
+            recentWins: wl.wins,
+            recentLosses: wl.losses,
+            recentMatchOutcomes: wl.outcomes,
           ),
         );
       }
@@ -424,8 +470,9 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
 
   Map<String, dynamic> _extractRankFromMmr(
     Map<String, dynamic> mmrData,
-    Map<int, Map<String, dynamic>> tiersMeta,
-  ) {
+    Map<int, Map<String, dynamic>> tiersMeta, {
+    List<Map<String, dynamic>>? competitiveUpdates,
+  }) {
     try {
       final queueSkills = mmrData['QueueSkills'] is Map
           ? Map<String, dynamic>.from(mmrData['QueueSkills'] as Map)
@@ -434,9 +481,44 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
           ? Map<String, dynamic>.from(queueSkills!['competitive'] as Map)
           : null;
       var currentTier = compSkill?['Tier'] as int? ?? 0;
-      final currentRr = compSkill?['RankedRating'] as int? ?? 0;
+      var currentRr = compSkill?['RankedRating'] as int? ?? 0;
 
-      // Fallback if currentTier is 0: check recent seasonal tier
+      // Fallback 1: LatestCompetitiveUpdate from mmrData
+      final latestUpdate = mmrData['LatestCompetitiveUpdate'] is Map
+          ? Map<String, dynamic>.from(mmrData['LatestCompetitiveUpdate'] as Map)
+          : null;
+      if (latestUpdate != null) {
+        final tierAfter =
+            (latestUpdate['TierAfterUpdate'] as num?)?.toInt() ?? 0;
+        final rrAfter =
+            (latestUpdate['RankedRatingAfterUpdate'] as num?)?.toInt() ??
+                (latestUpdate['RankRatingAfterUpdate'] as num?)?.toInt() ??
+                0;
+        if (tierAfter > 0 && currentTier == 0) {
+          currentTier = tierAfter;
+          currentRr = rrAfter;
+        } else if (currentRr == 0 && rrAfter > 0) {
+          currentRr = rrAfter;
+        }
+      }
+
+      // Fallback 2: First match from competitiveUpdates
+      if (currentTier == 0 &&
+          competitiveUpdates != null &&
+          competitiveUpdates.isNotEmpty) {
+        final firstComp = competitiveUpdates.first;
+        final tierAfter = (firstComp['TierAfterUpdate'] as num?)?.toInt() ?? 0;
+        final rrAfter =
+            (firstComp['RankedRatingAfterUpdate'] as num?)?.toInt() ??
+                (firstComp['RankRatingAfterUpdate'] as num?)?.toInt() ??
+                0;
+        if (tierAfter > 0) {
+          currentTier = tierAfter;
+          currentRr = rrAfter;
+        }
+      }
+
+      // Fallback 3: check recent seasonal tier
       final seasonal = compSkill?['SeasonalInfoBySeasonID'] is Map
           ? Map<String, dynamic>.from(compSkill!['SeasonalInfoBySeasonID'] as Map)
           : null;
@@ -454,7 +536,10 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
 
       final tierInfo = tiersMeta[currentTier];
       final rankName = tierInfo?['tierName'] ?? 'Unranked';
-      final rankIcon = tierInfo?['largeIcon'];
+      var rankIcon = tierInfo?['largeIcon'] ?? tierInfo?['smallIcon'];
+      if (rankIcon != null && rankIcon.toString().trim().isEmpty) {
+        rankIcon = null;
+      }
 
       // Peak Rank
       int peakTier = currentTier;
@@ -470,22 +555,69 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
         }
       }
 
+      if (competitiveUpdates != null) {
+        for (final update in competitiveUpdates) {
+          final tAfter = (update['TierAfterUpdate'] as num?)?.toInt() ?? 0;
+          if (tAfter > peakTier) peakTier = tAfter;
+        }
+      }
+
       final peakInfo = tiersMeta[peakTier];
       final peakRankName = peakInfo?['tierName'] ?? rankName;
+      var peakRankIcon = peakInfo?['largeIcon'] ?? peakInfo?['smallIcon'];
+      if (peakRankIcon != null && peakRankIcon.toString().trim().isEmpty) {
+        peakRankIcon = null;
+      }
 
       return {
         'rankName': rankName,
         'rankIcon': rankIcon,
         'currentRr': currentRr,
         'peakRank': peakRankName,
+        'peakRankIcon': peakRankIcon,
       };
     } catch (_) {
       return {
         'rankName': 'Unranked',
+        'rankIcon': null,
         'currentRr': 0,
         'peakRank': 'Unranked',
+        'peakRankIcon': null,
       };
     }
+  }
+
+  ({int wins, int losses, List<bool> outcomes}) _calculateRecentWinLoss(
+    List<Map<String, dynamic>> updates,
+  ) {
+    int wins = 0;
+    int losses = 0;
+    final List<bool> outcomes = [];
+
+    for (final update in updates.take(10)) {
+      final tierAfter = (update['TierAfterUpdate'] as num?)?.toInt() ?? 0;
+      final tierBefore = (update['TierBeforeUpdate'] as num?)?.toInt() ?? 0;
+      final rrEarned = (update['RankedRatingEarned'] as num?)?.toInt() ??
+          (update['RankRatingEarned'] as num?)?.toInt() ??
+          (((update['RankedRatingAfterUpdate'] as num?)?.toInt() ?? 0) -
+              ((update['RankedRatingBeforeUpdate'] as num?)?.toInt() ?? 0));
+
+      if (tierAfter > tierBefore) {
+        wins++;
+        outcomes.add(true);
+      } else if (tierAfter < tierBefore) {
+        losses++;
+        outcomes.add(false);
+      } else if (rrEarned > 0) {
+        wins++;
+        outcomes.add(true);
+      } else if (rrEarned < 0) {
+        losses++;
+        outcomes.add(false);
+      }
+    }
+
+    return (wins: wins, losses: losses, outcomes: outcomes);
   }
 
   String _cleanModeName(String raw) {
@@ -498,4 +630,14 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
     if (lower.contains('hurm') || lower.contains('tdm')) return 'Team Deathmatch';
     return 'Match';
   }
+}
+
+class _PlayerStats {
+  final Map<String, dynamic>? mmr;
+  final List<Map<String, dynamic>> updates;
+
+  const _PlayerStats({
+    this.mmr,
+    this.updates = const [],
+  });
 }

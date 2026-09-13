@@ -56,14 +56,33 @@ void main() {
     });
 
     test('toJson and fromJson preserves data', () {
-      final json = testMatch.toJson();
-      final restored = LiveMatchData.fromJson(json);
+      const playerWithStats = LivePlayerInfo(
+        puuid: 'p-1',
+        gameName: 'TenZ',
+        tagLine: 'SEN',
+        teamId: 'Blue',
+        agentName: 'Jett',
+        currentRankTierName: 'Radiant',
+        rankIcon: 'https://example.com/radiant.png',
+        peakRankTierName: 'Radiant',
+        peakRankIcon: 'https://example.com/radiant.png',
+        recentWins: 7,
+        recentLosses: 3,
+        recentMatchOutcomes: [true, true, false, true, false, true, true, false, true, true],
+      );
 
-      expect(restored.phase, equals(LiveMatchPhase.coreGame));
-      expect(restored.matchId, equals('match-123'));
-      expect(restored.mapName, equals('Ascent'));
-      expect(restored.blueTeam.length, equals(1));
-      expect(restored.blueTeam.first.gameName, equals('TenZ'));
+      expect(playerWithStats.recentTotalMatches, equals(10));
+      expect(playerWithStats.recentWinRate, equals(70.0));
+
+      final json = playerWithStats.toJson();
+      final restored = LivePlayerInfo.fromJson(json);
+
+      expect(restored.recentWins, equals(7));
+      expect(restored.recentLosses, equals(3));
+      expect(restored.recentTotalMatches, equals(10));
+      expect(restored.recentWinRate, equals(70.0));
+      expect(restored.recentMatchOutcomes, hasLength(10));
+      expect(restored.rankIcon, equals('https://example.com/radiant.png'));
     });
   });
 

@@ -60,6 +60,12 @@ void main() {
         24: {'tierName': 'Ascendant 2', 'largeIcon': 'a2.png'},
       },
     );
+    when(() => mockCareer.fetchCompetitiveUpdates(
+          shard: any(named: 'shard'),
+          puuid: any(named: 'puuid'),
+          startIndex: any(named: 'startIndex'),
+          endIndex: any(named: 'endIndex'),
+        )).thenAnswer((_) async => []);
   });
 
   group('checkLiveMatch', () {
@@ -223,6 +229,78 @@ void main() {
       // Enemy should be placed into redTeam (Enemies)
       expect(match.redTeam.length, equals(1));
       expect(match.redTeam.first.puuid, equals('enemy-puuid'));
+    });
+
+    test('checkLiveMatch computes 10 match win/loss and rank icons from competitive updates',
+        () async {
+      when(() => mockRemote.fetchCoreGamePlayer(
+            region: tRegion,
+            shard: tShard,
+            puuid: tPuuid,
+          )).thenAnswer((_) async => {
+            'Subject': tPuuid,
+            'MatchID': 'core-match-123',
+          });
+
+      when(() => mockRemote.fetchCoreGameMatch(
+            region: tRegion,
+            shard: tShard,
+            matchId: 'core-match-123',
+          )).thenAnswer((_) async => {
+            'MapID': '/game/maps/ascent/ascent',
+            'ModeID': '/game/gamemodes/competitive',
+            'Players': [
+              {
+                'Subject': tPuuid,
+                'TeamID': 'Blue',
+                'CharacterID': 'agent-jett-id',
+              },
+            ],
+          });
+
+      when(() => mockRemote.fetchPlayerNames(
+            shard: tShard,
+            puuids: any(named: 'puuids'),
+          )).thenAnswer((_) async => [
+            {'Subject': tPuuid, 'GameName': 'SelfPlayer', 'TagLine': '123'},
+          ]);
+
+      when(() => mockRemote.fetchPlayerMmr(
+            shard: tShard,
+            puuid: tPuuid,
+          )).thenAnswer((_) async => {
+            'QueueSkills': {
+              'competitive': {
+                'Tier': 20,
+                'RankedRating': 75,
+              },
+            },
+          });
+
+      when(() => mockCareer.fetchCompetitiveUpdates(
+            shard: tShard,
+            puuid: tPuuid,
+            startIndex: 0,
+            endIndex: 10,
+          )).thenAnswer((_) async => [
+            {'TierAfterUpdate': 20, 'TierBeforeUpdate': 20, 'RankedRatingEarned': 21},
+            {'TierAfterUpdate': 20, 'TierBeforeUpdate': 20, 'RankedRatingEarned': 18},
+            {'TierAfterUpdate': 20, 'TierBeforeUpdate': 20, 'RankedRatingEarned': -14},
+            {'TierAfterUpdate': 20, 'TierBeforeUpdate': 19, 'RankedRatingEarned': 10},
+            {'TierAfterUpdate': 19, 'TierBeforeUpdate': 20, 'RankedRatingEarned': -25},
+          ]);
+
+      final result = await repository.checkLiveMatch();
+
+      expect(result.isSuccess, isTrue);
+      final player = result.valueOrNull!.blueTeam.first;
+      expect(player.currentRankTierName, equals('Diamond 1'));
+      expect(player.rankIcon, equals('d1.png'));
+      expect(player.recentWins, equals(3));
+      expect(player.recentLosses, equals(2));
+      expect(player.recentTotalMatches, equals(5));
+      expect(player.recentWinRate, equals(60.0));
+      expect(player.recentMatchOutcomes, equals([true, true, false, true, false]));
     });
   });
 }
