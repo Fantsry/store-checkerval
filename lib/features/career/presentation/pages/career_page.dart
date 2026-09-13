@@ -14,6 +14,8 @@ class CareerPage extends StatefulWidget {
 }
 
 class _CareerPageState extends State<CareerPage> {
+  bool _expandAll = false;
+
   @override
   void initState() {
     super.initState();
@@ -189,13 +191,69 @@ class _CareerPageState extends State<CareerPage> {
                           letterSpacing: 1.0,
                         ),
                       ),
-                      Text(
-                        '${matches.length} Matches',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: AppTheme.textMuted,
-                          fontWeight: FontWeight.w600,
-                        ),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            '${matches.length} Matches',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AppTheme.textMuted,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          InkWell(
+                            onTap: () {
+                              setState(() {
+                                _expandAll = !_expandAll;
+                              });
+                            },
+                            borderRadius: BorderRadius.circular(6),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: _expandAll
+                                    ? AppTheme.valorantRed.withValues(alpha: 0.18)
+                                    : Colors.white.withValues(alpha: 0.06),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(
+                                  color: _expandAll
+                                      ? AppTheme.valorantRed.withValues(alpha: 0.45)
+                                      : Colors.white.withValues(alpha: 0.12),
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    _expandAll
+                                        ? Icons.unfold_less_rounded
+                                        : Icons.unfold_more_rounded,
+                                    size: 13,
+                                    color: _expandAll
+                                        ? AppTheme.valorantRed
+                                        : AppTheme.textSecondary,
+                                  ),
+                                  const SizedBox(width: 3),
+                                  Text(
+                                    _expandAll ? 'Collapse' : 'Expand Teams',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w700,
+                                      color: _expandAll
+                                          ? AppTheme.valorantRed
+                                          : AppTheme.textSecondary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -281,7 +339,13 @@ class _CareerPageState extends State<CareerPage> {
                     ),
                   )
                 else
-                  ...matches.map((match) => MatchCard(match: match)),
+                  ...matches.map(
+                    (match) => MatchCard(
+                      key: ValueKey('${match.matchId}_$_expandAll'),
+                      match: match,
+                      initiallyExpanded: _expandAll,
+                    ),
+                  ),
               ],
             ),
           );

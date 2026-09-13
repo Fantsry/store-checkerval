@@ -32,6 +32,11 @@ abstract class CareerRemoteDataSource {
   Future<Map<String, Map<String, dynamic>>> fetchAgentsMetadata();
 
   Future<Map<int, Map<String, dynamic>>> fetchCompetitiveTiersMetadata();
+
+  Future<List<Map<String, dynamic>>> fetchPlayerNames({
+    required String shard,
+    required List<String> puuids,
+  });
 }
 
 class CareerRemoteDataSourceImpl implements CareerRemoteDataSource {
@@ -403,5 +408,41 @@ class CareerRemoteDataSourceImpl implements CareerRemoteDataSource {
     } catch (_) {}
 
     return _cachedTiers ?? {};
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> fetchPlayerNames({
+    required String shard,
+    required List<String> puuids,
+  }) async {
+    if (puuids.isEmpty) return [];
+    try {
+      final sh = _normalizeShard(shard);
+      final url = ApiConstants.nameServiceUrl(sh);
+
+      final response = await _dio.put(
+        url,
+        data: puuids,
+      );
+      if (response.statusCode == 200 && response.data != null) {
+        dynamic raw = response.data;
+        if (raw is String) {
+          final trimmed = raw.trim();
+          if (trimmed.isEmpty) return [];
+          try {
+            raw = jsonDecode(trimmed);
+          } catch (_) {
+            return [];
+          }
+        }
+        if (raw is List) {
+          return raw
+              .whereType<Map>()
+              .map((e) => Map<String, dynamic>.from(e))
+              .toList();
+        }
+      }
+    } catch (_) {}
+    return [];
   }
 }

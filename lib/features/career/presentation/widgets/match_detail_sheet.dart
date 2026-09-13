@@ -472,25 +472,52 @@ class MatchDetailSheet extends StatelessWidget {
                     ),
                     const SizedBox(height: 8),
 
-                    if (match.teammates.isNotEmpty)
-                      _TeamScoreboardCard(
-                        teamTitle: 'YOUR TEAM (ALLIES)',
-                        teamScore: match.scoreWon,
-                        teamColor: const Color(0xFF00E5FF),
-                        isWinner: match.won == true,
-                        players: match.teammates,
-                      ),
+                    if (match.isDeathmatch)
+                      _DeathmatchLeaderboardCard(
+                        players: match.allPlayers,
+                        matchMvpPuuid: match.matchMvpPuuid,
+                      )
+                    else ...[
+                      if (match.teammates.isNotEmpty)
+                        _TeamScoreboardCard(
+                          teamTitle: 'YOUR TEAM (ALLIES)',
+                          teamScore: match.scoreWon,
+                          teamColor: const Color(0xFF00E5FF),
+                          isWinner: match.won == true,
+                          players: match.teammates,
+                          matchMvpPuuid: match.matchMvpPuuid,
+                          teamMvpPuuid: match.teamMvpPuuid,
+                        ),
 
-                    if (match.enemies.isNotEmpty) ...[
-                      const SizedBox(height: 12),
-                      _TeamScoreboardCard(
-                        teamTitle: 'ENEMY TEAM (OPPONENTS)',
-                        teamScore: match.scoreLost,
-                        teamColor: AppTheme.valorantRed,
-                        isWinner: match.won == false,
-                        players: match.enemies,
-                      ),
+                      if (match.enemies.isNotEmpty) ...[
+                        const SizedBox(height: 12),
+                        _TeamScoreboardCard(
+                          teamTitle: 'ENEMY TEAM (OPPONENTS)',
+                          teamScore: match.scoreLost,
+                          teamColor: AppTheme.valorantRed,
+                          isWinner: match.won == false,
+                          players: match.enemies,
+                          matchMvpPuuid: match.matchMvpPuuid,
+                          teamMvpPuuid: match.teamMvpPuuid,
+                        ),
+                      ],
                     ],
+                  ],
+
+                  // Round History & Kill Timeline Section
+                  if (match.rounds.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    const Text(
+                      'ROUND HISTORY & KILL TIMELINE',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: AppTheme.textMuted,
+                        letterSpacing: 0.8,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    _RoundHistorySection(rounds: match.rounds),
                   ],
 
                   const SizedBox(height: 16),
@@ -638,6 +665,8 @@ class _TeamScoreboardCard extends StatelessWidget {
   final Color teamColor;
   final bool isWinner;
   final List<MatchPlayerSummary> players;
+  final String? matchMvpPuuid;
+  final String? teamMvpPuuid;
 
   const _TeamScoreboardCard({
     required this.teamTitle,
@@ -645,6 +674,8 @@ class _TeamScoreboardCard extends StatelessWidget {
     required this.teamColor,
     required this.isWinner,
     required this.players,
+    this.matchMvpPuuid,
+    this.teamMvpPuuid,
   });
 
   @override
@@ -694,13 +725,86 @@ class _TeamScoreboardCard extends StatelessWidget {
                   ],
                 ),
                 Text(
-                  '$teamScore Rounds',
+                  '$teamScore Rounds Won',
                   style: TextStyle(
                     color: isWinner
                         ? const Color(0xFF00C4A8)
                         : AppTheme.textSecondary,
                     fontWeight: FontWeight.w800,
                     fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Column Headers
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+            color: Colors.black.withValues(alpha: 0.25),
+            child: const Row(
+              children: [
+                Expanded(
+                  flex: 5,
+                  child: Text(
+                    'PLAYER & AGENT',
+                    style: TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w700,
+                      color: AppTheme.textMuted,
+                      letterSpacing: 0.4,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  flex: 4,
+                  child: Text(
+                    'RANK',
+                    style: TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w700,
+                      color: AppTheme.textMuted,
+                      letterSpacing: 0.4,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  flex: 3,
+                  child: Text(
+                    'K / D / A',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w700,
+                      color: AppTheme.textMuted,
+                      letterSpacing: 0.4,
+                    ),
+                  ),
+                ),
+                SizedBox(
+                  width: 32,
+                  child: Text(
+                    'KD',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w700,
+                      color: AppTheme.textMuted,
+                      letterSpacing: 0.4,
+                    ),
+                  ),
+                ),
+                SizedBox(
+                  width: 42,
+                  child: Text(
+                    'ACS',
+                    textAlign: TextAlign.right,
+                    style: TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w700,
+                      color: AppTheme.textMuted,
+                      letterSpacing: 0.4,
+                    ),
                   ),
                 ),
               ],
@@ -721,6 +825,79 @@ class _TeamScoreboardCard extends StatelessWidget {
               return _PlayerScoreTile(
                 player: player,
                 teamColor: teamColor,
+                isMatchMvp: player.puuid == matchMvpPuuid,
+                isTeamMvp: player.puuid == teamMvpPuuid,
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DeathmatchLeaderboardCard extends StatelessWidget {
+  final List<MatchPlayerSummary> players;
+  final String? matchMvpPuuid;
+
+  const _DeathmatchLeaderboardCard({
+    required this.players,
+    this.matchMvpPuuid,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppTheme.surfaceDark,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: Colors.amber.withValues(alpha: 0.3),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: Colors.amber.withValues(alpha: 0.1),
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(13)),
+            ),
+            child: const Row(
+              children: [
+                Icon(Icons.emoji_events_outlined,
+                    size: 16, color: Colors.amber),
+                SizedBox(width: 8),
+                Text(
+                  'DEATHMATCH LEADERBOARD',
+                  style: TextStyle(
+                    color: Colors.amber,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 12,
+                    letterSpacing: 0.6,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          ListView.separated(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: players.length,
+            separatorBuilder: (_, __) => Divider(
+              height: 1,
+              color: Colors.white.withValues(alpha: 0.05),
+            ),
+            itemBuilder: (context, index) {
+              final player = players[index];
+              return _PlayerScoreTile(
+                player: player,
+                teamColor: Colors.amber,
+                rankPosition: index + 1,
+                isMatchMvp: index == 0,
+                isTeamMvp: false,
               );
             },
           ),
@@ -733,10 +910,16 @@ class _TeamScoreboardCard extends StatelessWidget {
 class _PlayerScoreTile extends StatelessWidget {
   final MatchPlayerSummary player;
   final Color teamColor;
+  final int? rankPosition;
+  final bool isMatchMvp;
+  final bool isTeamMvp;
 
   const _PlayerScoreTile({
     required this.player,
     required this.teamColor,
+    this.rankPosition,
+    this.isMatchMvp = false,
+    this.isTeamMvp = false,
   });
 
   @override
@@ -750,10 +933,28 @@ class _PlayerScoreTile extends StatelessWidget {
           : Colors.transparent,
       child: Row(
         children: [
+          // Rank Position (for Deathmatch)
+          if (rankPosition != null) ...[
+            SizedBox(
+              width: 20,
+              child: Text(
+                '#$rankPosition',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  color: rankPosition == 1
+                      ? Colors.amber
+                      : AppTheme.textSecondary,
+                ),
+              ),
+            ),
+            const SizedBox(width: 4),
+          ],
+
           // Agent Portrait
           Container(
-            width: 34,
-            height: 34,
+            width: 32,
+            height: 32,
             decoration: BoxDecoration(
               color: Colors.black.withValues(alpha: 0.3),
               borderRadius: BorderRadius.circular(8),
@@ -773,22 +974,22 @@ class _PlayerScoreTile extends StatelessWidget {
                       fit: BoxFit.cover,
                       errorWidget: (_, __, ___) => const Icon(
                         Icons.person,
-                        size: 20,
+                        size: 18,
                         color: AppTheme.textMuted,
                       ),
                     )
                   : const Icon(
                       Icons.person,
-                      size: 20,
+                      size: 18,
                       color: AppTheme.textMuted,
                     ),
             ),
           ),
           const SizedBox(width: 8),
 
-          // Player Name & Agent Pick
+          // Player Name & Badges
           Expanded(
-            flex: 4,
+            flex: 5,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
@@ -801,7 +1002,7 @@ class _PlayerScoreTile extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          fontSize: 12,
+                          fontSize: 11.5,
                           fontWeight: FontWeight.w700,
                           color: isSelf
                               ? const Color(0xFFE5B94E)
@@ -824,9 +1025,51 @@ class _PlayerScoreTile extends StatelessWidget {
                         child: const Text(
                           'YOU',
                           style: TextStyle(
-                            fontSize: 8.5,
+                            fontSize: 8,
                             fontWeight: FontWeight.w900,
                             color: Color(0xFFE5B94E),
+                          ),
+                        ),
+                      ),
+                    ],
+                    if (isMatchMvp) ...[
+                      const SizedBox(width: 3),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 4,
+                          vertical: 1,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.amber.withValues(alpha: 0.25),
+                          borderRadius: BorderRadius.circular(3),
+                        ),
+                        child: const Text(
+                          'MVP',
+                          style: TextStyle(
+                            fontSize: 7.5,
+                            fontWeight: FontWeight.w900,
+                            color: Colors.amber,
+                          ),
+                        ),
+                      ),
+                    ] else if (isTeamMvp) ...[
+                      const SizedBox(width: 3),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 3,
+                          vertical: 1,
+                        ),
+                        decoration: BoxDecoration(
+                          color:
+                              const Color(0xFF00E5FF).withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(3),
+                        ),
+                        child: const Text(
+                          'TEAM',
+                          style: TextStyle(
+                            fontSize: 7,
+                            fontWeight: FontWeight.w900,
+                            color: Color(0xFF00E5FF),
                           ),
                         ),
                       ),
@@ -844,7 +1087,7 @@ class _PlayerScoreTile extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(width: 6),
+          const SizedBox(width: 4),
 
           // Rank Badge + Name
           Expanded(
@@ -853,25 +1096,25 @@ class _PlayerScoreTile extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
-                  width: 26,
-                  height: 26,
+                  width: 24,
+                  height: 24,
                   alignment: Alignment.center,
                   child: player.rankIconUrl != null &&
                           player.rankIconUrl!.isNotEmpty
                       ? CachedNetworkImage(
                           imageUrl: player.rankIconUrl!,
-                          width: 24,
-                          height: 24,
+                          width: 22,
+                          height: 22,
                           fit: BoxFit.contain,
                           errorWidget: (_, __, ___) => const Icon(
                             Icons.shield_outlined,
-                            size: 18,
+                            size: 16,
                             color: AppTheme.textMuted,
                           ),
                         )
                       : const Icon(
                           Icons.shield_outlined,
-                          size: 18,
+                          size: 16,
                           color: AppTheme.textMuted,
                         ),
                 ),
@@ -882,7 +1125,7 @@ class _PlayerScoreTile extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                      fontSize: 11,
+                      fontSize: 10.5,
                       fontWeight: FontWeight.w600,
                       color: AppTheme.textSecondary,
                     ),
@@ -891,30 +1134,356 @@ class _PlayerScoreTile extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(width: 6),
+          const SizedBox(width: 4),
 
-          // Combat Stats: KDA & ACS
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            mainAxisSize: MainAxisSize.min,
+          // Combat Stats: KDA
+          Expanded(
+            flex: 3,
+            child: Text(
+              player.kdaDisplay,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w800,
+                color: AppTheme.textPrimary,
+              ),
+            ),
+          ),
+
+          // KD Ratio
+          SizedBox(
+            width: 32,
+            child: Text(
+              player.kdRatio.toStringAsFixed(1),
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: player.kdRatio >= 1.0
+                    ? const Color(0xFF00C4A8)
+                    : AppTheme.textSecondary,
+              ),
+            ),
+          ),
+
+          // ACS
+          SizedBox(
+            width: 42,
+            child: Text(
+              '${player.averageCombatScore}',
+              textAlign: TextAlign.right,
+              style: const TextStyle(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w800,
+                color: AppTheme.valorantCyan,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RoundHistorySection extends StatelessWidget {
+  final List<MatchRoundSummary> rounds;
+
+  const _RoundHistorySection({required this.rounds});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: rounds.map((round) {
+        final roundWon = round.won;
+        final outcomeColor = roundWon == true
+            ? const Color(0xFF00E5FF)
+            : (roundWon == false ? AppTheme.valorantRed : Colors.amber);
+
+        return Container(
+          margin: const EdgeInsets.only(bottom: 8),
+          decoration: BoxDecoration(
+            color: AppTheme.surfaceDark,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: outcomeColor.withValues(alpha: 0.25),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text(
-                player.kdaDisplay,
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                  color: AppTheme.textPrimary,
+              // Round Title Bar
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: outcomeColor.withValues(alpha: 0.08),
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(9),
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          width: 6,
+                          height: 6,
+                          decoration: BoxDecoration(
+                            color: outcomeColor,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'ROUND ${round.roundNum + 1}',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w900,
+                            color: outcomeColor,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                        if (round.roundResult.isNotEmpty) ...[
+                          const SizedBox(width: 8),
+                          Text(
+                            '•  ${round.roundResult}',
+                            style: const TextStyle(
+                              fontSize: 10,
+                              color: AppTheme.textMuted,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 1.5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: outcomeColor.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        roundWon == true
+                            ? 'WON'
+                            : (roundWon == false ? 'LOST' : 'DRAW'),
+                        style: TextStyle(
+                          fontSize: 9,
+                          fontWeight: FontWeight.w900,
+                          color: outcomeColor,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              Text(
-                '${player.averageCombatScore} ACS',
-                style: const TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.valorantCyan,
+
+              // Kills in Round
+              if (round.kills.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 8, horizontal: 10),
+                  child: Text(
+                    'No kills recorded in this round (Objective win)',
+                    style: TextStyle(
+                      fontSize: 10.5,
+                      color: AppTheme.textMuted,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                )
+              else
+                ListView.separated(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  itemCount: round.kills.length,
+                  separatorBuilder: (_, __) => Divider(
+                    height: 6,
+                    color: Colors.white.withValues(alpha: 0.04),
+                  ),
+                  itemBuilder: (context, idx) {
+                    final kill = round.kills[idx];
+                    return _RoundKillTile(kill: kill);
+                  },
                 ),
-              ),
             ],
+          ),
+        );
+      }).toList(),
+    );
+  }
+}
+
+class _RoundKillTile extends StatelessWidget {
+  final MatchRoundKill kill;
+
+  const _RoundKillTile({required this.kill});
+
+  @override
+  Widget build(BuildContext context) {
+    final isKillerAlly = kill.killerTeamId.toLowerCase() == 'blue' ||
+        kill.killerTeamId.toLowerCase() == 'allies';
+    final isVictimAlly = kill.victimTeamId.toLowerCase() == 'blue' ||
+        kill.victimTeamId.toLowerCase() == 'allies';
+
+    final killerColor =
+        isKillerAlly ? const Color(0xFF00E5FF) : AppTheme.valorantRed;
+    final victimColor =
+        isVictimAlly ? const Color(0xFF00E5FF) : AppTheme.valorantRed;
+
+    final timeSec = kill.roundTime > 0 ? (kill.roundTime ~/ 1000) : 0;
+    final timeStr =
+        '${(timeSec ~/ 60).toString().padLeft(1, '0')}:${(timeSec % 60).toString().padLeft(2, '0')}';
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        children: [
+          // Round Timestamp
+          SizedBox(
+            width: 32,
+            child: Text(
+              timeStr,
+              style: const TextStyle(
+                fontSize: 9,
+                color: AppTheme.textMuted,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+
+          // Killer Agent Photo & Name
+          Expanded(
+            child: Row(
+              children: [
+                // Agent Avatar
+                Container(
+                  width: 22,
+                  height: 22,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: kill.isKillerSelf
+                          ? const Color(0xFFE5B94E)
+                          : killerColor,
+                      width: kill.isKillerSelf ? 1.5 : 1.0,
+                    ),
+                    color: Colors.black.withValues(alpha: 0.4),
+                  ),
+                  child: ClipOval(
+                    child: kill.killerAgentIconUrl != null &&
+                            kill.killerAgentIconUrl!.isNotEmpty
+                        ? CachedNetworkImage(
+                            imageUrl: kill.killerAgentIconUrl!,
+                            fit: BoxFit.cover,
+                            errorWidget: (_, __, ___) => const Icon(
+                              Icons.person,
+                              size: 13,
+                              color: AppTheme.textMuted,
+                            ),
+                          )
+                        : const Icon(
+                            Icons.person,
+                            size: 13,
+                            color: AppTheme.textMuted,
+                          ),
+                  ),
+                ),
+                const SizedBox(width: 5),
+                Flexible(
+                  child: Text(
+                    kill.killerName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w700,
+                      color: kill.isKillerSelf
+                          ? const Color(0xFFE5B94E)
+                          : AppTheme.textPrimary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Kill Action Symbol
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 6),
+            child: Icon(
+              Icons.bolt_rounded,
+              size: 14,
+              color: kill.isKillerSelf
+                  ? const Color(0xFFE5B94E)
+                  : (isKillerAlly
+                      ? const Color(0xFF00E5FF)
+                      : AppTheme.valorantRed),
+            ),
+          ),
+
+          // Victim Agent Photo & Name
+          Expanded(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Flexible(
+                  child: Text(
+                    kill.victimName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.right,
+                    style: TextStyle(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w600,
+                      color: kill.isVictimSelf
+                          ? const Color(0xFFE5B94E)
+                          : AppTheme.textSecondary,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 5),
+                // Victim Agent Avatar
+                Container(
+                  width: 22,
+                  height: 22,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: kill.isVictimSelf
+                          ? const Color(0xFFE5B94E)
+                          : victimColor,
+                      width: kill.isVictimSelf ? 1.5 : 1.0,
+                    ),
+                    color: Colors.black.withValues(alpha: 0.4),
+                  ),
+                  child: ClipOval(
+                    child: kill.victimAgentIconUrl != null &&
+                            kill.victimAgentIconUrl!.isNotEmpty
+                        ? CachedNetworkImage(
+                            imageUrl: kill.victimAgentIconUrl!,
+                            fit: BoxFit.cover,
+                            errorWidget: (_, __, ___) => const Icon(
+                              Icons.person,
+                              size: 13,
+                              color: AppTheme.textMuted,
+                            ),
+                          )
+                        : const Icon(
+                            Icons.person,
+                            size: 13,
+                            color: AppTheme.textMuted,
+                          ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),

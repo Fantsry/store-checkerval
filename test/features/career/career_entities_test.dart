@@ -179,5 +179,93 @@ void main() {
       expect(restored.matches.length, 1);
       expect(restored.matches.first.mapName, 'Ascent');
     });
+
+    test('MatchRoundKill and MatchRoundSummary serialize to and from json correctly', () {
+      const kill = MatchRoundKill(
+        roundTime: 45000,
+        killerPuuid: 'killer-uuid',
+        killerName: 'KillerPlayer#ID1',
+        killerAgentName: 'Reyna',
+        killerAgentIconUrl: 'https://media.valorant-api.com/reyna.png',
+        killerTeamId: 'Blue',
+        victimPuuid: 'victim-uuid',
+        victimName: 'VictimPlayer#ID2',
+        victimAgentName: 'Jett',
+        victimAgentIconUrl: 'https://media.valorant-api.com/jett.png',
+        victimTeamId: 'Red',
+        assistantPuuids: ['assist-uuid'],
+        assistantNames: ['AssistPlayer#ID3'],
+        weaponId: 'vandal-uuid',
+        isKillerSelf: true,
+        isVictimSelf: false,
+      );
+
+      final killJson = kill.toJson();
+      final restoredKill = MatchRoundKill.fromJson(killJson);
+
+      expect(restoredKill.killerName, 'KillerPlayer#ID1');
+      expect(restoredKill.killerAgentName, 'Reyna');
+      expect(restoredKill.victimName, 'VictimPlayer#ID2');
+      expect(restoredKill.victimAgentName, 'Jett');
+      expect(restoredKill.isKillerSelf, true);
+      expect(restoredKill.assistantNames, ['AssistPlayer#ID3']);
+
+      final round = MatchRoundSummary(
+        roundNum: 0,
+        winningTeam: 'Blue',
+        won: true,
+        roundResult: 'Eliminated',
+        kills: [restoredKill],
+      );
+
+      final roundJson = round.toJson();
+      final restoredRound = MatchRoundSummary.fromJson(roundJson);
+
+      expect(restoredRound.roundNum, 0);
+      expect(restoredRound.winningTeam, 'Blue');
+      expect(restoredRound.won, true);
+      expect(restoredRound.kills.length, 1);
+      expect(restoredRound.kills.first.killerName, 'KillerPlayer#ID1');
+    });
+
+    test('MatchSummary handles Deathmatch, allPlayers, and MVP calculations', () {
+      const p1 = MatchPlayerSummary(
+        puuid: 'p1',
+        gameName: 'TopFragger',
+        tagLine: '001',
+        teamId: 'Blue',
+        agentId: 'jett',
+        agentName: 'Jett',
+        score: 6000,
+      );
+      const p2 = MatchPlayerSummary(
+        puuid: 'p2',
+        gameName: 'SecondFragger',
+        tagLine: '002',
+        teamId: 'Red',
+        agentId: 'reyna',
+        agentName: 'Reyna',
+        score: 4500,
+      );
+
+      final dmMatch = MatchSummary(
+        matchId: 'dm-1',
+        mapId: 'split',
+        mapName: 'Split',
+        gameMode: 'deathmatch',
+        queueId: 'deathmatch',
+        gameStartTime: DateTime(2026, 9, 7),
+        agentId: 'jett',
+        agentName: 'Jett',
+        teammates: const [p1],
+        enemies: const [p2],
+      );
+
+      expect(dmMatch.isDeathmatch, true);
+      expect(dmMatch.allPlayers.length, 2);
+      expect(dmMatch.allPlayers.first.puuid, 'p1');
+      expect(dmMatch.matchMvpPuuid, 'p1');
+      expect(dmMatch.teamMvpPuuid, 'p1');
+    });
   });
 }

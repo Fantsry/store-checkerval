@@ -158,6 +158,36 @@ class CareerRepositoryImpl implements CareerRepository {
 
       final matchDetailsList = await Future.wait(matchFutures);
 
+      // Collect all unique player PUUIDs to resolve Riot IDs in bulk via name-service
+      final allPuuids = <String>{};
+      for (final m in matchDetailsList) {
+        if (m == null) continue;
+        final players = (m['players'] as List?) ?? [];
+        for (final p in players) {
+          if (p is Map) {
+            final pPuuid = (p['subject'] ?? p['puuid'] ?? '').toString().trim();
+            if (pPuuid.isNotEmpty) allPuuids.add(pPuuid);
+          }
+        }
+      }
+
+      final Map<String, Map<String, String>> namesMap = {};
+      if (allPuuids.isNotEmpty) {
+        try {
+          final namesList = await _remoteDataSource.fetchPlayerNames(
+            shard: shard,
+            puuids: allPuuids.toList(),
+          );
+          for (final n in namesList) {
+            final sub = (n['Subject'] ?? '').toString().toLowerCase();
+            namesMap[sub] = {
+              'gameName': (n['GameName'] ?? '').toString(),
+              'tagLine': (n['TagLine'] ?? '').toString(),
+            };
+          }
+        } catch (_) {}
+      }
+
       final matches = <MatchSummary>[];
       for (final matchData in matchDetailsList) {
         if (matchData == null) continue;
@@ -168,6 +198,7 @@ class CareerRepositoryImpl implements CareerRepository {
           mapsMeta: mapsMeta,
           agentsMeta: agentsMeta,
           tiersMeta: tiersMeta,
+          namesMap: namesMap,
         );
         if (summary != null) {
           matches.add(summary);
@@ -352,6 +383,7 @@ class CareerRepositoryImpl implements CareerRepository {
     required Map<String, Map<String, dynamic>> mapsMeta,
     required Map<String, Map<String, dynamic>> agentsMeta,
     required Map<int, Map<String, dynamic>> tiersMeta,
+    Map<String, Map<String, String>> namesMap = const {},
   }) {
     try {
       final matchInfo = (matchData['matchInfo'] as Map?) ?? {};
@@ -474,13 +506,21 @@ class CareerRepositoryImpl implements CareerRepository {
       // Parse teammates and enemies with ranks & stats
       final teammates = <MatchPlayerSummary>[];
       final enemies = <MatchPlayerSummary>[];
+      final playerMetaMap = <String, MatchPlayerSummary>{};
 
       for (final p in players) {
         if (p is! Map) continue;
         final pPuuid = (p['subject'] ?? p['puuid'] ?? '').toString();
         final pTeamId = (p['teamId'] ?? '').toString();
-        final pGameName = (p['gameName'] ?? '').toString();
-        final pTagLine = (p['tagLine'] ?? '').toString();
+        var pGameName = (p['gameName'] ?? '').toString();
+        var pTagLine = (p['tagLine'] ?? '').toString();
+
+        // If gameName is empty, look up in namesMap from name-service
+        if (pGameName.isEmpty && namesMap.containsKey(pPuuid.toLowerCase())) {
+          pGameName = namesMap[pPuuid.toLowerCase()]?['gameName'] ?? '';
+          pTagLine = namesMap[pPuuid.toLowerCase()]?['tagLine'] ?? '';
+        }
+
         final pAgentId = (p['characterId'] ?? '').toString().toLowerCase();
         final pCompTier = (p['competitiveTier'] as num?)?.toInt() ?? 0;
         final pStats = (p['stats'] as Map?) ?? {};
@@ -536,6 +576,8 @@ class CareerRepositoryImpl implements CareerRepository {
           isSelf: pIsSelf,
         );
 
+        playerMetaMap[pPuuid.toLowerCase()] = playerSummary;
+
         if (pTeamId.toLowerCase() == teamId.toLowerCase()) {
           teammates.add(playerSummary);
         } else {
@@ -546,6 +588,88 @@ class CareerRepositoryImpl implements CareerRepository {
       // Sort by score or ACS descending
       teammates.sort((a, b) => b.score.compareTo(a.score));
       enemies.sort((a, b) => b.score.compareTo(a.score));
+
+      // Parse round history with kill events & agent info
+      final rounds = <MatchRoundSummary>[];
+      for (final r in roundResults) {
+        if (r is! Map) continue;
+        final roundNum = (r['roundNum'] as num?)?.toInt() ?? 0;
+        final winningTeam = (r['winningTeam'] ?? '').toString();
+        final roundResult =
+            (r['roundResult'] ?? r['roundResultCode'] ?? '').toString();
+        final bool? roundWon = winningTeam.isEmpty
+            ? null
+            : (winningTeam.toLowerCase() == teamId.toLowerCase());
+
+        final playerStatsList = (r['playerStats'] as List?) ?? [];
+        final roundKills = <MatchRoundKill>[];
+
+        for (final ps in playerStatsList) {
+          if (ps is! Map) continue;
+          final killsList = (ps['kills'] as List?) ?? [];
+          for (final k in killsList) {
+            if (k is! Map) continue;
+            final killerPuuid =
+                (k['killer'] ?? ps['subject'] ?? ps['puuid'] ?? '').toString();
+            final victimPuuid = (k['victim'] ?? '').toString();
+            final roundTime = (k['roundTime'] as num?)?.toInt() ?? 0;
+            final finishingDmg = (k['finishingDamage'] as Map?) ?? {};
+            final weaponId = (finishingDmg['damageItem'] ?? '').toString();
+            final assistantPuuids = ((k['assistants'] as List?) ?? [])
+                .map((a) => a.toString())
+                .toList();
+
+            final killer = playerMetaMap[killerPuuid.toLowerCase()];
+            final victim = playerMetaMap[victimPuuid.toLowerCase()];
+
+            final assistantNames = assistantPuuids
+                .map((a) => playerMetaMap[a.toLowerCase()]?.displayName ?? '')
+                .where((n) => n.isNotEmpty)
+                .toList();
+
+            roundKills.add(MatchRoundKill(
+              roundTime: roundTime,
+              killerPuuid: killerPuuid,
+              killerName: killer?.displayName ??
+                  (killerPuuid.toLowerCase() == currentPuuid.toLowerCase()
+                      ? 'YOU'
+                      : 'Player'),
+              killerAgentName: killer?.agentName ?? 'Agent',
+              killerAgentIconUrl: killer?.agentIconUrl,
+              killerTeamId: killer?.teamId ?? '',
+              victimPuuid: victimPuuid,
+              victimName: victim?.displayName ??
+                  (victimPuuid.toLowerCase() == currentPuuid.toLowerCase()
+                      ? 'YOU'
+                      : 'Player'),
+              victimAgentName: victim?.agentName ?? 'Agent',
+              victimAgentIconUrl: victim?.agentIconUrl,
+              victimTeamId: victim?.teamId ?? '',
+              assistantPuuids: assistantPuuids,
+              assistantNames: assistantNames,
+              weaponId: weaponId.isNotEmpty ? weaponId : null,
+              isKillerSelf:
+                  killerPuuid.toLowerCase() == currentPuuid.toLowerCase(),
+              isVictimSelf:
+                  victimPuuid.toLowerCase() == currentPuuid.toLowerCase(),
+            ));
+          }
+        }
+
+        // Sort kills chronologically
+        roundKills.sort((a, b) => a.roundTime.compareTo(b.roundTime));
+
+        rounds.add(MatchRoundSummary(
+          roundNum: roundNum,
+          winningTeam: winningTeam,
+          won: roundWon,
+          roundResult: roundResult,
+          kills: roundKills,
+        ));
+      }
+
+      // Sort rounds by roundNum ascending
+      rounds.sort((a, b) => a.roundNum.compareTo(b.roundNum));
 
       return MatchSummary(
         matchId: matchId,
@@ -579,6 +703,7 @@ class CareerRepositoryImpl implements CareerRepository {
         rankIconUrl: rankIconUrl,
         teammates: teammates,
         enemies: enemies,
+        rounds: rounds,
       );
     } catch (_) {
       return null;
