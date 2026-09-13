@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:valorant_store_tracker/app/theme.dart';
 import 'package:valorant_store_tracker/features/career/domain/entities/match_summary.dart';
+import 'package:valorant_store_tracker/features/career/presentation/widgets/map_kill_overlay_widget.dart';
 
 /// A TRN-style "Kills by Round" matrix chart and interactive killfeed inspector.
 ///
@@ -15,6 +16,7 @@ import 'package:valorant_store_tracker/features/career/domain/entities/match_sum
 ///   Defaults to the user's player (isSelf) matching the TRN mobile app screenshot.
 /// - Timeline Banner & Breakdown: "View the match timeline and events for Round X" with full killfeed,
 ///   first-blood indicators, assists, and win-condition badges.
+/// - 2D Map Kill Overlay: View kill/death positions per round or entire match.
 class KillsByRoundWidget extends StatefulWidget {
   final MatchSummary match;
   final bool initialScrollToEnd;
@@ -35,6 +37,7 @@ class _KillsByRoundWidgetState extends State<KillsByRoundWidget> {
   String? _focusedPuuid; // null = "All Players"
   bool _isCompactView = false;
   bool _isTimelineExpanded = true;
+  int _detailViewMode = 0; // 0: Timeline Events, 1: Kill Map Overview
 
   @override
   void initState() {
@@ -757,15 +760,104 @@ class _KillsByRoundWidgetState extends State<KillsByRoundWidget> {
 
         // Selected Round Detail Card & Killfeed Timeline
         if (_isTimelineExpanded) ...[
+          if (widget.match.hasMinimapData) ...[
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: _DetailSubTab(
+                    icon: Icons.format_list_bulleted_rounded,
+                    label: 'ROUND TIMELINE',
+                    isSelected: _detailViewMode == 0,
+                    onTap: () => setState(() => _detailViewMode = 0),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _DetailSubTab(
+                    icon: Icons.radar_rounded,
+                    label: 'KILL MAP OVERVIEW',
+                    isSelected: _detailViewMode == 1,
+                    onTap: () => setState(() => _detailViewMode = 1),
+                  ),
+                ),
+              ],
+            ),
+          ],
           const SizedBox(height: 8),
-          _SelectedRoundCard(
-            round: selectedRound,
-            roundIndex: safeSelectedIdx,
-            isAllyKill: _isAllyKill,
-            focusedPuuid: _focusedPuuid,
-          ),
+          if (_detailViewMode == 0 || !widget.match.hasMinimapData)
+            _SelectedRoundCard(
+              round: selectedRound,
+              roundIndex: safeSelectedIdx,
+              isAllyKill: _isAllyKill,
+              focusedPuuid: _focusedPuuid,
+              onViewMap: widget.match.hasMinimapData
+                  ? () => setState(() => _detailViewMode = 1)
+                  : null,
+            )
+          else
+            MapKillOverlayWidget(
+              match: widget.match,
+              selectedRoundIndex: safeSelectedIdx,
+            ),
         ],
       ],
+    );
+  }
+}
+
+class _DetailSubTab extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _DetailSubTab({
+    required this.icon,
+    required this.label,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 7),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? AppTheme.valorantRed.withValues(alpha: 0.2)
+              : Colors.white.withValues(alpha: 0.04),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: isSelected
+                ? AppTheme.valorantRed.withValues(alpha: 0.6)
+                : Colors.white.withValues(alpha: 0.06),
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              size: 13,
+              color: isSelected ? Colors.white : AppTheme.textMuted,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                color: isSelected ? Colors.white : AppTheme.textSecondary,
+                letterSpacing: 0.4,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -856,12 +948,14 @@ class _SelectedRoundCard extends StatelessWidget {
   final int roundIndex;
   final bool Function(MatchRoundKill) isAllyKill;
   final String? focusedPuuid;
+  final VoidCallback? onViewMap;
 
   const _SelectedRoundCard({
     required this.round,
     required this.roundIndex,
     required this.isAllyKill,
     required this.focusedPuuid,
+    this.onViewMap,
   });
 
   @override
@@ -925,24 +1019,61 @@ class _SelectedRoundCard extends StatelessWidget {
                     ],
                   ],
                 ),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
-                  decoration: BoxDecoration(
-                    color: outcomeColor.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    roundWon == true
-                        ? 'VICTORY'
-                        : (roundWon == false ? 'DEFEAT' : 'DRAW'),
-                    style: TextStyle(
-                      fontSize: 9.5,
-                      fontWeight: FontWeight.w900,
-                      color: outcomeColor,
-                      letterSpacing: 0.4,
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (onViewMap != null) ...[
+                      InkWell(
+                        onTap: onViewMap,
+                        borderRadius: BorderRadius.circular(4),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2.5),
+                          decoration: BoxDecoration(
+                            color: AppTheme.valorantCyan.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(
+                              color: AppTheme.valorantCyan.withValues(alpha: 0.4),
+                            ),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.radar_rounded, size: 10, color: AppTheme.valorantCyan),
+                              SizedBox(width: 3),
+                              Text(
+                                'Map',
+                                style: TextStyle(
+                                  fontSize: 9.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppTheme.valorantCyan,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                    ],
+                    Container(
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
+                      decoration: BoxDecoration(
+                        color: outcomeColor.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        roundWon == true
+                            ? 'VICTORY'
+                            : (roundWon == false ? 'DEFEAT' : 'DRAW'),
+                        style: TextStyle(
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.w900,
+                          color: outcomeColor,
+                          letterSpacing: 0.4,
+                        ),
+                      ),
                     ),
-                  ),
+                  ],
                 ),
               ],
             ),
