@@ -27,11 +27,13 @@ class StoreRepositoryImpl implements StoreRepository {
         _localStore = localStore;
 
   @override
-  Future<Result<List<SkinItem>>> getAllCatalogSkins() async {
+  Future<Result<List<SkinItem>>> getAllCatalogSkins({bool forceRefresh = false}) async {
     try {
-      final cached = await _localStore.getCachedSkins();
-      if (cached != null && cached.isNotEmpty) {
-        return Result.success(cached);
+      if (!forceRefresh) {
+        final cached = await _localStore.getCachedSkins();
+        if (cached != null && cached.isNotEmpty) {
+          return Result.success(cached);
+        }
       }
 
       final skins = await _valorantApiRemoteDataSource.getWeaponSkins();

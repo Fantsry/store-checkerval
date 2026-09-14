@@ -175,6 +175,9 @@ class _InventoryPageState extends State<InventoryPage> {
                           padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
                           child: TierBreakdownCard(
                             tierBreakdown: state.overview.tierBreakdown,
+                            selectedTier: state.selectedTier,
+                            onTierSelected: (tier) =>
+                                context.read<InventoryCubit>().filterByTier(tier),
                           ),
                         ),
                       ),
@@ -374,13 +377,15 @@ class _InventoryPageState extends State<InventoryPage> {
                                       'Deluxe',
                                       'Select',
                                     ].map((tier) {
-                                      return _buildTierChip(
-                                        label: tier.toUpperCase(),
-                                        isSelected: state.selectedTier == tier,
-                                        onTap: () => context
-                                            .read<InventoryCubit>()
-                                            .filterByTier(tier),
-                                      );
+                                       return _buildTierChip(
+                                         label: tier.toUpperCase(),
+                                         isSelected: state.selectedTier != null &&
+                                             state.selectedTier!.toLowerCase() ==
+                                                 tier.toLowerCase(),
+                                         onTap: () => context
+                                             .read<InventoryCubit>()
+                                             .filterByTier(tier),
+                                       );
                                     }),
                                   ],
                                 ),

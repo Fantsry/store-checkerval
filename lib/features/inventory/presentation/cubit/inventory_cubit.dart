@@ -82,7 +82,17 @@ class InventoryCubit extends Cubit<InventoryState> {
   void filterByTier(String? tier) {
     if (state is! InventoryLoaded) return;
     final s = state as InventoryLoaded;
-    final newTier = s.selectedTier == tier ? null : tier;
+    String? cleanTier;
+    if (tier != null) {
+      final t = tier
+          .replaceAll(RegExp(r'\s+Edition$', caseSensitive: false), '')
+          .trim();
+      cleanTier = t.isNotEmpty ? t : tier;
+    }
+    final isSame = s.selectedTier != null &&
+        cleanTier != null &&
+        s.selectedTier!.toLowerCase() == cleanTier.toLowerCase();
+    final newTier = isSame ? null : cleanTier;
     final filtered = _applyFilters(
       s.overview.ownedSkins,
       s.sourceFilter,
@@ -151,7 +161,17 @@ class InventoryCubit extends Cubit<InventoryState> {
       }
 
       if (tier != null && tier.isNotEmpty) {
-        if (item.tierName?.toLowerCase() != tier.toLowerCase()) {
+        final selected = tier
+            .replaceAll(RegExp(r'\s+Edition$', caseSensitive: false), '')
+            .trim()
+            .toLowerCase();
+        final itemTier = (item.tierName ?? '')
+            .replaceAll(RegExp(r'\s+Edition$', caseSensitive: false), '')
+            .trim()
+            .toLowerCase();
+        if (itemTier != selected &&
+            !itemTier.contains(selected) &&
+            !selected.contains(itemTier)) {
           return false;
         }
       }

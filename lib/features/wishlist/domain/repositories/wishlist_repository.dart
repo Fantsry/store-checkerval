@@ -23,5 +23,6 @@ abstract class WishlistRepository {
     String? query,
     String? weaponType,
     String? tier,
+    bool forceRefresh = false,
   });
 }

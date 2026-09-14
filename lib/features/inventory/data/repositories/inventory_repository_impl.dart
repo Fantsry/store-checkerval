@@ -173,11 +173,12 @@ class InventoryRepositoryImpl implements InventoryRepository {
           totalVp += skin.cost;
         }
 
-        final tier = skin.tierName ?? 'Exclusive';
-        if (tierBreakdown.containsKey(tier)) {
-          tierBreakdown[tier] = (tierBreakdown[tier] ?? 0) + 1;
+        final normalizedTier = _normalizeTierName(skin.tierName);
+        if (tierBreakdown.containsKey(normalizedTier)) {
+          tierBreakdown[normalizedTier] =
+              (tierBreakdown[normalizedTier] ?? 0) + 1;
         } else {
-          tierBreakdown[tier] = 1;
+          tierBreakdown[normalizedTier] = 1;
         }
 
         final isEquipped =
@@ -196,7 +197,7 @@ class InventoryRepositoryImpl implements InventoryRepository {
             displayName: skin.displayName,
             displayIcon: skin.displayIcon,
             cost: skin.cost,
-            tierName: skin.tierName,
+            tierName: normalizedTier,
             tierColor: skin.tierColor,
             weapon: weaponName,
             isEquipped: isEquipped,
@@ -252,4 +253,19 @@ class InventoryRepositoryImpl implements InventoryRepository {
       );
     }
   }
+
+  String _normalizeTierName(String? rawTier) {
+    if (rawTier == null || rawTier.trim().isEmpty) return 'Select';
+    final clean = rawTier
+        .replaceAll(RegExp(r'\s+Edition$', caseSensitive: false), '')
+        .trim();
+    final lower = clean.toLowerCase();
+    if (lower.contains('exclusive')) return 'Exclusive';
+    if (lower.contains('ultra')) return 'Ultra';
+    if (lower.contains('premium')) return 'Premium';
+    if (lower.contains('deluxe')) return 'Deluxe';
+    if (lower.contains('select')) return 'Select';
+    return clean;
+  }
 }
+

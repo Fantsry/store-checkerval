@@ -11,21 +11,36 @@ class WishlistCubit extends Cubit<WishlistState> {
       : _wishlistRepository = wishlistRepository,
         super(const WishlistInitial());
 
-  Future<void> loadWishlist() async {
-    emit(const WishlistLoading());
+  Future<void> loadWishlist({bool forceRefresh = false}) async {
+    final currentState = state;
+    if (currentState is! WishlistLoaded) {
+      emit(const WishlistLoading());
+    }
     final result = await _wishlistRepository.getWishlist();
-    final catalogResult = await _wishlistRepository.searchCatalog();
+    final catalogResult = forceRefresh
+        ? await _wishlistRepository.searchCatalog(forceRefresh: true)
+        : await _wishlistRepository.searchCatalog();
 
     result.when(
       success: (items) {
+        final existingCatalog = currentState is WishlistLoaded
+            ? currentState.catalog
+            : <SkinItem>[];
         emit(
           WishlistLoaded(
             items: items,
-            catalog: catalogResult.valueOrNull ?? [],
+            catalog: catalogResult.valueOrNull ??
+                (existingCatalog.isNotEmpty ? existingCatalog : []),
           ),
         );
       },
-      failure: (failure) => emit(WishlistError(failure.message)),
+      failure: (failure) {
+        if (currentState is WishlistLoaded) {
+          emit(currentState);
+        } else {
+          emit(WishlistError(failure.message));
+        }
+      },
     );
   }
 
@@ -48,7 +63,11 @@ class WishlistCubit extends Cubit<WishlistState> {
     }
   }
 
-  Future<void> searchCatalog({String? query, String? weapon}) async {
+  Future<void> searchCatalog({
+    String? query,
+    String? weapon,
+    bool forceRefresh = false,
+  }) async {
     final currentState = state;
     if (currentState is WishlistLoaded) {
       emit(currentState.copyWith(
@@ -57,10 +76,16 @@ class WishlistCubit extends Cubit<WishlistState> {
         selectedWeapon: weapon ?? currentState.selectedWeapon,
       ));
 
-      final result = await _wishlistRepository.searchCatalog(
-        query: query ?? currentState.searchQuery,
-        weaponType: weapon ?? currentState.selectedWeapon,
-      );
+      final result = forceRefresh
+          ? await _wishlistRepository.searchCatalog(
+              query: query ?? currentState.searchQuery,
+              weaponType: weapon ?? currentState.selectedWeapon,
+              forceRefresh: true,
+            )
+          : await _wishlistRepository.searchCatalog(
+              query: query ?? currentState.searchQuery,
+              weaponType: weapon ?? currentState.selectedWeapon,
+            );
 
       emit(
         currentState.copyWith(
@@ -70,6 +95,8 @@ class WishlistCubit extends Cubit<WishlistState> {
           catalog: result.valueOrNull ?? currentState.catalog,
         ),
       );
+    } else {
+      await loadWishlist(forceRefresh: forceRefresh);
     }
   }
 
