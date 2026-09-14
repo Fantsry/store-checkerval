@@ -11,6 +11,13 @@ abstract class ContractsRemoteDataSource {
   Future<Map<String, Map<String, dynamic>>> fetchMissionsMetadata();
 
   Future<List<Map<String, dynamic>>> fetchContractsMetadata();
+
+  Future<List<Map<String, dynamic>>> fetchSeasonsMetadata();
+
+  Future<Map<String, dynamic>?> fetchRewardDetails({
+    required String uuid,
+    required String type,
+  });
 }
 
 class ContractsRemoteDataSourceImpl implements ContractsRemoteDataSource {
@@ -18,6 +25,8 @@ class ContractsRemoteDataSourceImpl implements ContractsRemoteDataSource {
 
   Map<String, Map<String, dynamic>>? _cachedMissions;
   List<Map<String, dynamic>>? _cachedContracts;
+  List<Map<String, dynamic>>? _cachedSeasons;
+  final Map<String, Map<String, dynamic>> _cachedRewardDetails = {};
 
   ContractsRemoteDataSourceImpl({required Dio dio}) : _dio = dio;
 
@@ -35,7 +44,7 @@ class ContractsRemoteDataSourceImpl implements ContractsRemoteDataSource {
         return 'kr';
       case 'ap':
       default:
-        return 'ap';
+        return s.isNotEmpty ? s : 'ap';
     }
   }
 
@@ -62,7 +71,7 @@ class ContractsRemoteDataSourceImpl implements ContractsRemoteDataSource {
         final response = await _dio.get(
           url,
           options: Options(
-            validateStatus: (status) => status != null && status < 500,
+            headers: {'Accept': 'application/json'},
           ),
         );
 
@@ -77,7 +86,13 @@ class ContractsRemoteDataSourceImpl implements ContractsRemoteDataSource {
             return Map<String, dynamic>.from(raw);
           }
         }
-      } catch (_) {}
+      } on DioException {
+        // Individual shard failures (404/400) continue to other candidate shards.
+        // 401 triggers AuthInterceptor retry automatically.
+        continue;
+      } catch (_) {
+        continue;
+      }
     }
     return null;
   }
@@ -121,12 +136,104 @@ class ContractsRemoteDataSourceImpl implements ContractsRemoteDataSource {
       final response = await _dio.get(ApiConstants.valorantApiContracts);
       if (response.statusCode == 200 && response.data != null) {
         final list = (response.data['data'] as List<dynamic>? ?? [])
-            .map((e) => e as Map<String, dynamic>)
+            .whereType<Map<String, dynamic>>()
             .toList();
         _cachedContracts = list;
         return list;
       }
     } catch (_) {}
     return _cachedContracts ?? [];
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> fetchSeasonsMetadata() async {
+    if (_cachedSeasons != null) return _cachedSeasons!;
+
+    try {
+      final response = await _dio.get(ApiConstants.valorantApiSeasons);
+      if (response.statusCode == 200 && response.data != null) {
+        final list = (response.data['data'] as List<dynamic>? ?? [])
+            .whereType<Map<String, dynamic>>()
+            .toList();
+        _cachedSeasons = list;
+        return list;
+      }
+    } catch (_) {}
+    return _cachedSeasons ?? [];
+  }
+
+  @override
+  Future<Map<String, dynamic>?> fetchRewardDetails({
+    required String uuid,
+    required String type,
+  }) async {
+    final cleanUuid = uuid.trim().toLowerCase();
+    if (cleanUuid.isEmpty) return null;
+
+    if (_cachedRewardDetails.containsKey(cleanUuid)) {
+      return _cachedRewardDetails[cleanUuid];
+    }
+
+    // Direct local resolution for Currencies
+    if (type.toLowerCase().contains('currency') ||
+        cleanUuid == '85ad13f7-3d1b-5128-9eb2-7cd8ee0b5741' ||
+        cleanUuid == 'e59aa87c-4cbf-517a-5983-6e81511be9b7' ||
+        cleanUuid == '85ca9543-7697-970b-7caa-e2a3d1a3d49e') {
+      String name = 'Valorant Points';
+      if (cleanUuid == 'e59aa87c-4cbf-517a-5983-6e81511be9b7') {
+        name = 'Radianite Points';
+      } else if (cleanUuid == '85ca9543-7697-970b-7caa-e2a3d1a3d49e') {
+        name = 'Kingdom Credits';
+      }
+      final res = {
+        'displayName': name,
+        'displayIcon':
+            'https://media.valorant-api.com/currencies/$cleanUuid/displayicon.png',
+        'type': 'Currency',
+      };
+      _cachedRewardDetails[cleanUuid] = res;
+      return res;
+    }
+
+    String endpoint;
+    final lowerType = type.toLowerCase();
+    if (lowerType.contains('skinlevel')) {
+      endpoint = '${ApiConstants.valorantApiWeaponSkinLevels}/$cleanUuid';
+    } else if (lowerType.contains('charm') || lowerType.contains('buddy')) {
+      endpoint = '${ApiConstants.valorantApiBuddies}/levels/$cleanUuid';
+    } else if (lowerType.contains('card')) {
+      endpoint = '${ApiConstants.valorantApiPlayerCards}/$cleanUuid';
+    } else if (lowerType.contains('spray')) {
+      endpoint = '${ApiConstants.valorantApiSprays}/$cleanUuid';
+    } else if (lowerType.contains('title')) {
+      endpoint = '${ApiConstants.valorantApiPlayerTitles}/$cleanUuid';
+    } else {
+      endpoint = '${ApiConstants.valorantApiBaseUrl}/$lowerType/$cleanUuid';
+    }
+
+    try {
+      final response = await _dio.get(endpoint);
+      if (response.statusCode == 200 && response.data != null) {
+        final data = response.data['data'];
+        if (data is Map) {
+          final name = data['displayName']?.toString() ??
+              data['titleText']?.toString() ??
+              'Reward';
+          final icon = data['displayIcon']?.toString() ??
+              data['smallArt']?.toString() ??
+              data['fullTransparentIcon']?.toString();
+
+          final item = {
+            'displayName': name,
+            'displayIcon': icon,
+            'type': type,
+          };
+          _cachedRewardDetails[cleanUuid] = item;
+          return item;
+        }
+      }
+    } catch (_) {}
+
+    return null;
   }
 }

@@ -133,6 +133,7 @@ class ApiConstants {
   static const String valorantApiSprays = '$valorantApiBaseUrl/sprays';
   static const String valorantApiMissions = '$valorantApiBaseUrl/missions';
   static const String valorantApiContracts = '$valorantApiBaseUrl/contracts';
+  static const String valorantApiSeasons = '$valorantApiBaseUrl/seasons';
   static const String valorantApiPlayerCards = '$valorantApiBaseUrl/playercards';
   static const String valorantApiPlayerTitles = '$valorantApiBaseUrl/playertitles';
 

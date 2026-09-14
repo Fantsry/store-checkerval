@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:valorant_store_tracker/core/error/failures.dart';
 import 'package:valorant_store_tracker/core/error/result.dart';
 import 'package:valorant_store_tracker/features/battlepass/domain/entities/battlepass_overview.dart';
 import 'package:valorant_store_tracker/features/battlepass/domain/entities/mission_item.dart';
@@ -98,6 +99,20 @@ void main() {
         isA<BattlepassLoaded>()
             .having((s) => s.overview.currentTier, 'currentTier', 35)
             .having((s) => s.overview.dailyMissions.length, 'dailyCount', 1),
+      ];
+
+      expectLater(cubit.stream, emitsInOrder(expectedStates));
+
+      await cubit.loadBattlepass();
+    });
+
+    test('emits [BattlepassLoading, BattlepassError] on failure', () async {
+      when(() => mockRepository.getBattlepassOverview(forceRefresh: any(named: 'forceRefresh')))
+          .thenAnswer((_) async => const Result.failure(ServerFailure(message: 'Failed to load')));
+
+      final expectedStates = [
+        const BattlepassLoading(),
+        isA<BattlepassError>().having((s) => s.message, 'message', 'Failed to load'),
       ];
 
       expectLater(cubit.stream, emitsInOrder(expectedStates));
