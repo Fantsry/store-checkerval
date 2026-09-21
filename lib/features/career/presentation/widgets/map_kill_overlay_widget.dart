@@ -53,7 +53,45 @@ class _MapKillOverlayWidgetState extends State<MapKillOverlayWidget> {
   @override
   Widget build(BuildContext context) {
     if (!widget.match.hasMinimapData) {
-      return const SizedBox.shrink();
+      return Container(
+        margin: const EdgeInsets.only(top: 10),
+        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+        decoration: BoxDecoration(
+          color: const Color(0xFF0D1117),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: Colors.white.withValues(alpha: 0.09),
+          ),
+        ),
+        child: Center(
+          child: Column(
+            children: [
+              Icon(
+                Icons.map_outlined,
+                size: 32,
+                color: AppTheme.textMuted.withValues(alpha: 0.5),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Kill map not available for this map/mode',
+                style: TextStyle(
+                  color: AppTheme.textMuted,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Minimap data is not provided for some game modes',
+                style: TextStyle(
+                  color: AppTheme.textMuted.withValues(alpha: 0.6),
+                  fontSize: 10,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
     }
 
     final match = widget.match;

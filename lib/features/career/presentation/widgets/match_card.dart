@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:valorant_store_tracker/app/theme.dart';
 import 'package:valorant_store_tracker/features/career/domain/entities/match_summary.dart';
 import 'package:valorant_store_tracker/features/career/presentation/widgets/kills_by_round_widget.dart';
+import 'package:valorant_store_tracker/features/career/presentation/widgets/map_kill_overlay_widget.dart';
 import 'package:valorant_store_tracker/features/career/presentation/widgets/match_detail_sheet.dart';
 import 'package:valorant_store_tracker/features/career/presentation/widgets/performance_rating_utils.dart';
 
@@ -22,7 +23,7 @@ class MatchCard extends StatefulWidget {
 
 class _MatchCardState extends State<MatchCard> {
   late bool _isExpanded;
-  int _activeTab = 0; // 0: Teams & Scoreboard, 1: Round Kills
+  int _activeTab = 0; // 0: Teams & Scoreboard, 1: Round Kills, 2: Kill Map
 
   @override
   void initState() {
@@ -501,7 +502,7 @@ class _MatchCardState extends State<MatchCard> {
                 ),
                 child: Column(
                   children: [
-                    // Tab Selector: Teams & Scoreboard VS Round Kills
+                    // Tab Selector: Teams & Scoreboard VS Round Kills VS Kill Map
                     Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 12,
@@ -512,23 +513,34 @@ class _MatchCardState extends State<MatchCard> {
                         children: [
                           Expanded(
                             child: _TabButton(
-                              label: 'TEAMS & SCOREBOARD',
+                              label: 'TEAMS',
                               icon: Icons.people_alt_outlined,
                               isSelected: _activeTab == 0,
                               onTap: () => setState(() => _activeTab = 0),
                             ),
                           ),
-                          const SizedBox(width: 8),
+                          const SizedBox(width: 6),
                           Expanded(
                             child: _TabButton(
                               label: match.rounds.isNotEmpty
-                                  ? 'ROUND KILLS (${match.rounds.length})'
-                                  : 'ROUND KILLS',
+                                  ? 'ROUNDS (${match.rounds.length})'
+                                  : 'ROUNDS',
                               icon: Icons.military_tech_outlined,
                               isSelected: _activeTab == 1,
                               onTap: () => setState(() => _activeTab = 1),
                             ),
                           ),
+                          if (match.hasMinimapData && match.rounds.isNotEmpty) ...[
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: _TabButton(
+                                label: 'KILL MAP',
+                                icon: Icons.radar_rounded,
+                                isSelected: _activeTab == 2,
+                                onTap: () => setState(() => _activeTab = 2),
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ),
@@ -538,7 +550,9 @@ class _MatchCardState extends State<MatchCard> {
                       padding: const EdgeInsets.fromLTRB(10, 10, 10, 12),
                       child: _activeTab == 0
                           ? _buildScoreboardView(match)
-                          : _buildRoundKillsView(match),
+                          : _activeTab == 1
+                              ? _buildRoundKillsView(match)
+                              : _buildKillMapView(match),
                     ),
 
                     // Bottom Bar: Full Details Button
@@ -655,6 +669,14 @@ class _MatchCardState extends State<MatchCard> {
 
   Widget _buildRoundKillsView(MatchSummary match) {
     return KillsByRoundWidget(match: match);
+  }
+
+  Widget _buildKillMapView(MatchSummary match) {
+    return MapKillOverlayWidget(
+      match: match,
+      selectedRoundIndex: 0,
+      initialShowAllRounds: true,
+    );
   }
 }
 

@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:valorant_store_tracker/app/theme.dart';
 import 'package:valorant_store_tracker/features/career/domain/entities/match_summary.dart';
 import 'package:valorant_store_tracker/features/career/presentation/widgets/kills_by_round_widget.dart';
+import 'package:valorant_store_tracker/features/career/presentation/widgets/map_kill_overlay_widget.dart';
 
 class MatchDetailSheet extends StatelessWidget {
   final MatchSummary match;
@@ -509,6 +510,16 @@ class MatchDetailSheet extends StatelessWidget {
                   if (match.rounds.isNotEmpty) ...[
                     const SizedBox(height: 16),
                     KillsByRoundWidget(match: match),
+                  ],
+
+                  // 2D Kill Map Section (standalone, always visible if data available)
+                  if (match.hasMinimapData && match.rounds.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    MapKillOverlayWidget(
+                      match: match,
+                      selectedRoundIndex: 0,
+                      initialShowAllRounds: true,
+                    ),
                   ],
 
                   const SizedBox(height: 16),
