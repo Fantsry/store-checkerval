@@ -13,5 +13,5 @@ abstract class StoreRepository {
   Future<Result<SkinItem>> getSkinDetail(String skinUuid);
 
   /// Fetches all weapon skins catalog from valorant-api.com (with local cache).
-  Future<Result<List<SkinItem>>> getAllCatalogSkins();
+  Future<Result<List<SkinItem>>> getAllCatalogSkins({bool forceRefresh = false});
 }

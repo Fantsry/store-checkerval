@@ -10,7 +10,7 @@ class BattlepassCubit extends Cubit<BattlepassState> {
         super(const BattlepassInitial());
 
   Future<void> loadBattlepass({bool forceRefresh = false}) async {
-    if (state is! BattlepassLoaded) {
+    if (forceRefresh || state is! BattlepassLoaded) {
       emit(const BattlepassLoading());
     }
 
@@ -19,11 +19,7 @@ class BattlepassCubit extends Cubit<BattlepassState> {
 
     result.when(
       success: (overview) => emit(BattlepassLoaded(overview: overview)),
-      failure: (failure) {
-        if (state is! BattlepassLoaded) {
-          emit(BattlepassError(message: failure.message));
-        }
-      },
+      failure: (failure) => emit(BattlepassError(message: failure.message)),
     );
   }
 }

@@ -43,7 +43,11 @@ class BattlepassRepositoryImpl implements BattlepassRepository {
         final cached = _localStore.getMap('cached_battlepass_overview');
         if (cached != null && cached.isNotEmpty) {
           try {
-            return Result.success(BattlepassOverview.fromJson(cached));
+            final overview = BattlepassOverview.fromJson(cached);
+            if (overview.battlepassName != 'Act Battlepass' &&
+                overview.battlepassName != 'CLOSED BETA REWARDS') {
+              return Result.success(overview);
+            }
           } catch (_) {}
         }
       }
@@ -75,6 +79,7 @@ class BattlepassRepositoryImpl implements BattlepassRepository {
         ),
         _remoteDataSource.fetchMissionsMetadata(),
         _remoteDataSource.fetchContractsMetadata(),
+        _remoteDataSource.fetchSeasonsMetadata(),
       ]);
 
       final contractsData = futures[0] as Map<String, dynamic>?;
@@ -82,12 +87,35 @@ class BattlepassRepositoryImpl implements BattlepassRepository {
           futures[1] as Map<String, Map<String, dynamic>>;
       final contractsMetadata =
           futures[2] as List<Map<String, dynamic>>;
+      final seasonsMetadata =
+          futures[3] as List<Map<String, dynamic>>;
+
+      if (contractsData == null) {
+        // Check for existing valid cache
+        final cached = _localStore.getMap('cached_battlepass_overview');
+        if (cached != null && cached.isNotEmpty) {
+          try {
+            final overview = BattlepassOverview.fromJson(cached);
+            if (overview.battlepassName != 'Act Battlepass' &&
+                overview.battlepassName != 'CLOSED BETA REWARDS') {
+              return Result.success(overview);
+            }
+          } catch (_) {}
+        }
+
+        return const Result.failure(
+          ServerFailure(
+            message:
+                'Failed to load Battlepass & Missions from Riot. Please sign in again or retry.',
+          ),
+        );
+      }
 
       final List<MissionItem> dailyMissions = [];
       final List<MissionItem> weeklyMissions = [];
 
       // Parse Missions
-      if (contractsData != null && contractsData['Missions'] is List) {
+      if (contractsData['Missions'] is List) {
         final rawMissions = contractsData['Missions'] as List<dynamic>;
 
         for (final m in rawMissions) {
@@ -117,13 +145,13 @@ class BattlepassRepositoryImpl implements BattlepassRepository {
                 ? MissionType.daily
                 : metaType.contains('weekly')
                     ? MissionType.weekly
-                    : MissionType.other;
+                    : (xpGrant >= 8000 ? MissionType.weekly : MissionType.daily);
 
             final item = MissionItem(
               uuid: id,
               title: title,
               type: type,
-              currentProgress: progress,
+              currentProgress: progress.clamp(0, progressToComplete),
               progressToComplete: progressToComplete,
               xpReward: xpGrant,
               isCompleted: isComplete,
@@ -131,104 +159,193 @@ class BattlepassRepositoryImpl implements BattlepassRepository {
 
             if (type == MissionType.daily) {
               dailyMissions.add(item);
-            } else if (type == MissionType.weekly) {
-              weeklyMissions.add(item);
             } else {
-              // Categorize into daily or weekly based on XP size if type was generic
-              if (xpGrant >= 8000) {
-                weeklyMissions.add(item);
-              } else {
-                dailyMissions.add(item);
-              }
+              weeklyMissions.add(item);
             }
           }
         }
       }
 
-      // Parse Battlepass Contract
-      String bpName = 'Act Battlepass';
-      int currentTier = 1;
-      int maxTier = 55;
-      int currentTierXp = 0;
-      int tierXpRequired = 10000;
-      int totalXp = 0;
-      final List<BattlepassRewardItem> rewards = [];
-
-      // Find Season Battlepass Contract from metadata
+      // Collect Season Battlepass Contracts from metadata
       Map<String, dynamic>? bpContractMeta;
+      final activeSpecialContract =
+          (contractsData['ActiveSpecialContract'] ?? '').toString().toLowerCase();
+
+      final seasonContracts = <String, Map<String, dynamic>>{};
+      final List<Map<String, dynamic>> orderedSeasonContracts = [];
       for (final c in contractsMetadata) {
         final content = c['content'] as Map<String, dynamic>?;
         final rel = (content?['relationType'] ?? '').toString().toLowerCase();
-        final name = (c['displayName'] ?? '').toString().toLowerCase();
-        if (rel == 'season' || name.contains('battlepass') || name.contains('ep ')) {
-          bpContractMeta = c;
-          bpName = c['displayName'] ?? 'Act Battlepass';
-          break;
+        final uuid = (c['uuid'] ?? '').toString().toLowerCase();
+        if (rel == 'season') {
+          seasonContracts[uuid] = c;
+          orderedSeasonContracts.add(c);
         }
       }
 
-      if (bpContractMeta != null &&
-          contractsData != null &&
-          contractsData['Contracts'] is List) {
-        final bpUuid =
-            (bpContractMeta['uuid'] ?? '').toString().toLowerCase();
-        final playerContracts =
-            contractsData['Contracts'] as List<dynamic>;
+      // 1. Try matching ActiveSpecialContract from Riot response
+      if (activeSpecialContract.isNotEmpty &&
+          seasonContracts.containsKey(activeSpecialContract)) {
+        bpContractMeta = seasonContracts[activeSpecialContract];
+      }
 
-        for (final pc in playerContracts) {
-          if (pc is Map) {
-            final pcDefId = (pc['ContractDefinitionID'] ?? '')
-                .toString()
-                .toLowerCase();
-            if (pcDefId == bpUuid) {
-              currentTier = (pc['ProgressionLevelReached'] as int? ?? 0);
-              final prog = pc['ContractProgression'] as Map<String, dynamic>?;
-              totalXp = (prog?['TotalProgressionEarned'] as int? ?? 0);
+      // 2. Try matching from player's contracts in contractsData
+      final playerContracts = (contractsData['Contracts'] as List<dynamic>? ?? [])
+          .whereType<Map<String, dynamic>>()
+          .toList();
+
+      if (bpContractMeta == null) {
+        for (final pc in playerContracts.reversed) {
+          final defId =
+              (pc['ContractDefinitionID'] ?? '').toString().toLowerCase();
+          if (seasonContracts.containsKey(defId)) {
+            bpContractMeta = seasonContracts[defId];
+            break;
+          }
+        }
+      }
+
+      // 3. Try matching current Act season by active UTC dates
+      if (bpContractMeta == null && seasonsMetadata.isNotEmpty) {
+        final now = DateTime.now().toUtc();
+        String? activeSeasonUuid;
+        for (final s in seasonsMetadata) {
+          final type = (s['type'] ?? '').toString().toLowerCase();
+          final startStr = s['startTime']?.toString();
+          final endStr = s['endTime']?.toString();
+          if (type.contains('act') && startStr != null && endStr != null) {
+            final start = DateTime.tryParse(startStr);
+            final end = DateTime.tryParse(endStr);
+            if (start != null &&
+                end != null &&
+                now.isAfter(start) &&
+                now.isBefore(end)) {
+              activeSeasonUuid = (s['uuid'] ?? '').toString().toLowerCase();
               break;
             }
           }
         }
 
-        // Parse upcoming tier rewards from chapters
-        try {
-          final content =
-              bpContractMeta['content'] as Map<String, dynamic>?;
-          final chapters = content?['chapters'] as List<dynamic>? ?? [];
-          int tierCounter = 0;
-
-          for (final ch in chapters) {
-            if (ch is Map) {
-              final levels = ch['levels'] as List<dynamic>? ?? [];
-              for (final lvl in levels) {
-                tierCounter++;
-                if (lvl is Map) {
-                  final reward = lvl['reward'] as Map<String, dynamic>?;
-                  if (reward != null &&
-                      tierCounter >= currentTier &&
-                      rewards.length < 5) {
-                    rewards.add(
-                      BattlepassRewardItem(
-                        tier: tierCounter,
-                        displayName: (reward['displayName'] ?? 'Reward Tier $tierCounter').toString(),
-                        displayIcon: reward['displayIcon']?.toString(),
-                        rewardType: (reward['type'] ?? 'Reward').toString(),
-                        isFree: lvl['isFree'] as bool? ?? false,
-                      ),
-                    );
-                  }
-                  if (tierCounter == currentTier + 1) {
-                    tierXpRequired = lvl['xp'] as int? ?? 10000;
-                  }
-                }
-              }
+        if (activeSeasonUuid != null) {
+          for (final sc in orderedSeasonContracts) {
+            final content = sc['content'] as Map<String, dynamic>?;
+            final relUuid =
+                (content?['relationUuid'] ?? '').toString().toLowerCase();
+            if (relUuid == activeSeasonUuid) {
+              bpContractMeta = sc;
+              break;
             }
           }
-          maxTier = tierCounter > 0 ? tierCounter : 55;
-        } catch (_) {}
+        }
       }
 
-      // Calculate current tier remainder XP
-      currentTierXp = (totalXp % (tierXpRequired > 0 ? tierXpRequired : 10000));
+      // 4. Fallback: pick the latest Season contract chronologically
+      if (bpContractMeta == null && orderedSeasonContracts.isNotEmpty) {
+        bpContractMeta = orderedSeasonContracts.last;
+      }
+
+      final bpUuid = (bpContractMeta?['uuid'] ?? '').toString().toLowerCase();
+      Map<String, dynamic>? playerBpContract;
+
+      for (final pc in playerContracts) {
+        final defId =
+            (pc['ContractDefinitionID'] ?? '').toString().toLowerCase();
+        if (defId == bpUuid) {
+          playerBpContract = pc;
+          break;
+        }
+      }
+
+      final String bpName =
+          bpContractMeta?['displayName'] ?? 'Act Battlepass';
+      final int currentTier =
+          (playerBpContract?['ProgressionLevelReached'] as int? ?? 0);
+      final int currentTierXp =
+          (playerBpContract?['ProgressionTowardsNextLevel'] as int? ?? 0);
+      final prog =
+          playerBpContract?['ContractProgression'] as Map<String, dynamic>?;
+      final int totalXp = (prog?['TotalProgressionEarned'] as int? ?? 0);
+
+      // Extract chapter levels & XP requirements
+      final List<Map<String, dynamic>> allLevels = [];
+      final content = bpContractMeta?['content'] as Map<String, dynamic>?;
+      final chapters = (content?['chapters'] as List<dynamic>? ?? [])
+          .whereType<Map<String, dynamic>>()
+          .toList();
+
+      for (final ch in chapters) {
+        final levels = (ch['levels'] as List<dynamic>? ?? [])
+            .whereType<Map<String, dynamic>>()
+            .toList();
+        allLevels.addAll(levels);
+      }
+
+      final int maxTier = allLevels.isNotEmpty ? allLevels.length : 55;
+
+      // Determine XP required for upcoming tier
+      int tierXpRequired = 10000;
+      final targetTierIndex =
+          currentTier < allLevels.length ? currentTier : allLevels.length - 1;
+      if (targetTierIndex >= 0 && targetTierIndex < allLevels.length) {
+        final xpReq = allLevels[targetTierIndex]['xp'] as int? ?? 0;
+        if (xpReq > 0) {
+          tierXpRequired = xpReq;
+        } else if (targetTierIndex + 1 < allLevels.length) {
+          tierXpRequired =
+              allLevels[targetTierIndex + 1]['xp'] as int? ?? 2000;
+        }
+      }
+
+      // Collect raw upcoming rewards (next 5 tiers)
+      final List<Map<String, dynamic>> rawUpcomingRewards = [];
+      int tierCounter = 0;
+      for (final lvl in allLevels) {
+        tierCounter++;
+        if (tierCounter > currentTier && rawUpcomingRewards.length < 5) {
+          final reward = lvl['reward'] as Map<String, dynamic>?;
+          if (reward != null) {
+            rawUpcomingRewards.add({
+              'tier': tierCounter,
+              'uuid': (reward['uuid'] ?? '').toString(),
+              'type': (reward['type'] ?? 'Item').toString(),
+              'isFree': lvl['isFree'] as bool? ?? false,
+            });
+          }
+        }
+      }
+
+      // Enrich upcoming rewards with real display names and icons
+      final rewardFutures = rawUpcomingRewards.map((rw) async {
+        final uuid = rw['uuid'] as String;
+        final type = rw['type'] as String;
+        final tier = rw['tier'] as int;
+        final isFree = rw['isFree'] as bool;
+
+        String displayName = 'Tier $tier Reward';
+        String? displayIcon;
+
+        if (uuid.isNotEmpty) {
+          final details = await _remoteDataSource.fetchRewardDetails(
+            uuid: uuid,
+            type: type,
+          );
+          if (details != null) {
+            displayName = details['displayName'] ?? displayName;
+            displayIcon = details['displayIcon'];
+          }
+        }
+
+        return BattlepassRewardItem(
+          tier: tier,
+          displayName: displayName,
+          displayIcon: displayIcon,
+          rewardType: type,
+          isFree: isFree,
+        );
+      }).toList();
+
+      final List<BattlepassRewardItem> rewards =
+          await Future.wait(rewardFutures);
 
       final overview = BattlepassOverview(
         battlepassName: bpName,
@@ -252,7 +369,11 @@ class BattlepassRepositoryImpl implements BattlepassRepository {
       final cached = _localStore.getMap('cached_battlepass_overview');
       if (cached != null && cached.isNotEmpty) {
         try {
-          return Result.success(BattlepassOverview.fromJson(cached));
+          final overview = BattlepassOverview.fromJson(cached);
+          if (overview.battlepassName != 'Act Battlepass' &&
+              overview.battlepassName != 'CLOSED BETA REWARDS') {
+            return Result.success(overview);
+          }
         } catch (_) {}
       }
 

@@ -31,8 +31,12 @@ class ValorantApiRemoteDataSourceImpl implements ValorantApiRemoteDataSource {
       for (final item in data) {
         if (item is Map<String, dynamic>) {
           final uuid = item['uuid'] as String? ?? '';
+          final rawName = item['displayName'] as String? ?? 'Standard';
+          final cleanName = rawName
+              .replaceAll(RegExp(r'\s+Edition$', caseSensitive: false), '')
+              .trim();
           tiers[uuid] = {
-            'name': item['displayName'] as String? ?? 'Standard',
+            'name': cleanName.isNotEmpty ? cleanName : rawName,
             'color': item['highlightColor'] as String? ?? 'FFFFFF',
             'icon': item['displayIcon'] as String?,
           };
@@ -192,10 +196,31 @@ class ValorantApiRemoteDataSourceImpl implements ValorantApiRemoteDataSource {
             }
           }
 
-          // Get icon from chromas if displayIcon is null
+          // Get icon from displayIcon, chromas, or levels
           String? icon = displayIcon;
-          if (icon == null && chromas.isNotEmpty) {
-            icon = chromas.first.displayIcon ?? chromas.first.fullRender;
+          if (icon == null || icon.isEmpty) {
+            if (chromas.isNotEmpty) {
+              icon = chromas.first.displayIcon ?? chromas.first.fullRender;
+            }
+            if (icon == null || icon.isEmpty) {
+              for (final c in chromas) {
+                if (c.displayIcon != null && c.displayIcon!.isNotEmpty) {
+                  icon = c.displayIcon;
+                  break;
+                } else if (c.fullRender != null && c.fullRender!.isNotEmpty) {
+                  icon = c.fullRender;
+                  break;
+                }
+              }
+            }
+            if (icon == null || icon.isEmpty) {
+              for (final l in levels) {
+                if (l.displayIcon != null && l.displayIcon!.isNotEmpty) {
+                  icon = l.displayIcon;
+                  break;
+                }
+              }
+            }
           }
 
           // Check if item or any of its levels/chromas comes from a Battlepass

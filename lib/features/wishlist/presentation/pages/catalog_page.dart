@@ -32,6 +32,15 @@ class _CatalogPageState extends State<CatalogPage> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    final state = context.read<WishlistCubit>().state;
+    if (state is! WishlistLoaded || state.catalog.isEmpty) {
+      context.read<WishlistCubit>().loadWishlist();
+    }
+  }
+
+  @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
@@ -128,54 +137,126 @@ class _CatalogPageState extends State<CatalogPage> {
               ),
               const SizedBox(height: 12),
 
-              // ─── Catalog Grid ───────────────────────────────
-              Expanded(
-                child: isSearching
-                    ? const Center(
-                        child: CircularProgressIndicator(
-                          color: AppTheme.valorantRed,
-                        ),
-                      )
-                    : catalog.isEmpty
-                        ? Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Icon(
-                                  Icons.search_off_rounded,
-                                  size: 48,
-                                  color: AppTheme.textMuted,
-                                ),
-                                const SizedBox(height: 16),
-                                Text(
-                                  'No skins found',
-                                  style: Theme.of(context).textTheme.titleLarge,
-                                ),
-                                const SizedBox(height: 8),
-                                const Text(
-                                  'Try adjusting your search or filters',
-                                  style:
-                                      TextStyle(color: AppTheme.textSecondary),
-                                ),
-                              ],
+              // ─── Catalog Grid / States ───────────────────────────────
+              if (state is WishlistError)
+                Expanded(
+                  child: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(32),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(
+                            Icons.error_outline_rounded,
+                            size: 48,
+                            color: AppTheme.valorantRed,
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            state.message,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              color: AppTheme.textSecondary,
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                          ElevatedButton.icon(
+                            onPressed: () {
+                              context
+                                  .read<WishlistCubit>()
+                                  .loadWishlist(forceRefresh: true);
+                            },
+                            icon: const Icon(Icons.refresh_rounded),
+                            label: const Text('RETRY'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                )
+              else
+                Expanded(
+                  child: RefreshIndicator(
+                    color: AppTheme.valorantRed,
+                    onRefresh: () async {
+                      await context.read<WishlistCubit>().searchCatalog(
+                            query: _searchController.text,
+                            weapon: _selectedFilter,
+                            forceRefresh: true,
+                          );
+                    },
+                    child: isSearching
+                        ? const Center(
+                            child: CircularProgressIndicator(
+                              color: AppTheme.valorantRed,
                             ),
                           )
-                        : GridView.builder(
-                            padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-                            gridDelegate:
-                                const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 2,
-                              mainAxisSpacing: 12,
-                              crossAxisSpacing: 12,
-                              childAspectRatio: 0.75,
-                            ),
-                            itemCount: catalog.length,
-                            itemBuilder: (context, index) {
-                              final skin = catalog[index];
-                              return _CatalogCard(skin: skin);
-                            },
-                          ),
-              ),
+                        : catalog.isEmpty
+                            ? ListView(
+                                children: [
+                                  SizedBox(
+                                    height:
+                                        MediaQuery.of(context).size.height *
+                                            0.5,
+                                    child: Center(
+                                      child: Column(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          const Icon(
+                                            Icons.search_off_rounded,
+                                            size: 48,
+                                            color: AppTheme.textMuted,
+                                          ),
+                                          const SizedBox(height: 16),
+                                          Text(
+                                            'No skins found',
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .titleLarge,
+                                          ),
+                                          const SizedBox(height: 8),
+                                          const Text(
+                                            'Try adjusting your search or filters',
+                                            style: TextStyle(
+                                                color: AppTheme.textSecondary),
+                                          ),
+                                          const SizedBox(height: 16),
+                                          OutlinedButton.icon(
+                                            onPressed: () {
+                                              _searchController.clear();
+                                              _onFilterSelected('All');
+                                            },
+                                            icon: const Icon(
+                                                Icons.refresh_rounded),
+                                            label: const Text('RESET FILTERS'),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              )
+                            : GridView.builder(
+                                physics:
+                                    const AlwaysScrollableScrollPhysics(),
+                                padding:
+                                    const EdgeInsets.fromLTRB(20, 0, 20, 24),
+                                gridDelegate:
+                                    const SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: 2,
+                                  mainAxisSpacing: 12,
+                                  crossAxisSpacing: 12,
+                                  childAspectRatio: 0.75,
+                                ),
+                                itemCount: catalog.length,
+                                itemBuilder: (context, index) {
+                                  final skin = catalog[index];
+                                  return _CatalogCard(skin: skin);
+                                },
+                              ),
+                  ),
+                ),
             ],
           );
         },

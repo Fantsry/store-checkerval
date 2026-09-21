@@ -176,6 +176,23 @@ void main() {
       );
     });
 
+    test('filterByTier normalizes "Edition" suffix and toggles on repeated tap', () async {
+      when(() => mockRepository.getInventoryOverview(forceRefresh: any(named: 'forceRefresh')))
+          .thenAnswer((_) async => const Result.success(testOverview));
+
+      await cubit.loadInventory();
+
+      // Passing "Exclusive Edition" should match "Exclusive"
+      cubit.filterByTier('Exclusive Edition');
+      expect((cubit.state as InventoryLoaded).filteredSkins.length, equals(1));
+      expect((cubit.state as InventoryLoaded).selectedTier, equals('Exclusive'));
+
+      // Tapping again should toggle off to null
+      cubit.filterByTier('Exclusive');
+      expect((cubit.state as InventoryLoaded).selectedTier, isNull);
+      expect((cubit.state as InventoryLoaded).filteredSkins.length, equals(3));
+    });
+
     test('combined source and tier filtering works correctly', () async {
       when(() => mockRepository.getInventoryOverview(forceRefresh: any(named: 'forceRefresh')))
           .thenAnswer((_) async => const Result.success(testOverview));

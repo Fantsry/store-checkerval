@@ -78,7 +78,9 @@ class BattlepassProgressCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
-                  'TIER ${overview.currentTier}',
+                  overview.currentTier == 0
+                      ? 'TIER 1 (START)'
+                      : 'TIER ${overview.currentTier}',
                   style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w900,
@@ -96,7 +98,9 @@ class BattlepassProgressCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Next Tier Progress',
+                overview.currentTier >= overview.maxTier
+                    ? 'Battlepass Max Completed'
+                    : 'Tier ${overview.currentTier + 1} Progress',
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w600,

@@ -9,8 +9,22 @@ import 'package:valorant_store_tracker/features/wishlist/domain/entities/wishlis
 import 'package:valorant_store_tracker/features/wishlist/presentation/cubit/wishlist_cubit.dart';
 import 'package:valorant_store_tracker/features/wishlist/presentation/cubit/wishlist_state.dart';
 
-class WishlistPage extends StatelessWidget {
+class WishlistPage extends StatefulWidget {
   const WishlistPage({super.key});
+
+  @override
+  State<WishlistPage> createState() => _WishlistPageState();
+}
+
+class _WishlistPageState extends State<WishlistPage> {
+  @override
+  void initState() {
+    super.initState();
+    final state = context.read<WishlistCubit>().state;
+    if (state is WishlistInitial) {
+      context.read<WishlistCubit>().loadWishlist();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -101,7 +115,7 @@ class WishlistPage extends StatelessWidget {
                         ),
                       ),
                     )
-                  else if (state is WishlistLoaded && state.items.isEmpty)
+                  else if (state is WishlistError)
                     Expanded(
                       child: Center(
                         child: Padding(
@@ -109,58 +123,120 @@ class WishlistPage extends StatelessWidget {
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Container(
-                                padding: const EdgeInsets.all(24),
-                                decoration: BoxDecoration(
-                                  color: AppTheme.surfaceLight
-                                      .withValues(alpha: 0.5),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: Icon(
-                                  Icons.favorite_rounded,
-                                  size: 48,
-                                  color: AppTheme.valorantRed
-                                      .withValues(alpha: 0.3),
-                                ),
+                              const Icon(
+                                Icons.error_outline_rounded,
+                                size: 48,
+                                color: AppTheme.valorantRed,
                               ),
-                              const SizedBox(height: 24),
+                              const SizedBox(height: 16),
                               Text(
-                                'No Skins in Wishlist',
-                                style: Theme.of(context).textTheme.titleLarge,
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                'Add skins from the catalog to get\nnotified when they appear in your store.',
+                                state.message,
                                 textAlign: TextAlign.center,
-                                style: Theme.of(context).textTheme.bodyMedium,
+                                style: const TextStyle(
+                                  color: AppTheme.textSecondary,
+                                ),
                               ),
-                              const SizedBox(height: 24),
+                              const SizedBox(height: 20),
                               ElevatedButton.icon(
-                                onPressed: () => context.goNamed('catalog'),
-                                icon: const Icon(Icons.search_rounded),
-                                label: const Text('BROWSE CATALOG'),
+                                onPressed: () {
+                                  context
+                                      .read<WishlistCubit>()
+                                      .loadWishlist(forceRefresh: true);
+                                },
+                                icon: const Icon(Icons.refresh_rounded),
+                                label: const Text('RETRY'),
                               ),
                             ],
                           ),
                         ),
                       ),
                     )
+                  else if (state is WishlistLoaded && state.items.isEmpty)
+                    Expanded(
+                      child: RefreshIndicator(
+                        color: AppTheme.valorantRed,
+                        onRefresh: () => context
+                            .read<WishlistCubit>()
+                            .loadWishlist(forceRefresh: true),
+                        child: ListView(
+                          children: [
+                            SizedBox(
+                              height: MediaQuery.of(context).size.height * 0.6,
+                              child: Center(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(32),
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.all(24),
+                                        decoration: BoxDecoration(
+                                          color: AppTheme.surfaceLight
+                                              .withValues(alpha: 0.5),
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: Icon(
+                                          Icons.favorite_rounded,
+                                          size: 48,
+                                          color: AppTheme.valorantRed
+                                              .withValues(alpha: 0.3),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 24),
+                                      Text(
+                                        'No Skins in Wishlist',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .titleLarge,
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        'Add skins from the catalog to get\nnotified when they appear in your store.',
+                                        textAlign: TextAlign.center,
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodyMedium,
+                                      ),
+                                      const SizedBox(height: 24),
+                                      ElevatedButton.icon(
+                                        onPressed: () =>
+                                            context.goNamed('catalog'),
+                                        icon: const Icon(Icons.search_rounded),
+                                        label: const Text('BROWSE CATALOG'),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
                   else if (state is WishlistLoaded)
                     Expanded(
-                      child: ListView.separated(
-                        padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-                        itemCount: state.items.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 12),
-                        itemBuilder: (context, index) {
-                          final item = state.items[index];
-                          final isInStore = currentStoreUuids
-                              .contains(item.uuid.toLowerCase());
+                      child: RefreshIndicator(
+                        color: AppTheme.valorantRed,
+                        onRefresh: () => context
+                            .read<WishlistCubit>()
+                            .loadWishlist(forceRefresh: true),
+                        child: ListView.separated(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+                          itemCount: state.items.length,
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(height: 12),
+                          itemBuilder: (context, index) {
+                            final item = state.items[index];
+                            final isInStore = currentStoreUuids
+                                .contains(item.uuid.toLowerCase());
 
-                          return _WishlistItemCard(
-                            item: item,
-                            isInStoreNow: isInStore,
-                          );
-                        },
+                            return _WishlistItemCard(
+                              item: item,
+                              isInStoreNow: isInStore,
+                            );
+                          },
+                        ),
                       ),
                     ),
                 ],
@@ -267,6 +343,20 @@ class _WishlistItemCard extends StatelessWidget {
                     ? CachedNetworkImage(
                         imageUrl: item.displayIcon!,
                         fit: BoxFit.contain,
+                        placeholder: (_, __) => const Center(
+                          child: SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: AppTheme.surfaceLight,
+                            ),
+                          ),
+                        ),
+                        errorWidget: (_, __, ___) => const Icon(
+                          Icons.image_not_supported_outlined,
+                          color: AppTheme.textMuted,
+                        ),
                       )
                     : const Icon(
                         Icons.sports_esports_outlined,

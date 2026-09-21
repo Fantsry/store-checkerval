@@ -70,9 +70,12 @@ class WishlistRepositoryImpl implements WishlistRepository {
     String? query,
     String? weaponType,
     String? tier,
+    bool forceRefresh = false,
   }) async {
     try {
-      final allResult = await _storeRepository.getAllCatalogSkins();
+      final allResult = await _storeRepository.getAllCatalogSkins(
+        forceRefresh: forceRefresh,
+      );
       if (allResult.isFailure) {
         return allResult;
       }
@@ -101,10 +104,16 @@ class WishlistRepositoryImpl implements WishlistRepository {
       if (tier != null &&
           tier.trim().isNotEmpty &&
           tier.toLowerCase() != 'all') {
-        final t = tier.trim().toLowerCase();
+        final t = tier
+            .replaceAll(RegExp(r'\s+Edition$', caseSensitive: false), '')
+            .trim()
+            .toLowerCase();
         list = list.where((s) {
-          final skinTier = s.tierName?.toLowerCase() ?? '';
-          return skinTier.contains(t);
+          final skinTier = (s.tierName ?? '')
+              .replaceAll(RegExp(r'\s+Edition$', caseSensitive: false), '')
+              .trim()
+              .toLowerCase();
+          return skinTier.contains(t) || t.contains(skinTier);
         }).toList();
       }
 
