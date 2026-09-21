@@ -4,6 +4,7 @@ import 'package:valorant_store_tracker/features/live_match/domain/entities/live_
 enum LiveMatchPhase {
   preGame, // Agent Select
   coreGame, // Live in Match
+  transitioning, // Agent Select completed, loading map/spawning into match
   inLobby, // In Menu / Not currently in a match
 }
 

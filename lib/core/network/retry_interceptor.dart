@@ -26,12 +26,16 @@ class RetryInterceptor extends Interceptor {
     ErrorInterceptorHandler handler,
   ) async {
     final retryCount = err.requestOptions.extra['retryCount'] as int? ?? 0;
+    final noRetry = err.requestOptions.extra['noRetry'] == true;
+    final allowedRetries = noRetry
+        ? 0
+        : (err.requestOptions.extra['maxRetries'] as int? ?? maxRetries);
 
-    if (_shouldRetry(err) && retryCount < maxRetries) {
+    if (_shouldRetry(err) && retryCount < allowedRetries) {
       final delay = _calculateDelay(retryCount);
       if (kDebugMode) {
         debugPrint(
-          'Retry ${retryCount + 1}/$maxRetries after ${delay.inMilliseconds}ms '
+          'Retry ${retryCount + 1}/$allowedRetries after ${delay.inMilliseconds}ms '
           '— ${err.requestOptions.uri}',
         );
       }

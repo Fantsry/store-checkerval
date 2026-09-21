@@ -302,5 +302,83 @@ void main() {
       expect(player.recentWinRate, equals(60.0));
       expect(player.recentMatchOutcomes, equals([true, true, false, true, false]));
     });
+
+    test('returns transitioning when pregame match has ended (404) and core-game is still loading',
+        () async {
+      when(() => mockRemote.fetchCoreGamePlayer(
+            region: tRegion,
+            shard: tShard,
+            puuid: tPuuid,
+          )).thenAnswer((_) async => null);
+
+      when(() => mockRemote.fetchPreGamePlayer(
+            region: tRegion,
+            shard: tShard,
+            puuid: tPuuid,
+          )).thenAnswer((_) async => {'MatchID': 'stale-pregame-123'});
+
+      when(() => mockRemote.fetchPreGameMatch(
+            region: tRegion,
+            shard: tShard,
+            matchId: 'stale-pregame-123',
+          )).thenAnswer((_) async => null);
+
+      when(() => mockRemote.fetchCoreGameMatch(
+            region: tRegion,
+            shard: tShard,
+            matchId: 'stale-pregame-123',
+          )).thenAnswer((_) async => null);
+
+      final result = await repository.checkLiveMatch();
+
+      expect(result.isSuccess, isTrue);
+      final match = result.valueOrNull!;
+      expect(match.phase, equals(LiveMatchPhase.transitioning));
+      expect(match.matchId, equals('stale-pregame-123'));
+    });
+
+    test('prioritizes core-game match and ignores stale pregame MatchID',
+        () async {
+      when(() => mockRemote.fetchCoreGamePlayer(
+            region: tRegion,
+            shard: tShard,
+            puuid: tPuuid,
+          )).thenAnswer((_) async => {'MatchID': 'active-core-456'});
+
+      when(() => mockRemote.fetchCoreGameMatch(
+            region: tRegion,
+            shard: tShard,
+            matchId: 'active-core-456',
+          )).thenAnswer((_) async => {
+            'MapID': '/Game/Maps/Ascent/Ascent',
+            'ModeID': '/Game/GameModes/Bomb/BombGameMode.BombGameMode_C',
+            'Players': [
+              {
+                'Subject': tPuuid,
+                'TeamID': 'Blue',
+                'CharacterID': 'agent-jett-id',
+              },
+            ],
+          });
+
+      when(() => mockRemote.fetchPlayerNames(
+            shard: tShard,
+            puuids: any(named: 'puuids'),
+          )).thenAnswer((_) async => [
+            {'Subject': tPuuid, 'GameName': 'SelfPlayer', 'TagLine': '123'},
+          ]);
+
+      final result = await repository.checkLiveMatch();
+
+      expect(result.isSuccess, isTrue);
+      final match = result.valueOrNull!;
+      expect(match.phase, equals(LiveMatchPhase.coreGame));
+      expect(match.matchId, equals('active-core-456'));
+      verifyNever(() => mockRemote.fetchPreGamePlayer(
+            region: any(named: 'region'),
+            shard: any(named: 'shard'),
+            puuid: any(named: 'puuid'),
+          ));
+    });
   });
 }

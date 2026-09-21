@@ -239,7 +239,118 @@ class _LiveMatchPageState extends State<LiveMatchPage>
                         ),
                       )
                     else if (state is LiveMatchLoaded) ...[
-                      if (!state.matchData.isInMatch)
+                      if (state.matchData.phase == LiveMatchPhase.transitioning)
+                        // Transitioning (Agent Select completed -> Map Loading / In-Game Spawning)
+                        SliverFillRemaining(
+                          hasScrollBody: false,
+                          child: Padding(
+                            padding: const EdgeInsets.all(32),
+                            child: Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  AnimatedBuilder(
+                                    animation: _radarController,
+                                    builder: (context, child) {
+                                      return Container(
+                                        width: 88,
+                                        height: 88,
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          border: Border.all(
+                                            color: const Color(0xFFE5B94E)
+                                                .withValues(
+                                              alpha:
+                                                  1.0 - _radarController.value,
+                                            ),
+                                            width: 2 +
+                                                (_radarController.value * 4),
+                                          ),
+                                        ),
+                                        child: const Center(
+                                          child: Icon(
+                                            Icons.sports_esports_rounded,
+                                            color: Color(0xFFE5B94E),
+                                            size: 40,
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                  const SizedBox(height: 24),
+                                  const Text(
+                                    'Match Starting...',
+                                    style: TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.w900,
+                                      letterSpacing: 1.2,
+                                      color: AppTheme.textPrimary,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  const Text(
+                                    'Agent select has ended! Match is loading on Valorant servers. Radar will auto-connect to live player stats in a few seconds.',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: AppTheme.textSecondary,
+                                      height: 1.5,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 18),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 14,
+                                      vertical: 10,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFE5B94E)
+                                          .withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(10),
+                                      border: Border.all(
+                                        color: const Color(0xFFE5B94E)
+                                            .withValues(alpha: 0.3),
+                                      ),
+                                    ),
+                                    child: const Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        SizedBox(
+                                          width: 14,
+                                          height: 14,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: Color(0xFFE5B94E),
+                                          ),
+                                        ),
+                                        SizedBox(width: 10),
+                                        Text(
+                                          'Auto-detecting live game...',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                            color: Color(0xFFE5B94E),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(height: 24),
+                                  ElevatedButton.icon(
+                                    onPressed: () {
+                                      context
+                                          .read<LiveMatchCubit>()
+                                          .scanLiveMatch();
+                                    },
+                                    icon: const Icon(Icons.refresh_rounded),
+                                    label: const Text('CHECK NOW'),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        )
+                      else if (!state.matchData.isInMatch)
                         // No Match (In Lobby)
                         SliverFillRemaining(
                           hasScrollBody: false,

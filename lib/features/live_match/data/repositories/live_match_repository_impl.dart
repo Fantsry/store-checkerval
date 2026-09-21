@@ -35,6 +35,16 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
     }
   }
 
+  String? _extractMatchId(Map<String, dynamic>? data) {
+    if (data == null) return null;
+    final id = data['MatchID'] ??
+        data['matchId'] ??
+        data['MatchId'] ??
+        data['matchID'];
+    final str = id?.toString().trim();
+    return (str != null && str.isNotEmpty) ? str : null;
+  }
+
   @override
   Future<Result<LiveMatchData>> checkLiveMatch() async {
     try {
@@ -59,69 +69,121 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
         );
       }
 
-      // Step 1: Check CoreGame (Live in-match)
+      // ── Step 1: Check CoreGame (Live in-match) ──
+      // Prioritize live in-game detection so stale agent select lobbies are ignored
       final corePlayer = await _remoteDataSource.fetchCoreGamePlayer(
         region: region,
         shard: shard,
         puuid: puuid,
       );
+      final coreMatchId = _extractMatchId(corePlayer);
 
-      if (corePlayer != null && corePlayer['MatchID'] != null) {
-        final matchId = corePlayer['MatchID'].toString();
+      // Priority 1: Player is actively in CoreGame (live match)
+      if (coreMatchId != null) {
         final match = await _remoteDataSource.fetchCoreGameMatch(
           region: region,
           shard: shard,
-          matchId: matchId,
+          matchId: coreMatchId,
         );
 
         if (match != null) {
           return await _parseCoreGameMatch(
             shard: shard,
             selfPuuid: puuid,
-            matchId: matchId,
+            matchId: coreMatchId,
             matchData: match,
           );
         } else {
           return Result.failure(
             ServerFailure(
-              message: 'Active match ($matchId) detected, but match details could not be retrieved from Riot servers.',
+              message:
+                  'Active match ($coreMatchId) detected, but match details could not be retrieved from Riot servers.',
             ),
           );
         }
       }
 
-      // Step 2: Check PreGame (Agent Select)
+      // ── Step 2: Check PreGame (Agent Select or Transitioning) ──
       final prePlayer = await _remoteDataSource.fetchPreGamePlayer(
         region: region,
         shard: shard,
         puuid: puuid,
       );
+      final preMatchId = _extractMatchId(prePlayer);
 
-      if (prePlayer != null && prePlayer['MatchID'] != null) {
-        final matchId = prePlayer['MatchID'].toString();
-        final match = await _remoteDataSource.fetchPreGameMatch(
+      // Priority 2: PreGame match (Agent Select) or Transitioning to CoreGame
+      if (preMatchId != null) {
+        final preMatch = await _remoteDataSource.fetchPreGameMatch(
           region: region,
           shard: shard,
-          matchId: matchId,
+          matchId: preMatchId,
         );
 
-        if (match != null) {
+        if (preMatch != null) {
           return await _parsePreGameMatch(
             shard: shard,
             selfPuuid: puuid,
-            matchId: matchId,
-            matchData: match,
-          );
-        } else {
-          return Result.failure(
-            ServerFailure(
-              message: 'Agent select lobby ($matchId) detected, but lobby details could not be retrieved from Riot servers.',
-            ),
+            matchId: preMatchId,
+            matchData: preMatch,
           );
         }
+
+        // ── PreGame match returned 404! ──────────────────────────────
+        // This indicates Agent Select has concluded and the lobby is transitioning
+        // into CoreGame (loading screen / spawning into match).
+
+        // Step A: In certain modes/customs, MatchID remains the same for CoreGame
+        final directCoreMatch = await _remoteDataSource.fetchCoreGameMatch(
+          region: region,
+          shard: shard,
+          matchId: preMatchId,
+        );
+        if (directCoreMatch != null) {
+          return await _parseCoreGameMatch(
+            shard: shard,
+            selfPuuid: puuid,
+            matchId: preMatchId,
+            matchData: directCoreMatch,
+          );
+        }
+
+        // Step B: Dedicated game server can take 1–3s to register CoreGame on GLZ.
+        // Perform quick retries of fetchCoreGamePlayer.
+        for (var i = 0; i < 2; i++) {
+          await Future.delayed(Duration(milliseconds: 1000 + (i * 500)));
+          final retryCore = await _remoteDataSource.fetchCoreGamePlayer(
+            region: region,
+            shard: shard,
+            puuid: puuid,
+          );
+          final retryMatchId = _extractMatchId(retryCore);
+          if (retryMatchId != null) {
+            final match = await _remoteDataSource.fetchCoreGameMatch(
+              region: region,
+              shard: shard,
+              matchId: retryMatchId,
+            );
+            if (match != null) {
+              return await _parseCoreGameMatch(
+                shard: shard,
+                selfPuuid: puuid,
+                matchId: retryMatchId,
+                matchData: match,
+              );
+            }
+          }
+        }
+
+        // Step C: If still in loading screen, return transitioning phase instead of crashing
+        return Result.success(
+          LiveMatchData(
+            phase: LiveMatchPhase.transitioning,
+            matchId: preMatchId,
+          ),
+        );
       }
 
-      // Step 3: Not in match
+      // Priority 3: Neither CoreGame nor PreGame active -> In Lobby
       return const Result.success(
         LiveMatchData(phase: LiveMatchPhase.inLobby),
       );
@@ -173,10 +235,18 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
 
     // Parallelize metadata, names, and player MMR + Competitive lookups
     final results = await Future.wait([
-      _careerDataSource.fetchMapsMetadata(),
-      _careerDataSource.fetchAgentsMetadata(),
-      _careerDataSource.fetchCompetitiveTiersMetadata(),
-      _remoteDataSource.fetchPlayerNames(shard: shard, puuids: puuids),
+      _careerDataSource
+          .fetchMapsMetadata()
+          .catchError((_) => <String, Map<String, dynamic>>{}),
+      _careerDataSource
+          .fetchAgentsMetadata()
+          .catchError((_) => <String, Map<String, dynamic>>{}),
+      _careerDataSource
+          .fetchCompetitiveTiersMetadata()
+          .catchError((_) => <int, Map<String, dynamic>>{}),
+      _remoteDataSource
+          .fetchPlayerNames(shard: shard, puuids: puuids)
+          .catchError((_) => <Map<String, dynamic>>[]),
       Future.wait(
         puuids.map((sub) async {
           Map<String, dynamic>? mmrData;
@@ -341,10 +411,18 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
 
     // Parallelize metadata, names, and player MMR + Competitive lookups
     final results = await Future.wait([
-      _careerDataSource.fetchMapsMetadata(),
-      _careerDataSource.fetchAgentsMetadata(),
-      _careerDataSource.fetchCompetitiveTiersMetadata(),
-      _remoteDataSource.fetchPlayerNames(shard: shard, puuids: puuids),
+      _careerDataSource
+          .fetchMapsMetadata()
+          .catchError((_) => <String, Map<String, dynamic>>{}),
+      _careerDataSource
+          .fetchAgentsMetadata()
+          .catchError((_) => <String, Map<String, dynamic>>{}),
+      _careerDataSource
+          .fetchCompetitiveTiersMetadata()
+          .catchError((_) => <int, Map<String, dynamic>>{}),
+      _remoteDataSource
+          .fetchPlayerNames(shard: shard, puuids: puuids)
+          .catchError((_) => <Map<String, dynamic>>[]),
       Future.wait(
         puuids.map((sub) async {
           Map<String, dynamic>? mmrData;
