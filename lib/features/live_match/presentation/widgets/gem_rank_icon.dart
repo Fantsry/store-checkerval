@@ -1,28 +1,78 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:valorant_store_tracker/app/theme.dart';
 
-/// Custom diamond/gem shaped rank icon widget.
-/// Draws a flat-shaded diamond using CustomPainter with colors
-/// derived from rank tier name (Iron, Bronze, Silver, Gold, etc.).
-class GemRankIcon extends StatelessWidget {
+/// Official Valorant rank badge icon widget using authentic Riot Games assets.
+class ValorantRankIcon extends StatelessWidget {
+  final String? iconUrl;
+  final int? tier;
   final String tierName;
   final double size;
   final bool showGlow;
   final bool isCurrent;
 
-  const GemRankIcon({
+  const ValorantRankIcon({
     super.key,
-    required this.tierName,
+    this.iconUrl,
+    this.tier,
+    this.tierName = 'Unrated',
     this.size = 24,
     this.showGlow = false,
     this.isCurrent = false,
   });
 
+  /// Map common Valorant tier names to official tier index (0 - 27).
+  static int tierNameToIndex(String name) {
+    final clean = name.trim().toLowerCase();
+    if (clean.contains('radiant')) return 27;
+    if (clean.contains('immortal 3')) return 26;
+    if (clean.contains('immortal 2')) return 25;
+    if (clean.contains('immortal')) return 24;
+    if (clean.contains('ascendant 3')) return 23;
+    if (clean.contains('ascendant 2')) return 22;
+    if (clean.contains('ascendant')) return 21;
+    if (clean.contains('diamond 3')) return 20;
+    if (clean.contains('diamond 2')) return 19;
+    if (clean.contains('diamond')) return 18;
+    if (clean.contains('platinum 3')) return 17;
+    if (clean.contains('platinum 2')) return 16;
+    if (clean.contains('platinum')) return 15;
+    if (clean.contains('gold 3')) return 14;
+    if (clean.contains('gold 2')) return 13;
+    if (clean.contains('gold')) return 12;
+    if (clean.contains('silver 3')) return 11;
+    if (clean.contains('silver 2')) return 10;
+    if (clean.contains('silver')) return 9;
+    if (clean.contains('bronze 3')) return 8;
+    if (clean.contains('bronze 2')) return 7;
+    if (clean.contains('bronze')) return 6;
+    if (clean.contains('iron 3')) return 5;
+    if (clean.contains('iron 2')) return 4;
+    if (clean.contains('iron')) return 3;
+    return 0; // Unrated / Unranked
+  }
+
+  /// Official Valorant-API.com competitive tiers image URL.
+  static String getOfficialTierIconUrl(int tier) {
+    return 'https://media.valorant-api.com/competitivetiers/03621f52-342b-449e-a4f6-4eb2b294d734/$tier/largeicon.png';
+  }
+
+  String _resolveImageUrl() {
+    if (iconUrl != null && iconUrl!.trim().isNotEmpty) {
+      return iconUrl!.trim();
+    }
+    final tierIndex = tier ?? tierNameToIndex(tierName);
+    return getOfficialTierIconUrl(tierIndex);
+  }
+
   @override
   Widget build(BuildContext context) {
     final color = AppTheme.getRankTierColor(tierName);
     final isUnranked = tierName.toLowerCase() == 'unranked' ||
+        tierName.toLowerCase() == 'unrated' ||
+        (tier == 0) ||
         tierName.isEmpty;
+    final imageUrl = _resolveImageUrl();
 
     return SizedBox(
       width: size,
@@ -30,183 +80,67 @@ class GemRankIcon extends StatelessWidget {
       child: Stack(
         alignment: Alignment.center,
         children: [
-          // Glow ring for current rank
+          // Esports subtle ambient glow behind the official badge
           if (showGlow && !isUnranked)
             Container(
-              width: size,
-              height: size,
+              width: size * 0.85,
+              height: size * 0.85,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: color.withValues(alpha: 0.4),
-                    blurRadius: size * 0.4,
+                    color: color.withValues(alpha: 0.35),
+                    blurRadius: size * 0.45,
                     spreadRadius: size * 0.05,
                   ),
                 ],
               ),
             ),
-          // The gem itself
-          CustomPaint(
-            size: Size(size * 0.8, size * 0.8),
-            painter: _GemPainter(
-              color: color,
-              isUnranked: isUnranked,
+
+          // Authentic Riot Games Valorant Rank Icon from official CDN
+          CachedNetworkImage(
+            imageUrl: imageUrl,
+            width: size,
+            height: size,
+            fit: BoxFit.contain,
+            placeholder: (context, url) => SizedBox(
+              width: size * 0.6,
+              height: size * 0.6,
+              child: const Center(
+                child: CircularProgressIndicator(
+                  strokeWidth: 1.5,
+                  color: AppTheme.accentMagenta,
+                ),
+              ),
             ),
+            errorWidget: (context, url, error) {
+              // Fallback to small icon URL if largeicon failed, or unrated badge
+              if (url.contains('largeicon.png')) {
+                return CachedNetworkImage(
+                  imageUrl: url.replaceAll('largeicon.png', 'smallicon.png'),
+                  width: size,
+                  height: size,
+                  fit: BoxFit.contain,
+                  errorWidget: (_, __, ___) =>
+                      _buildFallbackBadge(color, isUnranked),
+                );
+              }
+              return _buildFallbackBadge(color, isUnranked);
+            },
           ),
         ],
       ),
     );
   }
-}
 
-class _GemPainter extends CustomPainter {
-  final Color color;
-  final bool isUnranked;
-
-  _GemPainter({
-    required this.color,
-    required this.isUnranked,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (isUnranked) {
-      _paintUnranked(canvas, size);
-      return;
-    }
-
-    final cx = size.width / 2;
-    final cy = size.height / 2;
-
-    // Diamond shape points
-    final top = Offset(cx, 0);
-    final right = Offset(size.width, cy);
-    final bottom = Offset(cx, size.height);
-    final left = Offset(0, cy);
-
-    // Main diamond fill
-    final mainPath = Path()
-      ..moveTo(top.dx, top.dy)
-      ..lineTo(right.dx, right.dy)
-      ..lineTo(bottom.dx, bottom.dy)
-      ..lineTo(left.dx, left.dy)
-      ..close();
-
-    final mainPaint = Paint()
-      ..color = color
-      ..style = PaintingStyle.fill;
-    canvas.drawPath(mainPath, mainPaint);
-
-    // Top-left facet (lighter)
-    final topLeftPath = Path()
-      ..moveTo(top.dx, top.dy)
-      ..lineTo(cx, cy)
-      ..lineTo(left.dx, left.dy)
-      ..close();
-
-    final topLeftPaint = Paint()
-      ..color = Color.lerp(color, Colors.white, 0.25)!
-      ..style = PaintingStyle.fill;
-    canvas.drawPath(topLeftPath, topLeftPaint);
-
-    // Top-right facet (slightly lighter)
-    final topRightPath = Path()
-      ..moveTo(top.dx, top.dy)
-      ..lineTo(cx, cy)
-      ..lineTo(right.dx, right.dy)
-      ..close();
-
-    final topRightPaint = Paint()
-      ..color = Color.lerp(color, Colors.white, 0.12)!
-      ..style = PaintingStyle.fill;
-    canvas.drawPath(topRightPath, topRightPaint);
-
-    // Bottom-right facet (darker)
-    final bottomRightPath = Path()
-      ..moveTo(right.dx, right.dy)
-      ..lineTo(cx, cy)
-      ..lineTo(bottom.dx, bottom.dy)
-      ..close();
-
-    final bottomRightPaint = Paint()
-      ..color = Color.lerp(color, Colors.black, 0.2)!
-      ..style = PaintingStyle.fill;
-    canvas.drawPath(bottomRightPath, bottomRightPaint);
-
-    // Bottom-left facet (darkest)
-    final bottomLeftPath = Path()
-      ..moveTo(left.dx, left.dy)
-      ..lineTo(cx, cy)
-      ..lineTo(bottom.dx, bottom.dy)
-      ..close();
-
-    final bottomLeftPaint = Paint()
-      ..color = Color.lerp(color, Colors.black, 0.3)!
-      ..style = PaintingStyle.fill;
-    canvas.drawPath(bottomLeftPath, bottomLeftPaint);
-
-    // Outline
-    final outlinePaint = Paint()
-      ..color = color.withValues(alpha: 0.6)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 0.5;
-    canvas.drawPath(mainPath, outlinePaint);
-
-    // Inner highlight line
-    final highlightPaint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.3)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 0.5;
-    canvas.drawLine(top, Offset(cx, cy), highlightPaint);
-  }
-
-  void _paintUnranked(Canvas canvas, Size size) {
-    final cx = size.width / 2;
-    final cy = size.height / 2;
-
-    final top = Offset(cx, 0);
-    final right = Offset(size.width, cy);
-    final bottom = Offset(cx, size.height);
-    final left = Offset(0, cy);
-
-    final path = Path()
-      ..moveTo(top.dx, top.dy)
-      ..lineTo(right.dx, right.dy)
-      ..lineTo(bottom.dx, bottom.dy)
-      ..lineTo(left.dx, left.dy)
-      ..close();
-
-    final paint = Paint()
-      ..color = const Color(0xFF3E4049)
-      ..style = PaintingStyle.fill;
-    canvas.drawPath(path, paint);
-
-    final outlinePaint = Paint()
-      ..color = const Color(0xFF6B6F7B).withValues(alpha: 0.3)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 0.5;
-    canvas.drawPath(path, outlinePaint);
-
-    // Question mark for unranked
-    final textPainter = TextPainter(
-      text: const TextSpan(
-        text: '?',
-        style: TextStyle(
-          color: Color(0xFF6B6F7B),
-          fontSize: 8,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout();
-    textPainter.paint(
-      canvas,
-      Offset(cx - textPainter.width / 2, cy - textPainter.height / 2),
+  Widget _buildFallbackBadge(Color color, bool isUnranked) {
+    return Icon(
+      Icons.military_tech_rounded,
+      size: size * 0.85,
+      color: isUnranked ? AppTheme.textSecondary : color,
     );
   }
-
-  @override
-  bool shouldRepaint(covariant _GemPainter oldDelegate) =>
-      color != oldDelegate.color || isUnranked != oldDelegate.isUnranked;
 }
+
+/// Backwards compatibility alias
+typedef GemRankIcon = ValorantRankIcon;

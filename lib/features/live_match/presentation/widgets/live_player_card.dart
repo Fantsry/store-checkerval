@@ -308,9 +308,10 @@ class _RankSection extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 2),
-            GemRankIcon(
+            ValorantRankIcon(
+              iconUrl: player.rankIcon,
               tierName: player.currentRankTierName,
-              size: 22,
+              size: 24,
               showGlow: true,
               isCurrent: true,
             ),
@@ -342,9 +343,10 @@ class _RankSection extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 2),
-            GemRankIcon(
+            ValorantRankIcon(
+              iconUrl: player.peakRankIcon,
               tierName: player.peakRankTierName,
-              size: 22,
+              size: 24,
               showGlow: false,
               isCurrent: false,
             ),

@@ -32,10 +32,12 @@ class RankOverviewCard extends StatelessWidget {
           // ─── Header: Gem Rank Icon + Name + Peak Rank ──────────
           Row(
             children: [
-              // Gem Rank Icon (large)
-              GemRankIcon(
+              // Official Valorant Rank Icon (large)
+              ValorantRankIcon(
+                iconUrl: overview.currentTierIcon,
+                tier: overview.currentTier,
                 tierName: overview.currentTierName,
-                size: 48,
+                size: 52,
                 showGlow: true,
                 isCurrent: true,
               ),
@@ -97,9 +99,11 @@ class RankOverviewCard extends StatelessWidget {
                         overview.peakTierName != 'Unrated')
                       Row(
                         children: [
-                          GemRankIcon(
+                          ValorantRankIcon(
+                            iconUrl: overview.peakTierIcon,
+                            tier: overview.peakTier,
                             tierName: overview.peakTierName!,
-                            size: 14,
+                            size: 16,
                           ),
                           const SizedBox(width: 4),
                           Text(
