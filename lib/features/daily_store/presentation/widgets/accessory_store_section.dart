@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:valorant_store_tracker/app/theme.dart';
 import 'package:valorant_store_tracker/core/utils/timezone_helper.dart';
 import 'package:valorant_store_tracker/features/daily_store/domain/entities/daily_store.dart';
@@ -85,8 +86,8 @@ class _AccessoryStoreSectionState extends State<AccessoryStoreSection> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           decoration: BoxDecoration(
-            color: AppTheme.surfaceDark,
-            borderRadius: BorderRadius.circular(16),
+            color: AppTheme.cardDark,
+            borderRadius: BorderRadius.circular(8),
             border: Border.all(
               color: const Color(0xFF00E5FF).withValues(alpha: 0.3),
             ),
@@ -97,15 +98,15 @@ class _AccessoryStoreSectionState extends State<AccessoryStoreSection> {
                 child: Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.all(8),
+                      padding: const EdgeInsets.all(7),
                       decoration: BoxDecoration(
                         color: const Color(0xFF00E5FF).withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(10),
+                        borderRadius: BorderRadius.circular(6),
                       ),
                       child: const Icon(
                         Icons.storefront_rounded,
                         color: Color(0xFF00E5FF),
-                        size: 20,
+                        size: 18,
                       ),
                     ),
                     const SizedBox(width: 10),
@@ -147,8 +148,8 @@ class _AccessoryStoreSectionState extends State<AccessoryStoreSection> {
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.5),
-                    borderRadius: BorderRadius.circular(8),
+                    color: Colors.black.withValues(alpha: 0.6),
+                    borderRadius: BorderRadius.circular(4),
                     border: Border.all(
                       color: const Color(0xFF00E5FF).withValues(alpha: 0.3),
                     ),
@@ -166,11 +167,11 @@ class _AccessoryStoreSectionState extends State<AccessoryStoreSection> {
                         TimezoneHelper.formatWeeklyDuration(
                           Duration(seconds: _remainingSeconds),
                         ),
-                        style: const TextStyle(
-                          fontFamily: 'monospace',
-                          fontSize: 10,
+                        style: GoogleFonts.rajdhani(
+                          fontSize: 11,
                           fontWeight: FontWeight.w700,
-                          color: Color(0xFF00E5FF),
+                          letterSpacing: 0.8,
+                          color: const Color(0xFF00E5FF),
                         ),
                       ),
                     ],
@@ -198,10 +199,10 @@ class _AccessoryStoreSectionState extends State<AccessoryStoreSection> {
             return Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: AppTheme.surfaceDark,
-                borderRadius: BorderRadius.circular(16),
+                color: AppTheme.cardDark,
+                borderRadius: BorderRadius.circular(6),
                 border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.08),
+                  color: Colors.white.withValues(alpha: 0.06),
                 ),
               ),
               child: Column(
@@ -235,8 +236,8 @@ class _AccessoryStoreSectionState extends State<AccessoryStoreSection> {
                       Row(
                         children: [
                           Container(
-                            width: 8,
-                            height: 8,
+                            width: 7,
+                            height: 7,
                             decoration: const BoxDecoration(
                               shape: BoxShape.circle,
                               color: Color(0xFF00E5FF),
@@ -245,10 +246,10 @@ class _AccessoryStoreSectionState extends State<AccessoryStoreSection> {
                           const SizedBox(width: 4),
                           Text(
                             '${item.kcCost} KC',
-                            style: const TextStyle(
-                              fontSize: 11,
+                            style: GoogleFonts.rajdhani(
+                              fontSize: 12,
                               fontWeight: FontWeight.w800,
-                              color: Color(0xFF00E5FF),
+                              color: const Color(0xFF00E5FF),
                             ),
                           ),
                         ],

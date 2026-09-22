@@ -25,10 +25,10 @@ class StoreAlertSheet extends StatelessWidget {
     return Container(
       height: MediaQuery.of(context).size.height * 0.85,
       decoration: const BoxDecoration(
-        color: AppTheme.surfaceDark,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        color: AppTheme.backgroundDark,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
         border: Border(
-          top: BorderSide(color: AppTheme.valorantRed, width: 2),
+          top: BorderSide(color: AppTheme.accentMagenta, width: 2),
         ),
       ),
       child: Column(
@@ -50,25 +50,38 @@ class StoreAlertSheet extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                Row(
                   children: [
-                    Text(
-                      'ATURAN NOTIFIKASI SKIN',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 1.2,
-                        color: AppTheme.textPrimary,
+                    Container(
+                      width: 3,
+                      height: 32,
+                      margin: const EdgeInsets.only(right: 10),
+                      decoration: BoxDecoration(
+                        color: AppTheme.accentMagenta,
+                        borderRadius: BorderRadius.circular(1.5),
                       ),
                     ),
-                    SizedBox(height: 2),
-                    Text(
-                      'Notifikasi otomatis untuk senjata & tier tertentu',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: AppTheme.textSecondary,
-                      ),
+                    const Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'ATURAN NOTIFIKASI SKIN',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 1.5,
+                            color: AppTheme.textPrimary,
+                          ),
+                        ),
+                        SizedBox(height: 2),
+                        Text(
+                          'Notifikasi otomatis untuk senjata & tier tertentu',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: AppTheme.textSecondary,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -81,7 +94,7 @@ class StoreAlertSheet extends StatelessWidget {
             ),
           ),
 
-          const Divider(color: AppTheme.surfaceLight, height: 1),
+          Divider(color: Colors.white.withValues(alpha: 0.06), height: 1),
 
           // ─── Rules List ──────────────────────────────────────────
           Expanded(
@@ -90,7 +103,7 @@ class StoreAlertSheet extends StatelessWidget {
                 if (state is StoreAlertLoading) {
                   return const Center(
                     child: CircularProgressIndicator(
-                      color: AppTheme.valorantRed,
+                      color: AppTheme.accentMagenta,
                     ),
                   );
                 }
@@ -99,7 +112,7 @@ class StoreAlertSheet extends StatelessWidget {
                   return Center(
                     child: Text(
                       state.message,
-                      style: const TextStyle(color: AppTheme.valorantRed),
+                      style: const TextStyle(color: AppTheme.accentMagenta),
                     ),
                   );
                 }
@@ -158,10 +171,10 @@ class StoreAlertSheet extends StatelessWidget {
               height: 48,
               child: ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.valorantRed,
+                  backgroundColor: AppTheme.accentMagenta,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(6),
                   ),
                 ),
                 icon: const Icon(Icons.add_rounded),
@@ -232,12 +245,12 @@ class _RuleCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppTheme.surfaceColor,
-        borderRadius: BorderRadius.circular(14),
+        color: AppTheme.cardDark,
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(
           color: rule.isEnabled
-              ? AppTheme.valorantRed.withValues(alpha: 0.3)
-              : Colors.white.withValues(alpha: 0.05),
+              ? AppTheme.accentMagenta.withValues(alpha: 0.35)
+              : Colors.white.withValues(alpha: 0.06),
         ),
       ),
       child: Row(
@@ -246,15 +259,19 @@ class _RuleCard extends StatelessWidget {
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
               color: rule.isEnabled
-                  ? AppTheme.valorantRed.withValues(alpha: 0.15)
-                  : AppTheme.surfaceLight,
-              borderRadius: BorderRadius.circular(10),
+                  ? AppTheme.accentMagenta.withValues(alpha: 0.15)
+                  : AppTheme.surfaceDark,
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(
+                color: (rule.isEnabled ? AppTheme.accentMagenta : Colors.white)
+                    .withValues(alpha: 0.15),
+              ),
             ),
             child: Icon(
               _getWeaponIcon(rule.weapon),
               size: 20,
               color: rule.isEnabled
-                  ? AppTheme.valorantRed
+                  ? AppTheme.accentMagenta
                   : AppTheme.textSecondary,
             ),
           ),
@@ -286,7 +303,8 @@ class _RuleCard extends StatelessWidget {
           ),
           Switch(
             value: rule.isEnabled,
-            activeThumbColor: AppTheme.valorantRed,
+            activeThumbColor: AppTheme.accentMagenta,
+            activeTrackColor: AppTheme.accentMagenta.withValues(alpha: 0.3),
             onChanged: (val) {
               context.read<StoreAlertCubit>().toggleRule(rule.id, val);
             },
@@ -356,20 +374,20 @@ class _AddRuleDialogState extends State<_AddRuleDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      backgroundColor: AppTheme.surfaceDark,
+      backgroundColor: AppTheme.cardDark,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(8),
         side: BorderSide(
-          color: AppTheme.valorantRed.withValues(alpha: 0.3),
+          color: Colors.white.withValues(alpha: 0.08),
         ),
       ),
       title: const Row(
         children: [
-          Icon(Icons.add_alert_rounded, color: AppTheme.valorantRed),
+          Icon(Icons.add_alert_rounded, color: AppTheme.accentMagenta),
           SizedBox(width: 8),
           Text(
             'Tambah Aturan Alert',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 0.5),
           ),
         ],
       ),
@@ -392,8 +410,8 @@ class _AddRuleDialogState extends State<_AddRuleDialog> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12),
               decoration: BoxDecoration(
-                color: AppTheme.surfaceLight,
-                borderRadius: BorderRadius.circular(10),
+                color: AppTheme.surfaceDark,
+                borderRadius: BorderRadius.circular(6),
                 border: Border.all(
                   color: Colors.white.withValues(alpha: 0.1),
                 ),
@@ -504,8 +522,16 @@ class _AddRuleDialogState extends State<_AddRuleDialog> {
                   label: const Text('Semua Tier'),
                   selected: _selectedTiers.isEmpty,
                   selectedColor:
-                      AppTheme.valorantRed.withValues(alpha: 0.25),
-                  checkmarkColor: AppTheme.valorantRed,
+                      AppTheme.accentMagenta.withValues(alpha: 0.25),
+                  checkmarkColor: AppTheme.accentMagenta,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(6),
+                    side: BorderSide(
+                      color: _selectedTiers.isEmpty
+                          ? AppTheme.accentMagenta.withValues(alpha: 0.5)
+                          : Colors.white.withValues(alpha: 0.1),
+                    ),
+                  ),
                   onSelected: (_) {
                     setState(() => _selectedTiers.clear());
                   },
@@ -516,8 +542,16 @@ class _AddRuleDialogState extends State<_AddRuleDialog> {
                     label: Text(tier),
                     selected: isSelected,
                     selectedColor:
-                        AppTheme.valorantRed.withValues(alpha: 0.25),
-                    checkmarkColor: AppTheme.valorantRed,
+                        AppTheme.accentMagenta.withValues(alpha: 0.25),
+                    checkmarkColor: AppTheme.accentMagenta,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(6),
+                      side: BorderSide(
+                        color: isSelected
+                            ? AppTheme.accentMagenta.withValues(alpha: 0.5)
+                            : Colors.white.withValues(alpha: 0.1),
+                      ),
+                    ),
                     onSelected: (selected) {
                       setState(() {
                         if (selected) {
@@ -548,12 +582,26 @@ class _AddRuleDialogState extends State<_AddRuleDialog> {
             TextField(
               controller: _customNameController,
               decoration: InputDecoration(
+                filled: true,
+                fillColor: AppTheme.surfaceDark,
                 hintText: _selectedWeapon == 'Melee'
                     ? 'Setiap Melee'
                     : '$_selectedWeapon ${_selectedTiers.isEmpty ? "Semua Tier" : _selectedTiers.join("/")}',
                 hintStyle: TextStyle(
                   color: Colors.white.withValues(alpha: 0.3),
                   fontSize: 13,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(6),
+                  borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(6),
+                  borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(6),
+                  borderSide: const BorderSide(color: AppTheme.accentMagenta),
                 ),
               ),
             ),
@@ -568,8 +616,11 @@ class _AddRuleDialogState extends State<_AddRuleDialog> {
         ),
         ElevatedButton(
           style: ElevatedButton.styleFrom(
-            backgroundColor: AppTheme.valorantRed,
+            backgroundColor: AppTheme.accentMagenta,
             foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(6),
+            ),
           ),
           onPressed: () {
             final id = DateTime.now().millisecondsSinceEpoch.toString();

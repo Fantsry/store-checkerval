@@ -142,188 +142,205 @@ class _LoginPageState extends State<LoginPage> {
             }
           },
           child: Scaffold(
-            backgroundColor: AppTheme.backgroundColor,
+            backgroundColor: AppTheme.backgroundDark,
             appBar: AppBar(
-            backgroundColor: AppTheme.surfaceColor,
-            elevation: 0,
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back_rounded),
-              onPressed: () {
-                if (context.canPop()) {
-                  context.pop();
-                } else {
-                  context.go('/store');
-                }
-              },
-            ),
-            title: const Row(
-              children: [
-                Icon(
-                  Icons.lock_outline_rounded,
-                  size: 18,
-                  color: AppTheme.valorantRed,
-                ),
-                SizedBox(width: 8),
-                Text(
-                  'Riot Games Sign In',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-              ],
-            ),
-            actions: [
-              IconButton(
-                tooltip: 'Muat ulang halaman',
-                icon: const Icon(Icons.refresh_rounded),
-                onPressed: () => _webViewController?.reload(),
-              ),
-              PopupMenuButton<String>(
-                icon: const Icon(Icons.more_vert_rounded),
-                onSelected: (value) {
-                  if (value == 'clear') {
-                    _clearCookiesAndReload();
+              backgroundColor: AppTheme.cardDark,
+              elevation: 0,
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back_rounded),
+                onPressed: () {
+                  if (context.canPop()) {
+                    context.pop();
+                  } else {
+                    context.go('/store');
                   }
                 },
-                itemBuilder: (context) => [
-                  const PopupMenuItem(
-                    value: 'clear',
-                    child: Row(
-                      children: [
-                        Icon(Icons.delete_sweep_rounded, size: 20),
-                        SizedBox(width: 8),
-                        Text('Ganti Akun / Hapus Sesi'),
-                      ],
+              ),
+              title: Row(
+                children: [
+                  Container(
+                    width: 3,
+                    height: 20,
+                    margin: const EdgeInsets.only(right: 8),
+                    decoration: BoxDecoration(
+                      color: AppTheme.accentMagenta,
+                      borderRadius: BorderRadius.circular(1.5),
+                    ),
+                  ),
+                  const Icon(
+                    Icons.lock_outline_rounded,
+                    size: 16,
+                    color: AppTheme.accentMagenta,
+                  ),
+                  const SizedBox(width: 6),
+                  const Text(
+                    'RIOT SIGN IN',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 1.5,
                     ),
                   ),
                 ],
               ),
-            ],
-            bottom: _webProgress < 1.0
-                ? PreferredSize(
-                    preferredSize: const Size.fromHeight(3.0),
-                    child: LinearProgressIndicator(
-                      value: _webProgress,
-                      backgroundColor: Colors.transparent,
-                      color: AppTheme.valorantRed,
-                      minHeight: 3,
+              actions: [
+                IconButton(
+                  tooltip: 'Muat ulang halaman',
+                  icon: const Icon(Icons.refresh_rounded),
+                  onPressed: () => _webViewController?.reload(),
+                ),
+                PopupMenuButton<String>(
+                  color: AppTheme.cardDark,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    side: BorderSide(
+                      color: Colors.white.withValues(alpha: 0.08),
                     ),
-                  )
-                : null,
-          ),
-          body: Stack(
-            children: [
-              // Official Riot OAuth WebView
-              InAppWebView(
-                initialUrlRequest: URLRequest(
-                  url: WebUri(ApiConstants.authorizeUrl),
-                ),
-                initialSettings: InAppWebViewSettings(
-                  javaScriptEnabled: true,
-                  clearCache: false,
-                  thirdPartyCookiesEnabled: true,
-                  domStorageEnabled: true,
-                  databaseEnabled: true,
-                  sharedCookiesEnabled: true,
-                  supportMultipleWindows: false,
-                  allowsInlineMediaPlayback: true,
-                  useShouldOverrideUrlLoading: true,
-                  userAgent:
-                      'Mozilla/5.0 (Linux; Android 13; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
-                ),
-                onWebViewCreated: (controller) {
-                  _webViewController = controller;
-                },
-                onProgressChanged: (controller, progress) {
-                  setState(() {
-                    _webProgress = progress / 100.0;
-                  });
-                },
-                shouldOverrideUrlLoading: (controller, navigationAction) async {
-                  final uri = navigationAction.request.url?.uriValue;
-                  if (uri != null &&
-                      (uri.toString().contains('playvalorant.com/opt_in') ||
-                          uri.fragment.contains('access_token') ||
-                          uri.queryParameters.containsKey('access_token'))) {
-                    _handleUrlChange(uri);
-                    return NavigationActionPolicy.CANCEL;
-                  }
-                  return NavigationActionPolicy.ALLOW;
-                },
-                onLoadStop: (controller, url) async {
-                  _handleUrlChange(url?.uriValue);
-                },
-                onUpdateVisitedHistory: (controller, url, isReload) async {
-                  _handleUrlChange(url?.uriValue);
-                },
-              ),
-
-              // Loading Overlay when authenticating tokens & fetching entitlements
-              if (isLoadingSession)
-                Container(
-                  color: Colors.black87,
-                  child: Center(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 32,
-                        vertical: 24,
-                      ),
-                      margin: const EdgeInsets.symmetric(horizontal: 32),
-                      decoration: BoxDecoration(
-                        color: AppTheme.surfaceColor,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: AppTheme.valorantRed.withValues(alpha: 0.3),
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.5),
-                            blurRadius: 20,
-                            offset: const Offset(0, 10),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
+                  ),
+                  icon: const Icon(Icons.more_vert_rounded),
+                  onSelected: (value) {
+                    if (value == 'clear') {
+                      _clearCookiesAndReload();
+                    }
+                  },
+                  itemBuilder: (context) => [
+                    const PopupMenuItem(
+                      value: 'clear',
+                      child: Row(
                         children: [
-                          const SizedBox(
-                            width: 44,
-                            height: 44,
-                            child: CircularProgressIndicator(
-                              color: AppTheme.valorantRed,
-                              strokeWidth: 3,
-                            ),
-                          ),
-                          const SizedBox(height: 20),
-                          const Text(
-                            'Menghubungkan Akun Riot...',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: AppTheme.textPrimary,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            (state is AuthLoading ? state.message : null) ??
-                                'Mengambil sesi & rotasi skin store...',
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              fontSize: 13,
-                              color: AppTheme.textSecondary,
-                            ),
-                          ),
+                          Icon(Icons.delete_sweep_rounded, size: 20, color: AppTheme.accentMagenta),
+                          SizedBox(width: 8),
+                          Text('Ganti Akun / Hapus Sesi'),
                         ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+              bottom: _webProgress < 1.0
+                  ? PreferredSize(
+                      preferredSize: const Size.fromHeight(3.0),
+                      child: LinearProgressIndicator(
+                        value: _webProgress,
+                        backgroundColor: Colors.transparent,
+                        color: AppTheme.accentMagenta,
+                        minHeight: 3,
+                      ),
+                    )
+                  : null,
+            ),
+            body: Stack(
+              children: [
+                // Official Riot OAuth WebView
+                InAppWebView(
+                  initialUrlRequest: URLRequest(
+                    url: WebUri(ApiConstants.authorizeUrl),
+                  ),
+                  initialSettings: InAppWebViewSettings(
+                    javaScriptEnabled: true,
+                    clearCache: false,
+                    thirdPartyCookiesEnabled: true,
+                    domStorageEnabled: true,
+                    databaseEnabled: true,
+                    sharedCookiesEnabled: true,
+                    supportMultipleWindows: false,
+                    allowsInlineMediaPlayback: true,
+                    useShouldOverrideUrlLoading: true,
+                    userAgent:
+                        'Mozilla/5.0 (Linux; Android 13; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
+                  ),
+                  onWebViewCreated: (controller) {
+                    _webViewController = controller;
+                  },
+                  onProgressChanged: (controller, progress) {
+                    setState(() {
+                      _webProgress = progress / 100.0;
+                    });
+                  },
+                  shouldOverrideUrlLoading: (controller, navigationAction) async {
+                    final uri = navigationAction.request.url?.uriValue;
+                    if (uri != null &&
+                        (uri.toString().contains('playvalorant.com/opt_in') ||
+                            uri.fragment.contains('access_token') ||
+                            uri.queryParameters.containsKey('access_token'))) {
+                      _handleUrlChange(uri);
+                      return NavigationActionPolicy.CANCEL;
+                    }
+                    return NavigationActionPolicy.ALLOW;
+                  },
+                  onLoadStop: (controller, url) async {
+                    _handleUrlChange(url?.uriValue);
+                  },
+                  onUpdateVisitedHistory: (controller, url, isReload) async {
+                    _handleUrlChange(url?.uriValue);
+                  },
+                ),
+
+                // Loading Overlay when authenticating tokens & fetching entitlements
+                if (isLoadingSession)
+                  Container(
+                    color: Colors.black87,
+                    child: Center(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 32,
+                          vertical: 24,
+                        ),
+                        margin: const EdgeInsets.symmetric(horizontal: 32),
+                        decoration: BoxDecoration(
+                          color: AppTheme.cardDark,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: AppTheme.accentMagenta.withValues(alpha: 0.35),
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.5),
+                              blurRadius: 20,
+                              offset: const Offset(0, 10),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const SizedBox(
+                              width: 44,
+                              height: 44,
+                              child: CircularProgressIndicator(
+                                color: AppTheme.accentMagenta,
+                                strokeWidth: 3,
+                              ),
+                            ),
+                            const SizedBox(height: 20),
+                            const Text(
+                              'MENGHUBUNGKAN AKUN RIOT...',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 1.0,
+                                color: AppTheme.textPrimary,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              (state is AuthLoading ? state.message : null) ??
+                                  'Mengambil sesi & rotasi skin store...',
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: AppTheme.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
-                ),
-            ],
+              ],
+            ),
           ),
-        ),
       );
     },
     );

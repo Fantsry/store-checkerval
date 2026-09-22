@@ -1,5 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:valorant_store_tracker/app/theme.dart';
 import 'package:valorant_store_tracker/core/utils/timezone_helper.dart';
 import 'package:valorant_store_tracker/features/daily_store/domain/entities/daily_store.dart';
@@ -15,22 +16,22 @@ class BundleCard extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: AppTheme.surfaceDark,
-        borderRadius: BorderRadius.circular(16),
+        color: AppTheme.cardDark,
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: AppTheme.valorantRed.withValues(alpha: 0.35),
-          width: 1.2,
+          color: AppTheme.accentMagenta.withValues(alpha: 0.35),
+          width: 1.0,
         ),
         boxShadow: [
           BoxShadow(
-            color: AppTheme.valorantRed.withValues(alpha: 0.08),
-            blurRadius: 16,
+            color: AppTheme.accentMagenta.withValues(alpha: 0.08),
+            blurRadius: 14,
             offset: const Offset(0, 4),
           ),
         ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -84,12 +85,12 @@ class BundleCard extends StatelessWidget {
                       left: 12,
                       child: Container(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
+                          horizontal: 8,
                           vertical: 4,
                         ),
                         decoration: BoxDecoration(
-                          color: AppTheme.valorantRed,
-                          borderRadius: BorderRadius.circular(6),
+                          color: AppTheme.accentMagenta,
+                          borderRadius: BorderRadius.circular(4),
                           boxShadow: [
                             BoxShadow(
                               color: Colors.black.withValues(alpha: 0.4),
@@ -130,8 +131,8 @@ class BundleCard extends StatelessWidget {
                             vertical: 4,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.75),
-                            borderRadius: BorderRadius.circular(6),
+                            color: Colors.black.withValues(alpha: 0.8),
+                            borderRadius: BorderRadius.circular(4),
                             border: Border.all(
                               color: Colors.white.withValues(alpha: 0.15),
                             ),
@@ -142,7 +143,7 @@ class BundleCard extends StatelessWidget {
                               const Icon(
                                 Icons.access_time_rounded,
                                 size: 12,
-                                color: AppTheme.textSecondary,
+                                color: AppTheme.accentMagenta,
                               ),
                               const SizedBox(width: 4),
                               Text(
@@ -151,10 +152,10 @@ class BundleCard extends StatelessWidget {
                                     seconds: bundle.remainingDurationSeconds,
                                   ),
                                 ),
-                                style: const TextStyle(
-                                  fontSize: 10,
+                                style: GoogleFonts.rajdhani(
+                                  fontSize: 12,
                                   fontWeight: FontWeight.w700,
-                                  fontFamily: 'monospace',
+                                  letterSpacing: 1.0,
                                   color: AppTheme.textPrimary,
                                 ),
                               ),
@@ -204,14 +205,14 @@ class BundleCard extends StatelessWidget {
                       const SizedBox(width: 12),
                       Container(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
+                          horizontal: 10,
+                          vertical: 5,
                         ),
                         decoration: BoxDecoration(
-                          color: AppTheme.valorantRed.withValues(alpha: 0.18),
-                          borderRadius: BorderRadius.circular(10),
+                          color: AppTheme.accentMagenta.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(4),
                           border: Border.all(
-                            color: AppTheme.valorantRed.withValues(alpha: 0.4),
+                            color: AppTheme.accentMagenta.withValues(alpha: 0.4),
                           ),
                         ),
                         child: Row(
@@ -219,16 +220,16 @@ class BundleCard extends StatelessWidget {
                           children: [
                             const Icon(
                               Icons.monetization_on_outlined,
-                              size: 16,
-                              color: AppTheme.valorantRed,
+                              size: 15,
+                              color: AppTheme.accentMagenta,
                             ),
-                            const SizedBox(width: 6),
+                            const SizedBox(width: 5),
                             Text(
                               bundle.price > 0 ? '${bundle.price} VP' : 'FREE',
-                              style: const TextStyle(
-                                fontSize: 14,
+                              style: GoogleFonts.rajdhani(
+                                fontSize: 15,
                                 fontWeight: FontWeight.w800,
-                                color: AppTheme.valorantRed,
+                                color: AppTheme.accentMagenta,
                               ),
                             ),
                           ],
@@ -250,13 +251,13 @@ class BundleCard extends StatelessWidget {
                           final item = bundle.items[index];
                           return InkWell(
                             onTap: () => _showBundleItemsModal(context),
-                            borderRadius: BorderRadius.circular(8),
+                            borderRadius: BorderRadius.circular(6),
                             child: Container(
                               width: 80,
                               padding: const EdgeInsets.all(4),
                               decoration: BoxDecoration(
-                                color: AppTheme.surfaceLight.withValues(alpha: 0.6),
-                                borderRadius: BorderRadius.circular(8),
+                                color: AppTheme.surfaceDark,
+                                borderRadius: BorderRadius.circular(6),
                                 border: Border.all(
                                   color: Colors.white.withValues(alpha: 0.08),
                                 ),
@@ -300,14 +301,14 @@ class BundleCard extends StatelessWidget {
                         icon: const Icon(
                           Icons.visibility_outlined,
                           size: 14,
-                          color: AppTheme.valorantRed,
+                          color: AppTheme.accentMagenta,
                         ),
                         label: const Text(
                           'View Collection Details',
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
-                            color: AppTheme.valorantRed,
+                            color: AppTheme.accentMagenta,
                           ),
                         ),
                       ),
@@ -325,10 +326,10 @@ class BundleCard extends StatelessWidget {
   void _showBundleItemsModal(BuildContext context) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: AppTheme.surfaceDark,
+      backgroundColor: AppTheme.cardDark,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(10)),
       ),
       builder: (sheetContext) {
         return DraggableScrollableSheet(
@@ -373,15 +374,18 @@ class BundleCard extends StatelessWidget {
                           vertical: 4,
                         ),
                         decoration: BoxDecoration(
-                          color: AppTheme.valorantRed.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(8),
+                          color: AppTheme.accentMagenta.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(
+                            color: AppTheme.accentMagenta.withValues(alpha: 0.4),
+                          ),
                         ),
                         child: Text(
                           '${bundle.price} VP',
-                          style: const TextStyle(
-                            fontSize: 13,
+                          style: GoogleFonts.rajdhani(
+                            fontSize: 14,
                             fontWeight: FontWeight.w800,
-                            color: AppTheme.valorantRed,
+                            color: AppTheme.accentMagenta,
                           ),
                         ),
                       ),
@@ -406,10 +410,10 @@ class BundleCard extends StatelessWidget {
                         return Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: AppTheme.surfaceLight.withValues(alpha: 0.6),
-                            borderRadius: BorderRadius.circular(12),
+                            color: AppTheme.surfaceDark,
+                            borderRadius: BorderRadius.circular(6),
                             border: Border.all(
-                              color: Colors.white.withValues(alpha: 0.08),
+                              color: Colors.white.withValues(alpha: 0.06),
                             ),
                           ),
                           child: Row(

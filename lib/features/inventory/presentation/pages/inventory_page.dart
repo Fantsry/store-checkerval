@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:valorant_store_tracker/app/theme.dart';
 import 'package:valorant_store_tracker/features/inventory/presentation/cubit/inventory_cubit.dart';
@@ -19,7 +20,23 @@ class InventoryPage extends StatefulWidget {
 
 class _InventoryPageState extends State<InventoryPage> {
   final TextEditingController _searchController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
   bool _autoRefreshedStale = false;
+
+  void _scrollToSkins() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        const targetOffset = 380.0;
+        if (_scrollController.offset < targetOffset) {
+          _scrollController.animateTo(
+            targetOffset,
+            duration: const Duration(milliseconds: 350),
+            curve: Curves.easeOutCubic,
+          );
+        }
+      }
+    });
+  }
 
   @override
   void initState() {
@@ -30,6 +47,7 @@ class _InventoryPageState extends State<InventoryPage> {
   @override
   void dispose() {
     _searchController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -53,7 +71,7 @@ class _InventoryPageState extends State<InventoryPage> {
             },
             builder: (context, state) {
               return RefreshIndicator(
-                color: AppTheme.valorantRed,
+                color: AppTheme.accentMagenta,
                 backgroundColor: AppTheme.surfaceDark,
                 onRefresh: () async {
                   await context
@@ -61,6 +79,7 @@ class _InventoryPageState extends State<InventoryPage> {
                       .loadInventory(forceRefresh: true);
                 },
                 child: CustomScrollView(
+                  controller: _scrollController,
                   physics: const AlwaysScrollableScrollPhysics(),
                   slivers: [
                     // Header
@@ -70,27 +89,53 @@ class _InventoryPageState extends State<InventoryPage> {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                            Row(
                               children: [
-                                Text(
-                                  'INVENTORY',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .headlineLarge
-                                      ?.copyWith(letterSpacing: 2),
+                                Container(
+                                  width: 3,
+                                  height: 38,
+                                  margin: const EdgeInsets.only(right: 12),
+                                  decoration: BoxDecoration(
+                                    color: AppTheme.accentMagenta,
+                                    borderRadius: BorderRadius.circular(1.5),
+                                  ),
                                 ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  'Account valuation & owned skins',
-                                  style: Theme.of(context).textTheme.bodyMedium,
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'INVENTORY',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .headlineLarge
+                                          ?.copyWith(
+                                            letterSpacing: 2.5,
+                                            fontWeight: FontWeight.w900,
+                                          ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      'ACCOUNT VALUATION & SKINS',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodyMedium
+                                          ?.copyWith(
+                                            letterSpacing: 0.8,
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),
                             Container(
                               decoration: BoxDecoration(
-                                color: AppTheme.surfaceLight,
-                                borderRadius: BorderRadius.circular(12),
+                                color: AppTheme.cardDark,
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(
+                                  color: Colors.white.withValues(alpha: 0.08),
+                                ),
                               ),
                               child: IconButton(
                                 onPressed: () {
@@ -100,6 +145,7 @@ class _InventoryPageState extends State<InventoryPage> {
                                 },
                                 icon: const Icon(
                                   Icons.refresh_rounded,
+                                  size: 18,
                                   color: AppTheme.textPrimary,
                                 ),
                               ),
@@ -120,8 +166,8 @@ class _InventoryPageState extends State<InventoryPage> {
                             child: Container(
                               height: 180,
                               decoration: BoxDecoration(
-                                color: AppTheme.surfaceLight,
-                                borderRadius: BorderRadius.circular(20),
+                                color: AppTheme.cardDark,
+                                borderRadius: BorderRadius.circular(8),
                               ),
                             ),
                           ),
@@ -177,7 +223,18 @@ class _InventoryPageState extends State<InventoryPage> {
                       SliverToBoxAdapter(
                         child: Padding(
                           padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
-                          child: AccountValueCard(overview: state.overview),
+                          child: AccountValueCard(
+                            overview: state.overview,
+                            onOwnedSkinsTap: () {
+                              context
+                                  .read<InventoryCubit>()
+                                  .filterBySource(InventorySourceFilter.all);
+                              context
+                                  .read<InventoryCubit>()
+                                  .filterByTier(null);
+                              _scrollToSkins();
+                            },
+                          ),
                         ),
                       ),
 
@@ -188,8 +245,12 @@ class _InventoryPageState extends State<InventoryPage> {
                           child: TierBreakdownCard(
                             tierBreakdown: state.overview.tierBreakdown,
                             selectedTier: state.selectedTier,
-                            onTierSelected: (tier) =>
-                                context.read<InventoryCubit>().filterByTier(tier),
+                            onTierSelected: (tier) {
+                              context
+                                  .read<InventoryCubit>()
+                                  .filterByTier(tier);
+                              _scrollToSkins();
+                            },
                           ),
                         ),
                       ),
@@ -219,11 +280,11 @@ class _InventoryPageState extends State<InventoryPage> {
                                     child: Container(
                                       height: 44,
                                       decoration: BoxDecoration(
-                                        color: AppTheme.surfaceDark,
-                                        borderRadius: BorderRadius.circular(12),
+                                        color: AppTheme.cardDark,
+                                        borderRadius: BorderRadius.circular(6),
                                         border: Border.all(
                                           color: Colors.white
-                                              .withValues(alpha: 0.1),
+                                              .withValues(alpha: 0.08),
                                         ),
                                       ),
                                       child: TextField(
@@ -273,7 +334,7 @@ class _InventoryPageState extends State<InventoryPage> {
                                         ),
                                       ),
                                     ),
-                                   ),
+                                  ),
                                   const SizedBox(width: 8),
 
                                   // Sort Options Popup
@@ -282,11 +343,11 @@ class _InventoryPageState extends State<InventoryPage> {
                                       height: 44,
                                       width: 44,
                                       decoration: BoxDecoration(
-                                        color: AppTheme.surfaceDark,
-                                        borderRadius: BorderRadius.circular(12),
+                                        color: AppTheme.cardDark,
+                                        borderRadius: BorderRadius.circular(6),
                                         border: Border.all(
                                           color: Colors.white
-                                              .withValues(alpha: 0.1),
+                                              .withValues(alpha: 0.08),
                                         ),
                                       ),
                                       child: const Icon(
@@ -295,7 +356,13 @@ class _InventoryPageState extends State<InventoryPage> {
                                         color: AppTheme.textPrimary,
                                       ),
                                     ),
-                                    color: AppTheme.surfaceDark,
+                                    color: AppTheme.cardDark,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(6),
+                                      side: BorderSide(
+                                        color: Colors.white.withValues(alpha: 0.08),
+                                      ),
+                                    ),
                                     onSelected: (sort) {
                                       context
                                           .read<InventoryCubit>()
@@ -336,10 +403,13 @@ class _InventoryPageState extends State<InventoryPage> {
                                     icon: Icons.apps_rounded,
                                     isSelected: state.sourceFilter ==
                                         InventorySourceFilter.all,
-                                    onTap: () => context
-                                        .read<InventoryCubit>()
-                                        .filterBySource(
-                                            InventorySourceFilter.all),
+                                    onTap: () {
+                                      context
+                                          .read<InventoryCubit>()
+                                          .filterBySource(
+                                              InventorySourceFilter.all);
+                                      _scrollToSkins();
+                                    },
                                   ),
                                   const SizedBox(width: 8),
                                   _buildSourceFilterChip(
@@ -348,10 +418,13 @@ class _InventoryPageState extends State<InventoryPage> {
                                     icon: Icons.shopping_bag_outlined,
                                     isSelected: state.sourceFilter ==
                                         InventorySourceFilter.store,
-                                    onTap: () => context
-                                        .read<InventoryCubit>()
-                                        .filterBySource(
-                                            InventorySourceFilter.store),
+                                    onTap: () {
+                                      context
+                                          .read<InventoryCubit>()
+                                          .filterBySource(
+                                              InventorySourceFilter.store);
+                                      _scrollToSkins();
+                                    },
                                   ),
                                   const SizedBox(width: 8),
                                   _buildSourceFilterChip(
@@ -361,10 +434,13 @@ class _InventoryPageState extends State<InventoryPage> {
                                     isSelected: state.sourceFilter ==
                                         InventorySourceFilter.battlepass,
                                     selectedColor: const Color(0xFFFFB300),
-                                    onTap: () => context
-                                        .read<InventoryCubit>()
-                                        .filterBySource(
-                                            InventorySourceFilter.battlepass),
+                                    onTap: () {
+                                      context
+                                          .read<InventoryCubit>()
+                                          .filterBySource(
+                                              InventorySourceFilter.battlepass);
+                                      _scrollToSkins();
+                                    },
                                   ),
                                 ],
                               ),
@@ -378,9 +454,12 @@ class _InventoryPageState extends State<InventoryPage> {
                                     _buildTierChip(
                                       label: 'ALL',
                                       isSelected: state.selectedTier == null,
-                                      onTap: () => context
-                                          .read<InventoryCubit>()
-                                          .filterByTier(null),
+                                      onTap: () {
+                                        context
+                                            .read<InventoryCubit>()
+                                            .filterByTier(null);
+                                        _scrollToSkins();
+                                      },
                                     ),
                                     ...[
                                       'Exclusive',
@@ -394,15 +473,163 @@ class _InventoryPageState extends State<InventoryPage> {
                                          isSelected: state.selectedTier != null &&
                                              state.selectedTier!.toLowerCase() ==
                                                  tier.toLowerCase(),
-                                         onTap: () => context
-                                             .read<InventoryCubit>()
-                                             .filterByTier(tier),
+                                         onTap: () {
+                                           context
+                                               .read<InventoryCubit>()
+                                               .filterByTier(tier);
+                                           _scrollToSkins();
+                                         },
                                        );
                                     }),
                                   ],
                                 ),
                               ),
                             ],
+                          ),
+                        ),
+                      ),
+
+                      // Active Filters & Results Counter Bar
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+                          child: Builder(
+                            builder: (context) {
+                              final hasActiveFilter = state.selectedTier != null ||
+                                  state.sourceFilter != InventorySourceFilter.all ||
+                                  state.searchQuery.isNotEmpty;
+                              final filterParts = <String>[];
+                              if (state.sourceFilter != InventorySourceFilter.all) {
+                                filterParts.add(state.sourceFilter.name.toUpperCase());
+                              }
+                              if (state.selectedTier != null) {
+                                filterParts.add(state.selectedTier!.toUpperCase());
+                              }
+                              if (state.searchQuery.isNotEmpty) {
+                                filterParts.add('"${state.searchQuery}"');
+                              }
+                              final activeFilterLabel = filterParts.join(' • ');
+
+                              return Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 8,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.cardDark,
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(
+                                    color: hasActiveFilter
+                                        ? AppTheme.accentMagenta.withValues(alpha: 0.35)
+                                        : Colors.white.withValues(alpha: 0.06),
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.filter_list_rounded,
+                                      size: 14,
+                                      color: hasActiveFilter
+                                          ? AppTheme.accentMagenta
+                                          : AppTheme.textSecondary,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Row(
+                                        children: [
+                                          Text(
+                                            'SHOWING ${state.filteredSkins.length} OF ${state.overview.totalSkinsCount} SKINS',
+                                            style: GoogleFonts.rajdhani(
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w800,
+                                              letterSpacing: 0.8,
+                                              color: AppTheme.textPrimary,
+                                            ),
+                                          ),
+                                          if (hasActiveFilter) ...[
+                                            const SizedBox(width: 8),
+                                            Flexible(
+                                              child: Container(
+                                                padding: const EdgeInsets.symmetric(
+                                                  horizontal: 6,
+                                                  vertical: 2,
+                                                ),
+                                                decoration: BoxDecoration(
+                                                  color: AppTheme.accentMagenta
+                                                      .withValues(alpha: 0.15),
+                                                  borderRadius:
+                                                      BorderRadius.circular(4),
+                                                  border: Border.all(
+                                                    color: AppTheme.accentMagenta
+                                                        .withValues(alpha: 0.3),
+                                                  ),
+                                                ),
+                                                child: Text(
+                                                  activeFilterLabel,
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
+                                                  style: const TextStyle(
+                                                    fontSize: 9,
+                                                    fontWeight: FontWeight.w800,
+                                                    color: AppTheme.accentMagenta,
+                                                    letterSpacing: 0.4,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ],
+                                      ),
+                                    ),
+                                    if (hasActiveFilter) ...[
+                                      const SizedBox(width: 8),
+                                      GestureDetector(
+                                        behavior: HitTestBehavior.opaque,
+                                        onTap: () {
+                                          _searchController.clear();
+                                          context
+                                              .read<InventoryCubit>()
+                                              .searchSkins('');
+                                          context
+                                              .read<InventoryCubit>()
+                                              .filterByTier(null);
+                                          context
+                                              .read<InventoryCubit>()
+                                              .filterBySource(
+                                                  InventorySourceFilter.all);
+                                        },
+                                        child: const Padding(
+                                          padding: EdgeInsets.symmetric(
+                                            horizontal: 4,
+                                            vertical: 2,
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(
+                                                Icons.close_rounded,
+                                                size: 13,
+                                                color: AppTheme.accentMagenta,
+                                              ),
+                                              SizedBox(width: 2),
+                                              Text(
+                                                'RESET',
+                                                style: TextStyle(
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.w800,
+                                                  color: AppTheme.accentMagenta,
+                                                  letterSpacing: 0.8,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              );
+                            },
                           ),
                         ),
                       ),
@@ -461,24 +688,24 @@ class _InventoryPageState extends State<InventoryPage> {
     required VoidCallback onTap,
     Color? selectedColor,
   }) {
-    final activeColor = selectedColor ?? AppTheme.valorantRed;
+    final activeColor = selectedColor ?? AppTheme.accentMagenta;
 
     return Expanded(
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(6),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
           padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
           decoration: BoxDecoration(
             color: isSelected
                 ? activeColor.withValues(alpha: 0.18)
-                : AppTheme.surfaceDark,
-            borderRadius: BorderRadius.circular(10),
+                : AppTheme.cardDark,
+            borderRadius: BorderRadius.circular(6),
             border: Border.all(
               color: isSelected
                   ? activeColor
-                  : Colors.white.withValues(alpha: 0.1),
+                  : Colors.white.withValues(alpha: 0.08),
               width: isSelected ? 1.4 : 1.0,
             ),
             boxShadow: isSelected
@@ -521,13 +748,13 @@ class _InventoryPageState extends State<InventoryPage> {
                   color: isSelected
                       ? activeColor.withValues(alpha: 0.3)
                       : Colors.white.withValues(alpha: 0.06),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(
                   '$count',
-                  style: TextStyle(
-                    fontSize: 9,
-                    fontWeight: FontWeight.w900,
+                  style: GoogleFonts.rajdhani(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
                     color: isSelected ? activeColor : AppTheme.textSecondary,
                   ),
                 ),
@@ -548,25 +775,25 @@ class _InventoryPageState extends State<InventoryPage> {
       padding: const EdgeInsets.only(right: 6),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(6),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
           decoration: BoxDecoration(
             color: isSelected
-                ? AppTheme.valorantRed
-                : AppTheme.surfaceDark,
-            borderRadius: BorderRadius.circular(8),
+                ? AppTheme.accentMagenta
+                : AppTheme.cardDark,
+            borderRadius: BorderRadius.circular(6),
             border: Border.all(
               color: isSelected
-                  ? AppTheme.valorantRed
-                  : Colors.white.withValues(alpha: 0.1),
+                  ? AppTheme.accentMagenta
+                  : Colors.white.withValues(alpha: 0.08),
             ),
           ),
           child: Text(
             label,
-            style: TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w800,
+            style: GoogleFonts.rajdhani(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
               letterSpacing: 0.6,
               color: isSelected ? Colors.white : AppTheme.textSecondary,
             ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:valorant_store_tracker/app/theme.dart';
 import 'package:valorant_store_tracker/features/battlepass/domain/entities/mission_item.dart';
 
@@ -22,8 +23,8 @@ class MissionsSection extends StatelessWidget {
       return Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: AppTheme.surfaceDark,
-          borderRadius: BorderRadius.circular(16),
+          color: AppTheme.cardDark,
+          borderRadius: BorderRadius.circular(8),
           border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
         ),
         child: Center(
@@ -46,12 +47,12 @@ class MissionsSection extends StatelessWidget {
           children: [
             Row(
               children: [
-                Icon(icon, size: 16, color: AppTheme.valorantRed),
+                Icon(icon, size: 16, color: AppTheme.accentMagenta),
                 const SizedBox(width: 8),
                 Text(
                   title.toUpperCase(),
                   style: const TextStyle(
-                    fontSize: 13,
+                    fontSize: 12,
                     fontWeight: FontWeight.w900,
                     letterSpacing: 1.2,
                     color: AppTheme.textPrimary,
@@ -73,18 +74,18 @@ class MissionsSection extends StatelessWidget {
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           itemCount: missions.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 10),
+          separatorBuilder: (_, __) => const SizedBox(height: 8),
           itemBuilder: (context, index) {
             final m = missions[index];
             return Container(
-              padding: const EdgeInsets.all(14),
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: AppTheme.surfaceDark,
-                borderRadius: BorderRadius.circular(14),
+                color: AppTheme.cardDark,
+                borderRadius: BorderRadius.circular(6),
                 border: Border.all(
                   color: m.isCompleted
                       ? const Color(0xFF4CAF50).withValues(alpha: 0.4)
-                      : Colors.white.withValues(alpha: 0.08),
+                      : Colors.white.withValues(alpha: 0.06),
                 ),
               ),
               child: Column(
@@ -97,8 +98,8 @@ class MissionsSection extends StatelessWidget {
                         child: Text(
                           m.title,
                           style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
                             color: m.isCompleted
                                 ? AppTheme.textSecondary
                                 : AppTheme.textPrimary,
@@ -111,14 +112,14 @@ class MissionsSection extends StatelessWidget {
                       const SizedBox(width: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 3,
+                          horizontal: 7,
+                          vertical: 2,
                         ),
                         decoration: BoxDecoration(
                           color: m.isCompleted
                               ? const Color(0xFF4CAF50).withValues(alpha: 0.15)
                               : const Color(0xFFE5B94E).withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(6),
+                          borderRadius: BorderRadius.circular(4),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -133,8 +134,8 @@ class MissionsSection extends StatelessWidget {
                             ],
                             Text(
                               '+${m.xpReward} XP',
-                              style: TextStyle(
-                                fontSize: 11,
+                              style: GoogleFonts.rajdhani(
+                                fontSize: 12,
                                 fontWeight: FontWeight.w800,
                                 color: m.isCompleted
                                     ? const Color(0xFF4CAF50)
@@ -146,21 +147,21 @@ class MissionsSection extends StatelessWidget {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 8),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Expanded(
                         child: ClipRRect(
-                          borderRadius: BorderRadius.circular(4),
+                          borderRadius: BorderRadius.circular(3),
                           child: LinearProgressIndicator(
                             value: m.progressFraction,
-                            minHeight: 6,
-                            backgroundColor: Colors.black.withValues(alpha: 0.3),
+                            minHeight: 5,
+                            backgroundColor: Colors.black.withValues(alpha: 0.4),
                             valueColor: AlwaysStoppedAnimation<Color>(
                               m.isCompleted
                                   ? const Color(0xFF4CAF50)
-                                  : AppTheme.valorantRed,
+                                  : AppTheme.accentMagenta,
                             ),
                           ),
                         ),
@@ -168,10 +169,9 @@ class MissionsSection extends StatelessWidget {
                       const SizedBox(width: 12),
                       Text(
                         '${m.currentProgress} / ${m.progressToComplete}',
-                        style: const TextStyle(
-                          fontFamily: 'monospace',
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
+                        style: GoogleFonts.rajdhani(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
                           color: AppTheme.textSecondary,
                         ),
                       ),

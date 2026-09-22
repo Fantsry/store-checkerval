@@ -3,6 +3,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:valorant_store_tracker/app/theme.dart';
 import 'package:valorant_store_tracker/core/utils/timezone_helper.dart';
@@ -218,12 +219,29 @@ class _StorePageState extends State<StorePage>
                               Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(
-                                    'DAILY STORE',
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .headlineLarge
-                                        ?.copyWith(letterSpacing: 2),
+                                  Row(
+                                    children: [
+                                      Container(
+                                        width: 3,
+                                        height: 20,
+                                        margin: const EdgeInsets.only(right: 8),
+                                        decoration: BoxDecoration(
+                                          color: AppTheme.accentMagenta,
+                                          borderRadius:
+                                              BorderRadius.circular(2),
+                                        ),
+                                      ),
+                                      Text(
+                                        'DAILY STORE',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .headlineLarge
+                                            ?.copyWith(
+                                              letterSpacing: 2,
+                                              fontWeight: FontWeight.w900,
+                                            ),
+                                      ),
+                                    ],
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
@@ -240,15 +258,15 @@ class _StorePageState extends State<StorePage>
                                     Container(
                                       padding: const EdgeInsets.symmetric(
                                         horizontal: 10,
-                                        vertical: 6,
+                                        vertical: 5,
                                       ),
                                       margin: const EdgeInsets.only(right: 8),
                                       decoration: BoxDecoration(
-                                        color: AppTheme.surfaceLight,
-                                        borderRadius: BorderRadius.circular(10),
+                                        color: AppTheme.cardDark,
+                                        borderRadius: BorderRadius.circular(6),
                                         border: Border.all(
-                                          color: AppTheme.valorantRed
-                                              .withValues(alpha: 0.3),
+                                          color: Colors.white
+                                              .withValues(alpha: 0.08),
                                         ),
                                       ),
                                       child: Row(
@@ -256,21 +274,21 @@ class _StorePageState extends State<StorePage>
                                           const Icon(
                                             Icons.monetization_on_outlined,
                                             size: 14,
-                                            color: AppTheme.valorantRed,
+                                            color: AppTheme.accentMagenta,
                                           ),
                                           const SizedBox(width: 4),
                                           Text(
                                             '${state.wallet.valorantPoints}',
-                                            style: const TextStyle(
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.bold,
+                                            style: GoogleFonts.rajdhani(
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w700,
                                               color: AppTheme.textPrimary,
                                             ),
                                           ),
                                           const SizedBox(width: 8),
                                           Container(
-                                            width: 7,
-                                            height: 7,
+                                            width: 6,
+                                            height: 6,
                                             decoration: const BoxDecoration(
                                               shape: BoxShape.circle,
                                               color: Color(0xFF00E5FF),
@@ -279,10 +297,10 @@ class _StorePageState extends State<StorePage>
                                           const SizedBox(width: 4),
                                           Text(
                                             '${state.wallet.kingdomCredits}',
-                                            style: const TextStyle(
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.bold,
-                                              color: Color(0xFF00E5FF),
+                                            style: GoogleFonts.rajdhani(
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w700,
+                                              color: const Color(0xFF00E5FF),
                                             ),
                                           ),
                                         ],
@@ -291,10 +309,19 @@ class _StorePageState extends State<StorePage>
                                   // Refresh button
                                   Container(
                                     decoration: BoxDecoration(
-                                      color: AppTheme.surfaceLight,
-                                      borderRadius: BorderRadius.circular(12),
+                                      color: AppTheme.cardDark,
+                                      borderRadius: BorderRadius.circular(6),
+                                      border: Border.all(
+                                        color: Colors.white
+                                            .withValues(alpha: 0.08),
+                                      ),
                                     ),
                                     child: IconButton(
+                                      constraints: const BoxConstraints(
+                                        minWidth: 36,
+                                        minHeight: 36,
+                                      ),
+                                      padding: EdgeInsets.zero,
                                       onPressed: () {
                                         context
                                             .read<StoreCubit>()
@@ -305,6 +332,7 @@ class _StorePageState extends State<StorePage>
                                       },
                                       icon: const Icon(
                                         Icons.refresh_rounded,
+                                        size: 20,
                                         color: AppTheme.textPrimary,
                                       ),
                                     ),
@@ -525,26 +553,26 @@ class _SkinCard extends StatelessWidget {
           },
           child: Container(
             decoration: BoxDecoration(
-              gradient: AppTheme.cardGradient,
-              borderRadius: BorderRadius.circular(16),
+              color: AppTheme.cardDark,
+              borderRadius: BorderRadius.circular(6),
               border: Border.all(
                 color: isWishlisted
-                    ? AppTheme.valorantRed.withValues(alpha: 0.6)
+                    ? AppTheme.accentMagenta.withValues(alpha: 0.8)
                     : Colors.white.withValues(alpha: 0.06),
                 width: isWishlisted ? 1.5 : 1.0,
               ),
               boxShadow: [
                 BoxShadow(
                   color: isWishlisted
-                      ? AppTheme.valorantRed.withValues(alpha: 0.15)
+                      ? AppTheme.accentMagenta.withValues(alpha: 0.2)
                       : Colors.black.withValues(alpha: 0.3),
-                  blurRadius: 16,
-                  offset: const Offset(0, 6),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
                 ),
               ],
             ),
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(6),
               child: Stack(
                 children: [
                   // Subtle tier accent light
@@ -572,21 +600,21 @@ class _SkinCard extends StatelessWidget {
                           children: [
                             Container(
                               padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 4,
+                                horizontal: 6,
+                                vertical: 2,
                               ),
                               decoration: BoxDecoration(
-                                color: tierColor.withValues(alpha: 0.2),
-                                borderRadius: BorderRadius.circular(6),
+                                color: tierColor.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(4),
                                 border: Border.all(
-                                  color: tierColor.withValues(alpha: 0.4),
+                                  color: tierColor.withValues(alpha: 0.35),
                                   width: 0.8,
                                 ),
                               ),
                               child: Text(
                                 skin.weaponName?.toUpperCase() ?? 'VALORANT',
                                 style: TextStyle(
-                                  fontSize: 10,
+                                  fontSize: 9,
                                   fontWeight: FontWeight.w800,
                                   color: tierColor,
                                   letterSpacing: 0.8,
@@ -599,20 +627,25 @@ class _SkinCard extends StatelessWidget {
                                 context.read<WishlistCubit>().toggleWishlist(skin);
                               },
                               child: Container(
-                                padding: const EdgeInsets.all(6),
+                                padding: const EdgeInsets.all(5),
                                 decoration: BoxDecoration(
                                   color: isWishlisted
-                                      ? AppTheme.valorantRed.withValues(alpha: 0.2)
-                                      : AppTheme.surfaceLight.withValues(alpha: 0.6),
-                                  shape: BoxShape.circle,
+                                      ? AppTheme.accentMagenta.withValues(alpha: 0.2)
+                                      : AppTheme.surfaceDark,
+                                  borderRadius: BorderRadius.circular(4),
+                                  border: Border.all(
+                                    color: isWishlisted
+                                        ? AppTheme.accentMagenta.withValues(alpha: 0.4)
+                                        : Colors.white.withValues(alpha: 0.05),
+                                  ),
                                 ),
                                 child: Icon(
                                   isWishlisted
                                       ? Icons.favorite_rounded
                                       : Icons.favorite_border_rounded,
-                                  size: 16,
+                                  size: 14,
                                   color: isWishlisted
-                                      ? AppTheme.valorantRed
+                                      ? AppTheme.accentMagenta
                                       : AppTheme.textSecondary,
                                 ),
                               ),
@@ -634,7 +667,7 @@ class _SkinCard extends StatelessWidget {
                                         height: 24,
                                         child: CircularProgressIndicator(
                                           strokeWidth: 2,
-                                          color: AppTheme.surfaceLight,
+                                          color: AppTheme.accentMagenta,
                                         ),
                                       ),
                                     ),
@@ -660,7 +693,7 @@ class _SkinCard extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
-                            fontSize: 13,
+                            fontSize: 12,
                             fontWeight: FontWeight.bold,
                             color: AppTheme.textPrimary,
                           ),
@@ -675,14 +708,14 @@ class _SkinCard extends StatelessWidget {
                               children: [
                                 const Icon(
                                   Icons.shield_outlined,
-                                  size: 14,
-                                  color: AppTheme.valorantRed,
+                                  size: 13,
+                                  color: AppTheme.accentMagenta,
                                 ),
                                 const SizedBox(width: 4),
                                 Text(
                                   '${skin.cost} VP',
-                                  style: const TextStyle(
-                                    fontSize: 12,
+                                  style: GoogleFonts.rajdhani(
+                                    fontSize: 13,
                                     fontWeight: FontWeight.w700,
                                     color: AppTheme.textPrimary,
                                   ),
@@ -692,7 +725,7 @@ class _SkinCard extends StatelessWidget {
                             Text(
                               skin.tierName ?? '',
                               style: TextStyle(
-                                fontSize: 10,
+                                fontSize: 9,
                                 color: tierColor,
                                 fontWeight: FontWeight.w600,
                               ),
@@ -712,7 +745,6 @@ class _SkinCard extends StatelessWidget {
   }
 }
 
-
 /// Countdown card showing time until store reset.
 class _CountdownCard extends StatelessWidget {
   final Duration timeRemaining;
@@ -726,18 +758,18 @@ class _CountdownCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        gradient: AppTheme.cardGradient,
-        borderRadius: BorderRadius.circular(16),
+        color: AppTheme.cardDark,
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: AppTheme.valorantRed.withValues(alpha: 0.2),
+          color: AppTheme.accentMagenta.withValues(alpha: 0.3),
         ),
         boxShadow: [
           BoxShadow(
-            color: AppTheme.valorantRed.withValues(alpha: 0.08),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
+            color: AppTheme.accentMagenta.withValues(alpha: 0.08),
+            blurRadius: 12,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
@@ -747,54 +779,66 @@ class _CountdownCard extends StatelessWidget {
             animation: pulseController,
             builder: (context, child) {
               return Container(
-                padding: const EdgeInsets.all(10),
+                padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: AppTheme.valorantRed.withValues(
-                    alpha: 0.1 + (pulseController.value * 0.1),
+                  color: AppTheme.accentMagenta.withValues(
+                    alpha: 0.12 + (pulseController.value * 0.1),
                   ),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(6),
                 ),
                 child: const Icon(
                   Icons.timer_rounded,
-                  color: AppTheme.valorantRed,
-                  size: 24,
+                  color: AppTheme.accentMagenta,
+                  size: 20,
                 ),
               );
             },
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Store resets in (00:00 UTC)',
-                  style: Theme.of(context).textTheme.bodySmall,
+                  'STORE RESETS IN (00:00 UTC)',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        fontSize: 10,
+                        letterSpacing: 1.0,
+                        color: AppTheme.textSecondary,
+                        fontWeight: FontWeight.w600,
+                      ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   TimezoneHelper.formatDuration(timeRemaining),
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                        fontFamily: 'monospace',
-                        color: AppTheme.valorantRed,
-                        fontWeight: FontWeight.w700,
-                      ),
+                  style: GoogleFonts.rajdhani(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 2,
+                    color: AppTheme.accentMagenta,
+                  ),
                 ),
               ],
             ),
           ),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
-              color: AppTheme.valorantRed.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(8),
+              color: AppTheme.accentMagenta.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(
+                color: AppTheme.accentMagenta.withValues(alpha: 0.35),
+                width: 0.8,
+              ),
             ),
             child: Text(
               'LIVE',
-              style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                    color: AppTheme.valorantRed,
-                    fontSize: 11,
-                  ),
+              style: GoogleFonts.rajdhani(
+                color: AppTheme.accentMagenta,
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1.0,
+              ),
             ),
           ),
         ],
@@ -815,8 +859,8 @@ class _SkinCardPlaceholder extends StatelessWidget {
       highlightColor: AppTheme.surfaceColor,
       child: Container(
         decoration: BoxDecoration(
-          color: AppTheme.surfaceLight,
-          borderRadius: BorderRadius.circular(16),
+          color: AppTheme.cardDark,
+          borderRadius: BorderRadius.circular(6),
         ),
       ),
     );

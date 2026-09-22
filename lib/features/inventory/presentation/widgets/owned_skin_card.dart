@@ -1,5 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:valorant_store_tracker/app/theme.dart';
 import 'package:valorant_store_tracker/features/inventory/domain/entities/inventory_overview.dart';
 
@@ -24,20 +25,20 @@ class OwnedSkinCard extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: AppTheme.surfaceDark,
-        borderRadius: BorderRadius.circular(16),
+        color: AppTheme.cardDark,
+        borderRadius: BorderRadius.circular(6),
         border: Border.all(
           color: skin.isEquipped
-              ? const Color(0xFF00E5FF).withValues(alpha: 0.6)
+              ? AppTheme.accentMagenta.withValues(alpha: 0.7)
               : (skin.isBattlepass
-                  ? const Color(0xFFFFB300).withValues(alpha: 0.25)
+                  ? const Color(0xFFFFB300).withValues(alpha: 0.3)
                   : Colors.white.withValues(alpha: 0.08)),
           width: skin.isEquipped ? 1.5 : 1.0,
         ),
         boxShadow: skin.isEquipped
             ? [
                 BoxShadow(
-                  color: const Color(0xFF00E5FF).withValues(alpha: 0.15),
+                  color: AppTheme.accentMagenta.withValues(alpha: 0.15),
                   blurRadius: 10,
                   offset: const Offset(0, 2),
                 ),
@@ -121,10 +122,10 @@ class OwnedSkinCard extends StatelessWidget {
                       vertical: 2,
                     ),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF00E5FF).withValues(alpha: 0.2),
+                      color: AppTheme.accentMagenta.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(4),
                       border: Border.all(
-                        color: const Color(0xFF00E5FF).withValues(alpha: 0.5),
+                        color: AppTheme.accentMagenta.withValues(alpha: 0.5),
                       ),
                     ),
                     child: const Text(
@@ -133,7 +134,7 @@ class OwnedSkinCard extends StatelessWidget {
                         fontSize: 8,
                         fontWeight: FontWeight.w900,
                         letterSpacing: 0.6,
-                        color: Color(0xFF00E5FF),
+                        color: AppTheme.accentMagenta,
                       ),
                     ),
                   ),
@@ -153,7 +154,7 @@ class OwnedSkinCard extends StatelessWidget {
                             height: 18,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
-                              color: AppTheme.valorantRed,
+                              color: AppTheme.accentMagenta,
                             ),
                           ),
                         ),
@@ -219,8 +220,8 @@ class OwnedSkinCard extends StatelessWidget {
                 else
                   Text(
                     skin.cost > 0 ? '${skin.cost} VP' : 'FREE',
-                    style: TextStyle(
-                      fontSize: 11,
+                    style: GoogleFonts.rajdhani(
+                      fontSize: 13,
                       fontWeight: FontWeight.w800,
                       color: skin.cost > 0
                           ? const Color(0xFFE5B94E)

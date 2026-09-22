@@ -63,18 +63,22 @@ class InventoryCubit extends Cubit<InventoryState> {
   void filterBySource(InventorySourceFilter source) {
     if (state is! InventoryLoaded) return;
     final s = state as InventoryLoaded;
-    if (s.sourceFilter == source) return;
+    final targetSource =
+        (s.sourceFilter == source && source != InventorySourceFilter.all)
+            ? InventorySourceFilter.all
+            : source;
+    if (s.sourceFilter == targetSource) return;
 
     final filtered = _applyFilters(
       s.overview.ownedSkins,
-      source,
+      targetSource,
       s.selectedTier,
       s.searchQuery,
       s.sortOption,
     );
 
     emit(s.copyWith(
-      sourceFilter: source,
+      sourceFilter: targetSource,
       filteredSkins: filtered,
     ));
   }

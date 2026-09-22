@@ -139,8 +139,20 @@ class _SettingsPageState extends State<SettingsPage> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: AppTheme.surfaceDark,
-        title: const Text('Import Wishlist JSON'),
+        backgroundColor: AppTheme.cardDark,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+          side: BorderSide(
+            color: Colors.white.withValues(alpha: 0.08),
+          ),
+        ),
+        title: const Text(
+          'Import Wishlist JSON',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            letterSpacing: 0.5,
+          ),
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -152,8 +164,22 @@ class _SettingsPageState extends State<SettingsPage> {
             TextField(
               controller: controller,
               maxLines: 4,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: AppTheme.surfaceDark,
                 hintText: '[{"uuid": "...", "displayName": "..."}]',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(6),
+                  borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(6),
+                  borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(6),
+                  borderSide: const BorderSide(color: AppTheme.accentMagenta),
+                ),
               ),
             ),
           ],
@@ -161,9 +187,16 @@ class _SettingsPageState extends State<SettingsPage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('CANCEL'),
+            child: const Text('CANCEL', style: TextStyle(color: AppTheme.textMuted)),
           ),
           ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.accentMagenta,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(6),
+              ),
+            ),
             onPressed: () async {
               try {
                 final list = jsonDecode(controller.text) as List<dynamic>;
@@ -200,12 +233,24 @@ class _SettingsPageState extends State<SettingsPage> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: AppTheme.surfaceDark,
+        backgroundColor: AppTheme.cardDark,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+          side: BorderSide(
+            color: Colors.white.withValues(alpha: 0.08),
+          ),
+        ),
         title: const Row(
           children: [
-            Icon(Icons.battery_alert_rounded, color: AppTheme.valorantRed),
+            Icon(Icons.battery_alert_rounded, color: AppTheme.accentMagenta),
             SizedBox(width: 8),
-            Text('Battery Optimization'),
+            Text(
+              'Battery Optimization',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                letterSpacing: 0.5,
+              ),
+            ),
           ],
         ),
         content: const Column(
@@ -229,6 +274,13 @@ class _SettingsPageState extends State<SettingsPage> {
         ),
         actions: [
           ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.accentMagenta,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(6),
+              ),
+            ),
             onPressed: () => Navigator.of(ctx).pop(),
             child: const Text('GOT IT'),
           ),
@@ -241,23 +293,24 @@ class _SettingsPageState extends State<SettingsPage> {
     final shouldLogout = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: AppTheme.surfaceDark,
+        backgroundColor: AppTheme.cardDark,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(8),
           side: BorderSide(
-            color: AppTheme.valorantRed.withValues(alpha: 0.4),
+            color: AppTheme.accentMagenta.withValues(alpha: 0.35),
             width: 1,
           ),
         ),
         title: const Row(
           children: [
-            Icon(Icons.logout_rounded, color: AppTheme.valorantRed),
+            Icon(Icons.logout_rounded, color: AppTheme.accentMagenta),
             SizedBox(width: 8),
             Text(
               'Logout Akun',
               style: TextStyle(
                 color: AppTheme.textPrimary,
                 fontWeight: FontWeight.bold,
+                letterSpacing: 0.5,
               ),
             ),
           ],
@@ -280,8 +333,11 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.valorantRed,
+              backgroundColor: AppTheme.accentMagenta,
               foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(6),
+              ),
             ),
             onPressed: () => Navigator.of(ctx).pop(true),
             child: const Text('LOGOUT'),
@@ -308,10 +364,9 @@ class _SettingsPageState extends State<SettingsPage> {
           child: BlocBuilder<AuthCubit, AuthState>(
             builder: (context, authState) {
               final session =
-                  authState is AuthAuthenticated ? authState.session : null;
-
-              return RefreshIndicator(
-                color: AppTheme.valorantRed,
+                  authState is AuthAuthenticated ? authState.session : null;              return RefreshIndicator(
+                color: AppTheme.accentMagenta,
+                backgroundColor: AppTheme.surfaceDark,
                 onRefresh: () async {
                   await Future.wait([
                     context.read<ProfileCubit>().loadProfile(forceRefresh: true),
@@ -325,12 +380,42 @@ class _SettingsPageState extends State<SettingsPage> {
                     SliverToBoxAdapter(
                       child: Padding(
                         padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-                        child: Text(
-                          'PROFILE & SETTINGS',
-                          style: Theme.of(context)
-                              .textTheme
-                              .headlineLarge
-                              ?.copyWith(letterSpacing: 2),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 3,
+                              height: 38,
+                              margin: const EdgeInsets.only(right: 12),
+                              decoration: BoxDecoration(
+                                color: AppTheme.accentMagenta,
+                                borderRadius: BorderRadius.circular(1.5),
+                              ),
+                            ),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'SETTINGS',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .headlineLarge
+                                      ?.copyWith(
+                                        letterSpacing: 2.5,
+                                        fontWeight: FontWeight.w900,
+                                      ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  'PROFILE & APP CONFIGURATION',
+                                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    letterSpacing: 0.8,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
                       ),
                     ),
@@ -406,19 +491,23 @@ class _SettingsPageState extends State<SettingsPage> {
                               : 'Not signed in',
                           trailing: Container(
                             padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 4,
+                              horizontal: 8,
+                              vertical: 3,
                             ),
                             decoration: BoxDecoration(
-                              color: AppTheme.valorantRed.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(8),
+                              color: AppTheme.accentMagenta.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(
+                                color: AppTheme.accentMagenta.withValues(alpha: 0.4),
+                              ),
                             ),
                             child: Text(
                               session != null ? 'CONNECTED' : 'SIGN IN',
                               style: const TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color: AppTheme.valorantRed,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 0.5,
+                                color: AppTheme.accentMagenta,
                               ),
                             ),
                           ),
@@ -440,7 +529,7 @@ class _SettingsPageState extends State<SettingsPage> {
                             icon: Icons.logout_rounded,
                             title: 'Logout Akun Riot',
                             subtitle: 'Keluar dan bersihkan sesi login',
-                            titleColor: AppTheme.valorantRed,
+                            titleColor: AppTheme.accentMagenta,
                             onTap: () => _confirmLogout(context),
                           ),
                       ],
@@ -458,7 +547,8 @@ class _SettingsPageState extends State<SettingsPage> {
                           subtitle: 'Notifikasi saat skin wishlist ada di store',
                           trailing: Switch(
                             value: _notificationsEnabled,
-                            activeThumbColor: AppTheme.valorantRed,
+                            activeThumbColor: AppTheme.accentMagenta,
+                            activeTrackColor: AppTheme.accentMagenta.withValues(alpha: 0.3),
                             onChanged: _toggleNotifications,
                           ),
                         ),
@@ -491,12 +581,12 @@ class _SettingsPageState extends State<SettingsPage> {
                                           vertical: 4,
                                         ),
                                         decoration: BoxDecoration(
-                                          color: AppTheme.surfaceLight,
+                                          color: AppTheme.surfaceDark,
                                           borderRadius:
-                                              BorderRadius.circular(6),
+                                              BorderRadius.circular(4),
                                           border: Border.all(
-                                            color: AppTheme.valorantRed
-                                                .withValues(alpha: 0.3),
+                                            color: AppTheme.accentMagenta
+                                                .withValues(alpha: 0.35),
                                           ),
                                         ),
                                         child: Text(
@@ -616,7 +706,8 @@ class _SettingsPageState extends State<SettingsPage> {
                           subtitle: 'Require fingerprint to unlock app',
                           trailing: Switch(
                             value: _biometricEnabled,
-                            activeThumbColor: AppTheme.valorantRed,
+                            activeThumbColor: AppTheme.accentMagenta,
+                            activeTrackColor: AppTheme.accentMagenta.withValues(alpha: 0.3),
                             onChanged: _toggleBiometric,
                           ),
                         ),
@@ -660,7 +751,7 @@ class _SettingsPageState extends State<SettingsPage> {
                             icon: Icons.logout_rounded,
                             title: 'Sign Out',
                             subtitle: 'Clear all tokens and local session',
-                            titleColor: AppTheme.valorantRed,
+                            titleColor: AppTheme.accentMagenta,
                             onTap: () => _confirmLogout(context),
                           ),
                       ],
@@ -711,10 +802,10 @@ class _SettingsSection extends StatelessWidget {
           ),
           Container(
             decoration: BoxDecoration(
-              color: AppTheme.surfaceColor.withValues(alpha: 0.8),
-              borderRadius: BorderRadius.circular(16),
+              color: AppTheme.cardDark,
+              borderRadius: BorderRadius.circular(8),
               border: Border.all(
-                color: Colors.white.withValues(alpha: 0.05),
+                color: Colors.white.withValues(alpha: 0.06),
               ),
             ),
             child: Column(
@@ -758,7 +849,7 @@ class _SettingsTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(8),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         child: Row(
@@ -766,13 +857,16 @@ class _SettingsTile extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: AppTheme.surfaceLight.withValues(alpha: 0.5),
-                borderRadius: BorderRadius.circular(10),
+                color: AppTheme.surfaceDark,
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(
+                  color: (titleColor ?? AppTheme.accentMagenta).withValues(alpha: 0.15),
+                ),
               ),
               child: Icon(
                 icon,
-                size: 20,
-                color: titleColor ?? AppTheme.textPrimary,
+                size: 18,
+                color: titleColor ?? AppTheme.accentMagenta,
               ),
             ),
             const SizedBox(width: 14),

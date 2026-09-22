@@ -1,5 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:valorant_store_tracker/app/theme.dart';
 import 'package:valorant_store_tracker/features/battlepass/domain/entities/battlepass_overview.dart';
 
@@ -14,24 +15,17 @@ class BattlepassProgressCard extends StatelessWidget {
     final overallProgress = overview.overallProgressFraction;
 
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Color(0xFF1E2333),
-            Color(0xFF0F1923),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(20),
+        color: AppTheme.cardDark,
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: AppTheme.valorantRed.withValues(alpha: 0.35),
+          color: AppTheme.accentMagenta.withValues(alpha: 0.35),
           width: 1.2,
         ),
         boxShadow: [
           BoxShadow(
-            color: AppTheme.valorantRed.withValues(alpha: 0.08),
+            color: AppTheme.accentMagenta.withValues(alpha: 0.08),
             blurRadius: 16,
             offset: const Offset(0, 4),
           ),
@@ -53,7 +47,7 @@ class BattlepassProgressCard extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        fontSize: 16,
+                        fontSize: 15,
                         fontWeight: FontWeight.w900,
                         letterSpacing: 1.2,
                         color: AppTheme.textPrimary,
@@ -61,9 +55,11 @@ class BattlepassProgressCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'Overall Act Progress: ${(overallProgress * 100).toInt()}%',
-                      style: const TextStyle(
-                        fontSize: 11,
+                      'OVERALL ACT PROGRESS: ${(overallProgress * 100).toInt()}%',
+                      style: GoogleFonts.rajdhani(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.8,
                         color: AppTheme.textSecondary,
                       ),
                     ),
@@ -72,17 +68,17 @@ class BattlepassProgressCard extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(
-                  color: AppTheme.valorantRed,
-                  borderRadius: BorderRadius.circular(8),
+                  color: AppTheme.accentMagenta,
+                  borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(
                   overview.currentTier == 0
                       ? 'TIER 1 (START)'
                       : 'TIER ${overview.currentTier}',
-                  style: const TextStyle(
-                    fontSize: 12,
+                  style: GoogleFonts.rajdhani(
+                    fontSize: 13,
                     fontWeight: FontWeight.w900,
                     letterSpacing: 1,
                     color: Colors.white,
@@ -91,7 +87,7 @@ class BattlepassProgressCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 16),
 
           // Tier XP Progress Bar
           Row(
@@ -99,52 +95,56 @@ class BattlepassProgressCard extends StatelessWidget {
             children: [
               Text(
                 overview.currentTier >= overview.maxTier
-                    ? 'Battlepass Max Completed'
-                    : 'Tier ${overview.currentTier + 1} Progress',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white.withValues(alpha: 0.8),
+                    ? 'BATTLEPASS COMPLETED'
+                    : 'TIER ${overview.currentTier + 1} PROGRESS',
+                style: const TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.8,
+                  color: AppTheme.textSecondary,
                 ),
               ),
               Text(
                 '${overview.currentTierXp} / ${overview.tierXpRequired} XP',
-                style: const TextStyle(
-                  fontFamily: 'monospace',
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFFE5B94E),
+                style: GoogleFonts.rajdhani(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  color: const Color(0xFFE5B94E),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 8),
           ClipRRect(
-            borderRadius: BorderRadius.circular(6),
+            borderRadius: BorderRadius.circular(4),
             child: LinearProgressIndicator(
               value: tierProgress,
-              minHeight: 10,
+              minHeight: 8,
               backgroundColor: Colors.black.withValues(alpha: 0.4),
-              valueColor: const AlwaysStoppedAnimation<Color>(AppTheme.valorantRed),
+              valueColor: const AlwaysStoppedAnimation<Color>(AppTheme.accentMagenta),
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
 
           // Total XP stats
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Total Earned: ${overview.totalXpEarned} XP',
-                style: const TextStyle(
-                  fontSize: 11,
+                'TOTAL EARNED: ${overview.totalXpEarned} XP',
+                style: GoogleFonts.rajdhani(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.5,
                   color: AppTheme.textSecondary,
                 ),
               ),
               Text(
-                'Max Tier: ${overview.maxTier}',
-                style: const TextStyle(
-                  fontSize: 11,
+                'MAX TIER: ${overview.maxTier}',
+                style: GoogleFonts.rajdhani(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.5,
                   color: AppTheme.textSecondary,
                 ),
               ),
@@ -153,18 +153,18 @@ class BattlepassProgressCard extends StatelessWidget {
 
           // Upcoming Rewards Preview
           if (overview.nextRewards.isNotEmpty) ...[
-            const SizedBox(height: 16),
+            const SizedBox(height: 14),
             Container(
               height: 1,
-              color: Colors.white.withValues(alpha: 0.08),
+              color: Colors.white.withValues(alpha: 0.06),
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 12),
             const Text(
               'UPCOMING TIER REWARDS',
               style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 1,
+                fontSize: 10,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 1.2,
                 color: AppTheme.textSecondary,
               ),
             ),
@@ -182,11 +182,11 @@ class BattlepassProgressCard extends StatelessWidget {
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
                       color: AppTheme.surfaceDark,
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(6),
                       border: Border.all(
                         color: reward.isFree
-                            ? const Color(0xFF00E5FF).withValues(alpha: 0.4)
-                            : Colors.white.withValues(alpha: 0.08),
+                            ? AppTheme.accentMagenta.withValues(alpha: 0.5)
+                            : Colors.white.withValues(alpha: 0.06),
                       ),
                     ),
                     child: Column(
@@ -197,9 +197,9 @@ class BattlepassProgressCard extends StatelessWidget {
                           children: [
                             Text(
                               'TIER ${reward.tier}',
-                              style: const TextStyle(
-                                fontSize: 9,
-                                fontWeight: FontWeight.w900,
+                              style: GoogleFonts.rajdhani(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
                                 color: AppTheme.textSecondary,
                               ),
                             ),
@@ -210,7 +210,7 @@ class BattlepassProgressCard extends StatelessWidget {
                                   vertical: 1,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF00E5FF).withValues(alpha: 0.2),
+                                  color: AppTheme.accentMagenta.withValues(alpha: 0.2),
                                   borderRadius: BorderRadius.circular(3),
                                 ),
                                 child: const Text(
@@ -218,7 +218,7 @@ class BattlepassProgressCard extends StatelessWidget {
                                   style: TextStyle(
                                     fontSize: 8,
                                     fontWeight: FontWeight.w900,
-                                    color: Color(0xFF00E5FF),
+                                    color: AppTheme.accentMagenta,
                                   ),
                                 ),
                               ),

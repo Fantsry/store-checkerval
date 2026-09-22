@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:valorant_store_tracker/app/theme.dart';
 
 class TierBreakdownCard extends StatelessWidget {
@@ -36,8 +37,8 @@ class TierBreakdownCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.surfaceDark,
-        borderRadius: BorderRadius.circular(16),
+        color: AppTheme.cardDark,
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(
           color: Colors.white.withValues(alpha: 0.08),
         ),
@@ -51,7 +52,7 @@ class TierBreakdownCard extends StatelessWidget {
               const Text(
                 'SKIN TIERS DISTRIBUTION',
                 style: TextStyle(
-                  fontSize: 12,
+                  fontSize: 11,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 1.2,
                   color: AppTheme.textSecondary,
@@ -65,7 +66,7 @@ class TierBreakdownCard extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
-                      color: AppTheme.valorantRed,
+                      color: AppTheme.accentMagenta,
                       letterSpacing: 0.8,
                     ),
                   ),
@@ -81,31 +82,29 @@ class TierBreakdownCard extends StatelessWidget {
               final color = _tierColor(tier);
 
               return Expanded(
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    onTap: () {
-                      if (isSelected) {
-                        onTierSelected?.call(null);
-                      } else {
-                        onTierSelected?.call(tier);
-                      }
-                    },
-                    borderRadius: BorderRadius.circular(10),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      margin: const EdgeInsets.symmetric(horizontal: 3),
-                      padding: const EdgeInsets.symmetric(vertical: 8),
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () {
+                    if (isSelected) {
+                      onTierSelected?.call(null);
+                    } else {
+                      onTierSelected?.call(tier);
+                    }
+                  },
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    margin: const EdgeInsets.symmetric(horizontal: 2),
+                    padding: const EdgeInsets.symmetric(vertical: 8),
                       decoration: BoxDecoration(
                         color: isSelected
                             ? color.withValues(alpha: 0.28)
-                            : color.withValues(alpha: 0.10),
-                        borderRadius: BorderRadius.circular(10),
+                            : color.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(4),
                         border: Border.all(
                           color: isSelected
                               ? color
-                              : color.withValues(alpha: 0.35),
-                          width: isSelected ? 1.8 : 1.0,
+                              : color.withValues(alpha: 0.3),
+                          width: isSelected ? 1.5 : 1.0,
                         ),
                         boxShadow: isSelected
                             ? [
@@ -121,9 +120,9 @@ class TierBreakdownCard extends StatelessWidget {
                         children: [
                           Text(
                             '$count',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w900,
+                            style: GoogleFonts.rajdhani(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800,
                               color: isSelected ? Colors.white : color,
                             ),
                           ),
@@ -132,7 +131,8 @@ class TierBreakdownCard extends StatelessWidget {
                             tier,
                             style: TextStyle(
                               fontSize: 9,
-                              fontWeight: FontWeight.w700,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 0.5,
                               color: isSelected
                                   ? Colors.white
                                   : color.withValues(alpha: 0.85),
@@ -142,8 +142,7 @@ class TierBreakdownCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                ),
-              );
+                );
             }).toList(),
           ),
         ],

@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:valorant_store_tracker/app/theme.dart';
 import 'package:valorant_store_tracker/features/daily_store/domain/entities/skin_item.dart';
 import 'package:valorant_store_tracker/features/wishlist/presentation/cubit/wishlist_cubit.dart';
@@ -68,7 +69,13 @@ class _CatalogPageState extends State<CatalogPage> {
     return Scaffold(
       backgroundColor: AppTheme.backgroundDark,
       appBar: AppBar(
-        title: const Text('SKIN CATALOG'),
+        title: const Text(
+          'SKIN CATALOG',
+          style: TextStyle(
+            letterSpacing: 2,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
       ),
       body: BlocBuilder<WishlistCubit, WishlistState>(
         builder: (context, state) {
@@ -80,57 +87,100 @@ class _CatalogPageState extends State<CatalogPage> {
               // ─── Search Bar ─────────────────────────────────
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
-                child: TextField(
-                  controller: _searchController,
-                  style: const TextStyle(color: AppTheme.textPrimary),
-                  decoration: InputDecoration(
-                    hintText: 'Search skins by name...',
-                    prefixIcon: const Icon(
-                      Icons.search_rounded,
-                      color: AppTheme.textMuted,
+                child: Container(
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: AppTheme.cardDark,
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.08),
                     ),
-                    suffixIcon: _searchController.text.isNotEmpty
-                        ? IconButton(
-                            onPressed: () {
-                              _searchController.clear();
-                              _onSearchChanged('');
-                            },
-                            icon: const Icon(
-                              Icons.clear_rounded,
-                              color: AppTheme.textMuted,
-                            ),
-                          )
-                        : null,
                   ),
-                  onChanged: _onSearchChanged,
+                  child: TextField(
+                    controller: _searchController,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: AppTheme.textPrimary,
+                    ),
+                    decoration: InputDecoration(
+                      hintText: 'Search skins by name...',
+                      hintStyle: const TextStyle(
+                        fontSize: 13,
+                        color: AppTheme.textSecondary,
+                      ),
+                      prefixIcon: const Icon(
+                        Icons.search_rounded,
+                        size: 18,
+                        color: AppTheme.textMuted,
+                      ),
+                      suffixIcon: _searchController.text.isNotEmpty
+                          ? IconButton(
+                              onPressed: () {
+                                _searchController.clear();
+                                _onSearchChanged('');
+                              },
+                              icon: const Icon(
+                                Icons.clear_rounded,
+                                size: 16,
+                                color: AppTheme.textMuted,
+                              ),
+                            )
+                          : null,
+                      border: InputBorder.none,
+                      contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                    ),
+                    onChanged: _onSearchChanged,
+                  ),
                 ),
               ),
 
               // ─── Filter Chips ───────────────────────────────
               SizedBox(
-                height: 40,
+                height: 36,
                 child: ListView.separated(
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   itemCount: _filters.length,
-                  separatorBuilder: (_, __) => const SizedBox(width: 8),
+                  separatorBuilder: (_, __) => const SizedBox(width: 6),
                   itemBuilder: (context, index) {
                     final filter = _filters[index];
                     final isSelected = filter == _selectedFilter;
-                    return ChoiceChip(
-                      label: Text(filter),
-                      selected: isSelected,
-                      selectedColor:
-                          AppTheme.valorantRed.withValues(alpha: 0.25),
-                      checkmarkColor: AppTheme.valorantRed,
-                      labelStyle: TextStyle(
-                        color: isSelected
-                            ? AppTheme.valorantRed
-                            : AppTheme.textSecondary,
-                        fontWeight:
-                            isSelected ? FontWeight.bold : FontWeight.normal,
+                    return InkWell(
+                      onTap: () => _onFilterSelected(filter),
+                      borderRadius: BorderRadius.circular(6),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? AppTheme.accentMagenta.withValues(alpha: 0.2)
+                              : AppTheme.cardDark,
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(
+                            color: isSelected
+                                ? AppTheme.accentMagenta
+                                : Colors.white.withValues(alpha: 0.08),
+                            width: isSelected ? 1.4 : 1.0,
+                          ),
+                        ),
+                        child: Center(
+                          child: Text(
+                            filter,
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: isSelected
+                                  ? FontWeight.w900
+                                  : FontWeight.w600,
+                              letterSpacing: 0.6,
+                              color: isSelected
+                                  ? Colors.white
+                                  : AppTheme.textSecondary,
+                            ),
+                          ),
+                        ),
                       ),
-                      onSelected: (_) => _onFilterSelected(filter),
                     );
                   },
                 ),
@@ -177,7 +227,8 @@ class _CatalogPageState extends State<CatalogPage> {
               else
                 Expanded(
                   child: RefreshIndicator(
-                    color: AppTheme.valorantRed,
+                    color: AppTheme.accentMagenta,
+                    backgroundColor: AppTheme.surfaceDark,
                     onRefresh: () async {
                       await context.read<WishlistCubit>().searchCatalog(
                             query: _searchController.text,
@@ -188,7 +239,7 @@ class _CatalogPageState extends State<CatalogPage> {
                     child: isSearching
                         ? const Center(
                             child: CircularProgressIndicator(
-                              color: AppTheme.valorantRed,
+                              color: AppTheme.accentMagenta,
                             ),
                           )
                         : catalog.isEmpty
@@ -245,9 +296,9 @@ class _CatalogPageState extends State<CatalogPage> {
                                 gridDelegate:
                                     const SliverGridDelegateWithFixedCrossAxisCount(
                                   crossAxisCount: 2,
-                                  mainAxisSpacing: 12,
-                                  crossAxisSpacing: 12,
-                                  childAspectRatio: 0.75,
+                                  mainAxisSpacing: 10,
+                                  crossAxisSpacing: 10,
+                                  childAspectRatio: 0.78,
                                 ),
                                 itemCount: catalog.length,
                                 itemBuilder: (context, index) {
@@ -295,17 +346,26 @@ class _CatalogCard extends StatelessWidget {
           },
           child: Container(
             decoration: BoxDecoration(
-              gradient: AppTheme.cardGradient,
-              borderRadius: BorderRadius.circular(16),
+              color: AppTheme.cardDark,
+              borderRadius: BorderRadius.circular(6),
               border: Border.all(
                 color: isWishlisted
-                    ? AppTheme.valorantRed.withValues(alpha: 0.6)
-                    : Colors.white.withValues(alpha: 0.06),
+                    ? AppTheme.accentMagenta.withValues(alpha: 0.7)
+                    : Colors.white.withValues(alpha: 0.08),
                 width: isWishlisted ? 1.5 : 1.0,
               ),
+              boxShadow: isWishlisted
+                  ? [
+                      BoxShadow(
+                        color: AppTheme.accentMagenta.withValues(alpha: 0.12),
+                        blurRadius: 10,
+                        offset: const Offset(0, 2),
+                      ),
+                    ]
+                  : null,
             ),
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(6),
               child: Padding(
                 padding: const EdgeInsets.all(12),
                 child: Column(
@@ -318,8 +378,8 @@ class _CatalogCard extends StatelessWidget {
                         Text(
                           skin.weaponName?.toUpperCase() ?? 'SKIN',
                           style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
+                            fontSize: 9,
+                            fontWeight: FontWeight.w800,
                             color: tierColor,
                             letterSpacing: 0.8,
                           ),
@@ -334,7 +394,7 @@ class _CatalogCard extends StatelessWidget {
                                 : Icons.favorite_border_rounded,
                             size: 18,
                             color: isWishlisted
-                                ? AppTheme.valorantRed
+                                ? AppTheme.accentMagenta
                                 : AppTheme.textSecondary,
                           ),
                         ),
@@ -350,11 +410,11 @@ class _CatalogCard extends StatelessWidget {
                                 fit: BoxFit.contain,
                                 placeholder: (_, __) => const Center(
                                   child: SizedBox(
-                                    width: 20,
-                                    height: 20,
+                                    width: 18,
+                                    height: 18,
                                     child: CircularProgressIndicator(
                                       strokeWidth: 2,
-                                      color: AppTheme.surfaceLight,
+                                      color: AppTheme.accentMagenta,
                                     ),
                                   ),
                                 ),
@@ -390,10 +450,10 @@ class _CatalogCard extends StatelessWidget {
                       children: [
                         Text(
                           '${skin.cost} VP',
-                          style: const TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: AppTheme.textSecondary,
+                          style: GoogleFonts.rajdhani(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                            color: const Color(0xFFE5B94E),
                           ),
                         ),
                         if (skin.tierName != null)
@@ -401,6 +461,7 @@ class _CatalogCard extends StatelessWidget {
                             skin.tierName!,
                             style: TextStyle(
                               fontSize: 10,
+                              fontWeight: FontWeight.w600,
                               color: tierColor,
                             ),
                           ),

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:valorant_store_tracker/app/theme.dart';
 import 'package:valorant_store_tracker/features/auth/presentation/cubit/auth_cubit.dart';
@@ -53,7 +54,7 @@ class _ActiveProfileCard extends StatelessWidget {
       SnackBar(
         content: Text('Riot ID "${profile.displayName}" disalin ke clipboard!'),
         duration: const Duration(seconds: 2),
-        backgroundColor: AppTheme.surfaceLight,
+        backgroundColor: AppTheme.cardDark,
         behavior: SnackBarBehavior.floating,
       ),
     );
@@ -63,23 +64,24 @@ class _ActiveProfileCard extends StatelessWidget {
     final shouldLogout = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: AppTheme.surfaceDark,
+        backgroundColor: AppTheme.cardDark,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(8),
           side: BorderSide(
-            color: AppTheme.valorantRed.withValues(alpha: 0.4),
+            color: AppTheme.accentMagenta.withValues(alpha: 0.4),
             width: 1,
           ),
         ),
         title: const Row(
           children: [
-            Icon(Icons.logout_rounded, color: AppTheme.valorantRed),
+            Icon(Icons.logout_rounded, color: AppTheme.accentMagenta),
             SizedBox(width: 8),
             Text(
-              'Logout Akun',
+              'LOGOUT AKUN',
               style: TextStyle(
                 color: AppTheme.textPrimary,
                 fontWeight: FontWeight.bold,
+                fontSize: 16,
               ),
             ),
           ],
@@ -102,8 +104,11 @@ class _ActiveProfileCard extends StatelessWidget {
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.valorantRed,
+              backgroundColor: AppTheme.accentMagenta,
               foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(6),
+              ),
             ),
             onPressed: () => Navigator.of(ctx).pop(true),
             child: const Text('LOGOUT'),
@@ -136,17 +141,17 @@ class _ActiveProfileCard extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       decoration: BoxDecoration(
-        color: AppTheme.surfaceDark,
-        borderRadius: BorderRadius.circular(20),
+        color: AppTheme.cardDark,
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: AppTheme.valorantRed.withValues(alpha: 0.35),
+          color: AppTheme.accentMagenta.withValues(alpha: 0.35),
           width: 1.2,
         ),
         boxShadow: [
           BoxShadow(
-            color: AppTheme.valorantRed.withValues(alpha: 0.08),
-            blurRadius: 24,
-            offset: const Offset(0, 8),
+            color: AppTheme.accentMagenta.withValues(alpha: 0.08),
+            blurRadius: 20,
+            offset: const Offset(0, 4),
           ),
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.5),
@@ -156,7 +161,7 @@ class _ActiveProfileCard extends StatelessWidget {
         ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(8),
         child: Stack(
           children: [
             // ─── 1. Background Wide Art ───────────────────────
@@ -180,22 +185,22 @@ class _ActiveProfileCard extends StatelessWidget {
                     stops: hasWideArt ? const [0.0, 0.40, 0.75, 1.0] : null,
                     colors: hasWideArt
                         ? [
-                            const Color(0xFF0F1722).withValues(alpha: 0.92),
-                            const Color(0xFF0F1722).withValues(alpha: 0.65),
-                            const Color(0xFF0F1722).withValues(alpha: 0.20),
+                            const Color(0xFF0B0C10).withValues(alpha: 0.95),
+                            const Color(0xFF0B0C10).withValues(alpha: 0.75),
+                            const Color(0xFF0B0C10).withValues(alpha: 0.30),
                             Colors.transparent,
                           ]
                         : [
-                            const Color(0xFF0F1722).withValues(alpha: 0.96),
-                            const Color(0xFF0F1722).withValues(alpha: 0.88),
-                            const Color(0xFF141F2D).withValues(alpha: 0.70),
+                            const Color(0xFF0B0C10).withValues(alpha: 0.98),
+                            const Color(0xFF0B0C10).withValues(alpha: 0.90),
+                            const Color(0xFF121319).withValues(alpha: 0.75),
                           ],
                   ),
                 ),
               ),
             ),
 
-            // Subtle Red Accent Lines / Ambient Glow
+            // Subtle Magenta Accent Glow
             Positioned(
               top: -30,
               right: -30,
@@ -204,7 +209,7 @@ class _ActiveProfileCard extends StatelessWidget {
                 height: 120,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: AppTheme.valorantRed.withValues(alpha: 0.15),
+                  color: AppTheme.accentMagenta.withValues(alpha: 0.12),
                 ),
               ),
             ),
@@ -225,37 +230,37 @@ class _ActiveProfileCard extends StatelessWidget {
                         alignment: Alignment.bottomCenter,
                         children: [
                           Container(
-                            width: 66,
-                            height: 66,
+                            width: 64,
+                            height: 64,
                             decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(14),
+                              borderRadius: BorderRadius.circular(6),
                               border: Border.all(
-                                color: AppTheme.valorantRed,
-                                width: 2,
+                                color: AppTheme.accentMagenta,
+                                width: 1.5,
                               ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: AppTheme.valorantRed
-                                      .withValues(alpha: 0.3),
-                                  blurRadius: 10,
+                                  color: AppTheme.accentMagenta
+                                      .withValues(alpha: 0.25),
+                                  blurRadius: 8,
                                 ),
                               ],
                             ),
                             child: ClipRRect(
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(5),
                               child: hasSmallArt
                                   ? CachedNetworkImage(
                                       imageUrl: effectiveSmallArt,
                                       fit: BoxFit.cover,
                                       placeholder: (_, __) => Container(
-                                        color: AppTheme.surfaceLight,
+                                        color: AppTheme.surfaceDark,
                                         child: const Icon(
                                           Icons.person_rounded,
                                           color: AppTheme.textMuted,
                                         ),
                                       ),
                                       errorWidget: (_, __, ___) => Container(
-                                        color: AppTheme.surfaceLight,
+                                        color: AppTheme.surfaceDark,
                                         child: const Icon(
                                           Icons.person_rounded,
                                           color: AppTheme.textMuted,
@@ -263,10 +268,10 @@ class _ActiveProfileCard extends StatelessWidget {
                                       ),
                                     )
                                   : Container(
-                                      color: AppTheme.surfaceLight,
+                                      color: AppTheme.surfaceDark,
                                       child: const Icon(
                                         Icons.person_rounded,
-                                        color: AppTheme.valorantRed,
+                                        color: AppTheme.accentMagenta,
                                         size: 32,
                                       ),
                                     ),
@@ -278,18 +283,18 @@ class _ActiveProfileCard extends StatelessWidget {
                             child: Container(
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 6,
-                                vertical: 2,
+                                vertical: 1,
                               ),
                               decoration: BoxDecoration(
-                                color: const Color(0xFF1B2733),
-                                borderRadius: BorderRadius.circular(6),
+                                color: AppTheme.cardDark,
+                                borderRadius: BorderRadius.circular(4),
                                 border: Border.all(
-                                  color: AppTheme.valorantRed,
+                                  color: AppTheme.accentMagenta,
                                   width: 1,
                                 ),
                                 boxShadow: const [
                                   BoxShadow(
-                                    color: Colors.black45,
+                                    color: Colors.black54,
                                     blurRadius: 4,
                                   ),
                                 ],
@@ -299,14 +304,14 @@ class _ActiveProfileCard extends StatelessWidget {
                                 children: [
                                   const Icon(
                                     Icons.shield_rounded,
-                                    size: 10,
-                                    color: AppTheme.valorantRed,
+                                    size: 9,
+                                    color: AppTheme.accentMagenta,
                                   ),
                                   const SizedBox(width: 3),
                                   Text(
                                     '${profile.accountLevel}',
-                                    style: const TextStyle(
-                                      fontSize: 10,
+                                    style: GoogleFonts.rajdhani(
+                                      fontSize: 11,
                                       fontWeight: FontWeight.w900,
                                       color: AppTheme.textPrimary,
                                     ),
@@ -327,7 +332,7 @@ class _ActiveProfileCard extends StatelessWidget {
                             // Game Name & TagLine + Copy Button
                             InkWell(
                               onTap: () => _copyRiotId(context),
-                              borderRadius: BorderRadius.circular(6),
+                              borderRadius: BorderRadius.circular(4),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
@@ -340,7 +345,7 @@ class _ActiveProfileCard extends StatelessWidget {
                                           TextSpan(
                                             text: profile.gameName,
                                             style: const TextStyle(
-                                              fontSize: 18,
+                                              fontSize: 17,
                                               fontWeight: FontWeight.w900,
                                               letterSpacing: 0.5,
                                               color: AppTheme.textPrimary,
@@ -350,9 +355,9 @@ class _ActiveProfileCard extends StatelessWidget {
                                             TextSpan(
                                               text: ' #${profile.tagLine}',
                                               style: TextStyle(
-                                                fontSize: 14,
-                                                fontWeight: FontWeight.w600,
-                                                color: AppTheme.valorantRed
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.w700,
+                                                color: AppTheme.accentMagenta
                                                     .withValues(alpha: 0.9),
                                               ),
                                             ),
@@ -363,7 +368,7 @@ class _ActiveProfileCard extends StatelessWidget {
                                   const SizedBox(width: 6),
                                   Icon(
                                     Icons.copy_rounded,
-                                    size: 14,
+                                    size: 13,
                                     color: Colors.white.withValues(alpha: 0.6),
                                   ),
                                 ],
@@ -378,13 +383,13 @@ class _ActiveProfileCard extends StatelessWidget {
                               Container(
                                 margin: const EdgeInsets.only(bottom: 5),
                                 padding: const EdgeInsets.symmetric(
-                                  horizontal: 7,
+                                  horizontal: 6,
                                   vertical: 2,
                                 ),
                                 decoration: BoxDecoration(
                                   color: const Color(0xFFD4AF37)
                                       .withValues(alpha: 0.15),
-                                  borderRadius: BorderRadius.circular(4),
+                                  borderRadius: BorderRadius.circular(3),
                                   border: Border.all(
                                     color: const Color(0xFFD4AF37)
                                         .withValues(alpha: 0.4),
@@ -394,9 +399,9 @@ class _ActiveProfileCard extends StatelessWidget {
                                 child: Text(
                                   profile.titleText!.toUpperCase(),
                                   style: const TextStyle(
-                                    fontSize: 10,
+                                    fontSize: 9,
                                     fontWeight: FontWeight.w800,
-                                    letterSpacing: 1.2,
+                                    letterSpacing: 1.0,
                                     color: Color(0xFFFFDF78),
                                   ),
                                 ),
@@ -437,7 +442,7 @@ class _ActiveProfileCard extends StatelessWidget {
                                     height: 18,
                                     child: CircularProgressIndicator(
                                       strokeWidth: 2,
-                                      color: AppTheme.valorantRed,
+                                      color: AppTheme.accentMagenta,
                                     ),
                                   )
                                 : const Icon(
@@ -456,7 +461,7 @@ class _ActiveProfileCard extends StatelessWidget {
                             icon: const Icon(
                               Icons.logout_rounded,
                               size: 20,
-                              color: AppTheme.valorantRed,
+                              color: AppTheme.accentMagenta,
                             ),
                             onPressed: () => _showLogoutDialog(context),
                           ),
@@ -465,12 +470,12 @@ class _ActiveProfileCard extends StatelessWidget {
                     ],
                   ),
 
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 14),
 
                   // Divider
                   Container(
                     height: 1,
-                    color: Colors.white.withValues(alpha: 0.08),
+                    color: Colors.white.withValues(alpha: 0.06),
                   ),
 
                   const SizedBox(height: 12),
@@ -481,7 +486,7 @@ class _ActiveProfileCard extends StatelessWidget {
                       // VP Chip
                       _WalletChip(
                         icon: Icons.monetization_on_outlined,
-                        iconColor: AppTheme.valorantRed,
+                        iconColor: const Color(0xFFE5B94E),
                         amount: profile.valorantPoints,
                         symbol: 'VP',
                       ),
@@ -513,15 +518,15 @@ class _ActiveProfileCard extends StatelessWidget {
                     width: double.infinity,
                     child: OutlinedButton.icon(
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: AppTheme.valorantRed,
+                        foregroundColor: AppTheme.accentMagenta,
                         side: BorderSide(
-                          color: AppTheme.valorantRed.withValues(alpha: 0.4),
+                          color: AppTheme.accentMagenta.withValues(alpha: 0.4),
                           width: 1,
                         ),
                         backgroundColor:
-                            AppTheme.valorantRed.withValues(alpha: 0.08),
+                            AppTheme.accentMagenta.withValues(alpha: 0.08),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
+                          borderRadius: BorderRadius.circular(6),
                         ),
                         padding: const EdgeInsets.symmetric(vertical: 10),
                       ),
@@ -529,7 +534,7 @@ class _ActiveProfileCard extends StatelessWidget {
                       label: const Text(
                         'LOGOUT AKUN',
                         style: TextStyle(
-                          fontSize: 12,
+                          fontSize: 11,
                           fontWeight: FontWeight.w800,
                           letterSpacing: 1.2,
                         ),
@@ -563,8 +568,8 @@ class _InfoChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.4),
-        borderRadius: BorderRadius.circular(6),
+        color: AppTheme.surfaceDark,
+        borderRadius: BorderRadius.circular(4),
         border: Border.all(
           color: Colors.white.withValues(alpha: 0.08),
         ),
@@ -607,10 +612,10 @@ class _WalletChip extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
         decoration: BoxDecoration(
-          color: Colors.black.withValues(alpha: 0.35),
-          borderRadius: BorderRadius.circular(10),
+          color: AppTheme.surfaceDark,
+          borderRadius: BorderRadius.circular(6),
           border: Border.all(
-            color: iconColor.withValues(alpha: 0.25),
+            color: iconColor.withValues(alpha: 0.3),
             width: 1,
           ),
         ),
@@ -624,9 +629,9 @@ class _WalletChip extends StatelessWidget {
                 '$amount $symbol',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
+                style: GoogleFonts.rajdhani(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
                   color: AppTheme.textPrimary,
                 ),
               ),
@@ -647,12 +652,13 @@ class _UnauthenticatedProfileCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.surfaceDark,
-        borderRadius: BorderRadius.circular(20),
+        color: AppTheme.cardDark,
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: AppTheme.valorantRed.withValues(alpha: 0.3),
+          color: AppTheme.accentMagenta.withValues(alpha: 0.35),
+          width: 1.2,
         ),
       ),
       child: Column(
@@ -660,39 +666,40 @@ class _UnauthenticatedProfileCard extends StatelessWidget {
           Row(
             children: [
               Container(
-                width: 50,
-                height: 50,
+                width: 48,
+                height: 48,
                 decoration: BoxDecoration(
-                  color: AppTheme.surfaceLight,
-                  borderRadius: BorderRadius.circular(12),
+                  color: AppTheme.surfaceDark,
+                  borderRadius: BorderRadius.circular(6),
                   border: Border.all(
-                    color: AppTheme.valorantRed.withValues(alpha: 0.4),
+                    color: AppTheme.accentMagenta.withValues(alpha: 0.4),
                   ),
                 ),
                 child: const Icon(
                   Icons.person_off_rounded,
-                  color: AppTheme.valorantRed,
-                  size: 26,
+                  color: AppTheme.accentMagenta,
+                  size: 24,
                 ),
               ),
               const SizedBox(width: 14),
-              const Expanded(
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Riot Account Belum Masuk',
+                    const Text(
+                      'RIOT ACCOUNT BELUM MASUK',
                       style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0.8,
                         color: AppTheme.textPrimary,
                       ),
                     ),
-                    SizedBox(height: 2),
+                    const SizedBox(height: 2),
                     Text(
                       'Hubungkan akun Riot untuk memuat kartu profil dan rotasi store.',
-                      style: TextStyle(
-                        fontSize: 12,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        fontSize: 11,
                         color: AppTheme.textSecondary,
                       ),
                     ),
@@ -725,15 +732,15 @@ class _ProfileCardShimmer extends StatelessWidget {
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       height: 160,
       decoration: BoxDecoration(
-        color: AppTheme.surfaceDark,
-        borderRadius: BorderRadius.circular(20),
+        color: AppTheme.cardDark,
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(
           color: Colors.white.withValues(alpha: 0.05),
         ),
       ),
       child: Shimmer.fromColors(
-        baseColor: AppTheme.surfaceLight,
-        highlightColor: AppTheme.surfaceDark,
+        baseColor: AppTheme.surfaceLight.withValues(alpha: 0.3),
+        highlightColor: AppTheme.surfaceColor,
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -742,11 +749,11 @@ class _ProfileCardShimmer extends StatelessWidget {
               Row(
                 children: [
                   Container(
-                    width: 66,
-                    height: 66,
+                    width: 64,
+                    height: 64,
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.circular(14),
+                      borderRadius: BorderRadius.circular(6),
                     ),
                   ),
                   const SizedBox(width: 14),
@@ -793,7 +800,7 @@ class _ProfileCardShimmer extends StatelessWidget {
                       height: 28,
                       decoration: BoxDecoration(
                         color: Colors.white,
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(6),
                       ),
                     ),
                   ),
@@ -803,7 +810,7 @@ class _ProfileCardShimmer extends StatelessWidget {
                       height: 28,
                       decoration: BoxDecoration(
                         color: Colors.white,
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(6),
                       ),
                     ),
                   ),
@@ -813,7 +820,7 @@ class _ProfileCardShimmer extends StatelessWidget {
                       height: 28,
                       decoration: BoxDecoration(
                         color: Colors.white,
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(6),
                       ),
                     ),
                   ),

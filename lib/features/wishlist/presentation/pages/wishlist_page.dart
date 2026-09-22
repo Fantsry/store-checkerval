@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:valorant_store_tracker/app/theme.dart';
 import 'package:valorant_store_tracker/features/daily_store/presentation/bloc/store_cubit.dart';
 import 'package:valorant_store_tracker/features/daily_store/presentation/bloc/store_state.dart';
@@ -52,22 +53,42 @@ class _WishlistPageState extends State<WishlistPage> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        Row(
                           children: [
-                            Text(
-                              'WISHLIST',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .headlineLarge
-                                  ?.copyWith(letterSpacing: 2),
+                            Container(
+                              width: 3,
+                              height: 38,
+                              margin: const EdgeInsets.only(right: 12),
+                              decoration: BoxDecoration(
+                                color: AppTheme.accentMagenta,
+                                borderRadius: BorderRadius.circular(1.5),
+                              ),
                             ),
-                            const SizedBox(height: 4),
-                            Text(
-                              state is WishlistLoaded
-                                  ? '${state.items.length} skins tracked'
-                                  : 'Tracking your dream skins',
-                              style: Theme.of(context).textTheme.bodyMedium,
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'WISHLIST',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .headlineLarge
+                                      ?.copyWith(
+                                        letterSpacing: 2.5,
+                                        fontWeight: FontWeight.w900,
+                                      ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  state is WishlistLoaded
+                                      ? '${state.items.length} skins tracked'
+                                      : 'TRACKING YOUR DREAM SKINS',
+                                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    letterSpacing: 0.8,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
                         ),
@@ -75,27 +96,41 @@ class _WishlistPageState extends State<WishlistPage> {
                           children: [
                             if (state is WishlistLoaded &&
                                 state.items.isNotEmpty)
-                              IconButton(
-                                onPressed: () {
-                                  _showClearConfirmation(context);
-                                },
-                                icon: const Icon(
-                                  Icons.delete_outline_rounded,
-                                  color: AppTheme.textMuted,
+                              Container(
+                                margin: const EdgeInsets.only(right: 8),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.cardDark,
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(
+                                    color: Colors.white.withValues(alpha: 0.08),
+                                  ),
                                 ),
-                                tooltip: 'Clear Wishlist',
+                                child: IconButton(
+                                  onPressed: () {
+                                    _showClearConfirmation(context);
+                                  },
+                                  icon: const Icon(
+                                    Icons.delete_outline_rounded,
+                                    size: 18,
+                                    color: AppTheme.textMuted,
+                                  ),
+                                  tooltip: 'Clear Wishlist',
+                                ),
                               ),
-                            const SizedBox(width: 4),
                             Container(
                               decoration: BoxDecoration(
-                                color: AppTheme.surfaceLight,
-                                borderRadius: BorderRadius.circular(12),
+                                color: AppTheme.cardDark,
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(
+                                  color: Colors.white.withValues(alpha: 0.08),
+                                ),
                               ),
                               child: IconButton(
                                 onPressed: () => context.goNamed('catalog'),
                                 icon: const Icon(
                                   Icons.add_rounded,
-                                  color: AppTheme.valorantRed,
+                                  size: 18,
+                                  color: AppTheme.accentMagenta,
                                 ),
                                 tooltip: 'Browse Catalog',
                               ),
@@ -111,7 +146,7 @@ class _WishlistPageState extends State<WishlistPage> {
                     const Expanded(
                       child: Center(
                         child: CircularProgressIndicator(
-                          color: AppTheme.valorantRed,
+                          color: AppTheme.accentMagenta,
                         ),
                       ),
                     )
@@ -216,7 +251,8 @@ class _WishlistPageState extends State<WishlistPage> {
                   else if (state is WishlistLoaded)
                     Expanded(
                       child: RefreshIndicator(
-                        color: AppTheme.valorantRed,
+                        color: AppTheme.accentMagenta,
+                        backgroundColor: AppTheme.surfaceDark,
                         onRefresh: () => context
                             .read<WishlistCubit>()
                             .loadWishlist(forceRefresh: true),
@@ -225,7 +261,7 @@ class _WishlistPageState extends State<WishlistPage> {
                           padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
                           itemCount: state.items.length,
                           separatorBuilder: (_, __) =>
-                              const SizedBox(height: 12),
+                              const SizedBox(height: 10),
                           itemBuilder: (context, index) {
                             final item = state.items[index];
                             final isInStore = currentStoreUuids
@@ -252,17 +288,30 @@ class _WishlistPageState extends State<WishlistPage> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: AppTheme.surfaceDark,
-        title: const Text('Clear Wishlist'),
+        backgroundColor: AppTheme.cardDark,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+          side: BorderSide(
+            color: Colors.white.withValues(alpha: 0.08),
+          ),
+        ),
+        title: const Text('CLEAR WISHLIST'),
         content: const Text(
           'Are you sure you want to remove all skins from your wishlist?',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('CANCEL'),
+            child: const Text('CANCEL', style: TextStyle(color: AppTheme.textMuted)),
           ),
           ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.accentMagenta,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(6),
+              ),
+            ),
             onPressed: () {
               Navigator.of(ctx).pop();
               context.read<WishlistCubit>().clearAll();
@@ -293,8 +342,8 @@ class _WishlistItemCard extends StatelessWidget {
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 20),
         decoration: BoxDecoration(
-          color: AppTheme.valorantRed.withValues(alpha: 0.8),
-          borderRadius: BorderRadius.circular(16),
+          color: AppTheme.accentMagenta.withValues(alpha: 0.8),
+          borderRadius: BorderRadius.circular(6),
         ),
         child: const Icon(
           Icons.delete_rounded,
@@ -311,20 +360,20 @@ class _WishlistItemCard extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            gradient: AppTheme.cardGradient,
-            borderRadius: BorderRadius.circular(16),
+            color: AppTheme.cardDark,
+            borderRadius: BorderRadius.circular(6),
             border: Border.all(
               color: isInStoreNow
-                  ? AppTheme.valorantRed
-                  : Colors.white.withValues(alpha: 0.06),
-              width: isInStoreNow ? 1.8 : 1.0,
+                  ? AppTheme.accentMagenta
+                  : Colors.white.withValues(alpha: 0.08),
+              width: isInStoreNow ? 1.5 : 1.0,
             ),
             boxShadow: [
               if (isInStoreNow)
                 BoxShadow(
-                  color: AppTheme.valorantRed.withValues(alpha: 0.25),
-                  blurRadius: 16,
-                  offset: const Offset(0, 4),
+                  color: AppTheme.accentMagenta.withValues(alpha: 0.2),
+                  blurRadius: 12,
+                  offset: const Offset(0, 3),
                 ),
             ],
           ),
@@ -336,8 +385,8 @@ class _WishlistItemCard extends StatelessWidget {
                 height: 52,
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
-                  color: AppTheme.surfaceLight.withValues(alpha: 0.4),
-                  borderRadius: BorderRadius.circular(12),
+                  color: AppTheme.surfaceDark,
+                  borderRadius: BorderRadius.circular(4),
                 ),
                 child: item.displayIcon != null
                     ? CachedNetworkImage(
@@ -345,11 +394,11 @@ class _WishlistItemCard extends StatelessWidget {
                         fit: BoxFit.contain,
                         placeholder: (_, __) => const Center(
                           child: SizedBox(
-                            width: 20,
-                            height: 20,
+                            width: 18,
+                            height: 18,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
-                              color: AppTheme.surfaceLight,
+                              color: AppTheme.accentMagenta,
                             ),
                           ),
                         ),
@@ -373,18 +422,18 @@ class _WishlistItemCard extends StatelessWidget {
                     if (isInStoreNow) ...[
                       Container(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
+                          horizontal: 6,
                           vertical: 2,
                         ),
                         margin: const EdgeInsets.only(bottom: 4),
                         decoration: BoxDecoration(
-                          color: AppTheme.valorantRed,
-                          borderRadius: BorderRadius.circular(4),
+                          color: AppTheme.accentMagenta,
+                          borderRadius: BorderRadius.circular(3),
                         ),
                         child: const Text(
                           'IN STORE TODAY!',
                           style: TextStyle(
-                            fontSize: 9,
+                            fontSize: 8,
                             fontWeight: FontWeight.w900,
                             color: Colors.white,
                             letterSpacing: 0.8,
@@ -395,7 +444,7 @@ class _WishlistItemCard extends StatelessWidget {
                     Text(
                       item.displayName,
                       style: const TextStyle(
-                        fontSize: 14,
+                        fontSize: 13,
                         fontWeight: FontWeight.bold,
                         color: AppTheme.textPrimary,
                       ),
@@ -404,17 +453,17 @@ class _WishlistItemCard extends StatelessWidget {
                     Row(
                       children: [
                         const Icon(
-                          Icons.shield_outlined,
+                          Icons.monetization_on_outlined,
                           size: 13,
-                          color: AppTheme.valorantRed,
+                          color: Color(0xFFE5B94E),
                         ),
                         const SizedBox(width: 4),
                         Text(
                           '${item.cost} VP',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: AppTheme.textSecondary,
+                          style: GoogleFonts.rajdhani(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                            color: const Color(0xFFE5B94E),
                           ),
                         ),
                         if (item.tierName != null) ...[
@@ -440,7 +489,7 @@ class _WishlistItemCard extends StatelessWidget {
                 },
                 icon: const Icon(
                   Icons.favorite_rounded,
-                  color: AppTheme.valorantRed,
+                  color: AppTheme.accentMagenta,
                   size: 20,
                 ),
               ),

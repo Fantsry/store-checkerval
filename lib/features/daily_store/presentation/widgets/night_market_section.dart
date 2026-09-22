@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:valorant_store_tracker/app/theme.dart';
 import 'package:valorant_store_tracker/core/utils/timezone_helper.dart';
 import 'package:valorant_store_tracker/features/daily_store/domain/entities/daily_store.dart';
@@ -31,21 +32,16 @@ class NightMarketSection extends StatelessWidget {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [
-                Color(0xFF1F1D36),
-                Color(0xFF0F1923),
-              ],
-            ),
-            borderRadius: BorderRadius.circular(16),
+            color: AppTheme.cardDark,
+            borderRadius: BorderRadius.circular(8),
             border: Border.all(
-              color: const Color(0xFFE5B94E).withValues(alpha: 0.5),
-              width: 1.2,
+              color: const Color(0xFFE5B94E).withValues(alpha: 0.4),
+              width: 1.0,
             ),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFFE5B94E).withValues(alpha: 0.12),
-                blurRadius: 16,
+                color: const Color(0xFFE5B94E).withValues(alpha: 0.08),
+                blurRadius: 14,
                 offset: const Offset(0, 4),
               ),
             ],
@@ -58,13 +54,13 @@ class NightMarketSection extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFE5B94E).withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(10),
+                      color: const Color(0xFFE5B94E).withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(6),
                     ),
                     child: const Icon(
                       Icons.nightlight_round,
                       color: Color(0xFFE5B94E),
-                      size: 22,
+                      size: 20,
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -74,7 +70,7 @@ class NightMarketSection extends StatelessWidget {
                       Text(
                         'NIGHT.MARKET',
                         style: TextStyle(
-                          fontSize: 18,
+                          fontSize: 17,
                           fontWeight: FontWeight.w900,
                           letterSpacing: 2,
                           color: Color(0xFFE5B94E),
@@ -94,12 +90,12 @@ class NightMarketSection extends StatelessWidget {
               if (nightMarket.remainingDurationSeconds > 0)
                 Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 5,
+                    horizontal: 8,
+                    vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.5),
-                    borderRadius: BorderRadius.circular(8),
+                    color: Colors.black.withValues(alpha: 0.6),
+                    borderRadius: BorderRadius.circular(4),
                     border: Border.all(
                       color: const Color(0xFFE5B94E).withValues(alpha: 0.3),
                     ),
@@ -108,11 +104,11 @@ class NightMarketSection extends StatelessWidget {
                     TimezoneHelper.formatDuration(
                       Duration(seconds: nightMarket.remainingDurationSeconds),
                     ),
-                    style: const TextStyle(
-                      fontFamily: 'monospace',
-                      fontSize: 11,
+                    style: GoogleFonts.rajdhani(
+                      fontSize: 12,
                       fontWeight: FontWeight.w700,
-                      color: Color(0xFFE5B94E),
+                      letterSpacing: 1.0,
+                      color: const Color(0xFFE5B94E),
                     ),
                   ),
                 ),
@@ -144,18 +140,11 @@ class NightMarketSection extends StatelessWidget {
 
                 return Container(
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        Color(0xFF181B2B),
-                        Color(0xFF0F121C),
-                      ],
-                    ),
-                    borderRadius: BorderRadius.circular(16),
+                    color: AppTheme.cardDark,
+                    borderRadius: BorderRadius.circular(6),
                     border: Border.all(
-                      color: const Color(0xFFE5B94E).withValues(alpha: 0.4),
-                      width: 1.2,
+                      color: const Color(0xFFE5B94E).withValues(alpha: 0.35),
+                      width: 1.0,
                     ),
                     boxShadow: [
                       BoxShadow(
@@ -179,18 +168,18 @@ class NightMarketSection extends StatelessWidget {
                               children: [
                                 Container(
                                   padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 3,
+                                    horizontal: 6,
+                                    vertical: 2,
                                   ),
                                   decoration: BoxDecoration(
                                     color: const Color(0xFFE5B94E),
-                                    borderRadius: BorderRadius.circular(6),
+                                    borderRadius: BorderRadius.circular(4),
                                   ),
                                   child: Text(
                                     '-${offer.discountPercent}%',
-                                    style: const TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w900,
+                                    style: GoogleFonts.rajdhani(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w800,
                                       color: Colors.black,
                                     ),
                                   ),
@@ -204,7 +193,7 @@ class NightMarketSection extends StatelessWidget {
                                         : Icons.favorite_border_rounded,
                                     size: 18,
                                     color: isWishlisted
-                                        ? AppTheme.valorantRed
+                                        ? AppTheme.accentMagenta
                                         : AppTheme.textSecondary,
                                   ),
                                   onPressed: () {
@@ -257,7 +246,7 @@ class NightMarketSection extends StatelessWidget {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
-                                fontSize: 13,
+                                fontSize: 12,
                                 fontWeight: FontWeight.bold,
                                 color: AppTheme.textPrimary,
                               ),
@@ -266,7 +255,7 @@ class NightMarketSection extends StatelessWidget {
                             Text(
                               skin.tierName ?? 'Exclusive',
                               style: TextStyle(
-                                fontSize: 10,
+                                fontSize: 9,
                                 color: tierColor,
                                 fontWeight: FontWeight.w600,
                               ),
@@ -279,8 +268,9 @@ class NightMarketSection extends StatelessWidget {
                               children: [
                                 Text(
                                   '${offer.originalCost} VP',
-                                  style: const TextStyle(
-                                    fontSize: 11,
+                                  style: GoogleFonts.rajdhani(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
                                     color: AppTheme.textSecondary,
                                     decoration: TextDecoration.lineThrough,
                                   ),
@@ -295,10 +285,10 @@ class NightMarketSection extends StatelessWidget {
                                     const SizedBox(width: 3),
                                     Text(
                                       '${offer.discountedCost} VP',
-                                      style: const TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w900,
-                                        color: Color(0xFFE5B94E),
+                                      style: GoogleFonts.rajdhani(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w800,
+                                        color: const Color(0xFFE5B94E),
                                       ),
                                     ),
                                   ],

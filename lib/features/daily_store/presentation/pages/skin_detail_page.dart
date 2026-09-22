@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:valorant_store_tracker/app/di.dart';
 import 'package:valorant_store_tracker/app/theme.dart';
 import 'package:valorant_store_tracker/features/daily_store/domain/entities/skin_item.dart';
@@ -175,11 +176,14 @@ class _SkinDetailPageState extends State<SkinDetailPage> {
                   margin: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
                     color: AppTheme.surfaceDark.withValues(alpha: 0.8),
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.08),
+                    ),
                   ),
                   child: IconButton(
                     onPressed: () => Navigator.of(context).pop(),
-                    icon: const Icon(Icons.arrow_back_rounded),
+                    icon: const Icon(Icons.arrow_back_rounded, size: 20),
                   ),
                 ),
                 actions: [
@@ -187,7 +191,10 @@ class _SkinDetailPageState extends State<SkinDetailPage> {
                     margin: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
                       color: AppTheme.surfaceDark.withValues(alpha: 0.8),
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.08),
+                      ),
                     ),
                     child: IconButton(
                       onPressed: () {
@@ -197,8 +204,9 @@ class _SkinDetailPageState extends State<SkinDetailPage> {
                         isWishlisted
                             ? Icons.favorite_rounded
                             : Icons.favorite_border_rounded,
+                        size: 20,
                         color: isWishlisted
-                            ? AppTheme.valorantRed
+                            ? AppTheme.accentMagenta
                             : AppTheme.textPrimary,
                       ),
                     ),
@@ -218,20 +226,20 @@ class _SkinDetailPageState extends State<SkinDetailPage> {
                         children: [
                           Container(
                             padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 4,
+                              horizontal: 8,
+                              vertical: 3,
                             ),
                             decoration: BoxDecoration(
-                              color: tierColor.withValues(alpha: 0.2),
-                              borderRadius: BorderRadius.circular(8),
+                              color: tierColor.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(4),
                               border: Border.all(
-                                color: tierColor.withValues(alpha: 0.4),
+                                color: tierColor.withValues(alpha: 0.35),
                               ),
                             ),
                             child: Text(
                               skin.weaponName?.toUpperCase() ?? 'WEAPON',
                               style: TextStyle(
-                                fontSize: 11,
+                                fontSize: 10,
                                 fontWeight: FontWeight.bold,
                                 color: tierColor,
                                 letterSpacing: 1,
@@ -243,7 +251,7 @@ class _SkinDetailPageState extends State<SkinDetailPage> {
                             Text(
                               skin.tierName!,
                               style: TextStyle(
-                                fontSize: 13,
+                                fontSize: 12,
                                 color: tierColor,
                                 fontWeight: FontWeight.w600,
                               ),
@@ -255,16 +263,18 @@ class _SkinDetailPageState extends State<SkinDetailPage> {
                       // Skin Full Display Name
                       Text(
                         skin.displayName,
-                        style: Theme.of(context).textTheme.headlineLarge,
+                        style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                              fontWeight: FontWeight.w900,
+                            ),
                       ),
                       const SizedBox(height: 16),
 
                       // Price Card
                       Container(
-                        padding: const EdgeInsets.all(16),
+                        padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
-                          gradient: AppTheme.cardGradient,
-                          borderRadius: BorderRadius.circular(16),
+                          color: AppTheme.cardDark,
+                          borderRadius: BorderRadius.circular(8),
                           border: Border.all(
                             color: Colors.white.withValues(alpha: 0.08),
                           ),
@@ -276,19 +286,18 @@ class _SkinDetailPageState extends State<SkinDetailPage> {
                               children: [
                                 const Icon(
                                   Icons.shield_outlined,
-                                  size: 22,
-                                  color: AppTheme.valorantRed,
+                                  size: 20,
+                                  color: AppTheme.accentMagenta,
                                 ),
                                 const SizedBox(width: 8),
                                 Text(
                                   '${skin.cost} VP',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .titleLarge
-                                      ?.copyWith(
-                                        fontWeight: FontWeight.w900,
-                                        letterSpacing: 1,
-                                      ),
+                                  style: GoogleFonts.rajdhani(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 1,
+                                    color: AppTheme.textPrimary,
+                                  ),
                                 ),
                               ],
                             ),
@@ -301,18 +310,30 @@ class _SkinDetailPageState extends State<SkinDetailPage> {
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: isWishlisted
                                     ? AppTheme.surfaceLight
-                                    : AppTheme.valorantRed,
+                                    : AppTheme.accentMagenta,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 10,
+                                ),
                               ),
                               icon: Icon(
                                 isWishlisted
                                     ? Icons.favorite_rounded
                                     : Icons.favorite_border_rounded,
-                                size: 18,
+                                size: 16,
                               ),
                               label: Text(
                                 isWishlisted
                                     ? 'IN WISHLIST'
                                     : 'ADD TO WISHLIST',
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 0.8,
+                                ),
                               ),
                             ),
                           ],
@@ -322,13 +343,28 @@ class _SkinDetailPageState extends State<SkinDetailPage> {
 
                       // ─── Chromas Variants ────────────────────
                       if (skin.chromas.length > 1) ...[
-                        Text(
-                          'VARIANTS & CHROMAS',
-                          style:
-                              Theme.of(context).textTheme.titleMedium?.copyWith(
+                        Row(
+                          children: [
+                            Container(
+                              width: 3,
+                              height: 14,
+                              margin: const EdgeInsets.only(right: 8),
+                              decoration: BoxDecoration(
+                                color: AppTheme.accentMagenta,
+                                borderRadius: BorderRadius.circular(2),
+                              ),
+                            ),
+                            Text(
+                              'VARIANTS & CHROMAS',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleMedium
+                                  ?.copyWith(
                                     letterSpacing: 1.5,
                                     fontWeight: FontWeight.bold,
                                   ),
+                            ),
+                          ],
                         ),
                         const SizedBox(height: 12),
                         SizedBox(
@@ -337,7 +373,7 @@ class _SkinDetailPageState extends State<SkinDetailPage> {
                             scrollDirection: Axis.horizontal,
                             itemCount: skin.chromas.length,
                             separatorBuilder: (_, __) =>
-                                const SizedBox(width: 12),
+                                const SizedBox(width: 10),
                             itemBuilder: (context, index) {
                               final chroma = skin.chromas[index];
                               final isSelected = index == _selectedChromaIndex;
@@ -353,15 +389,15 @@ class _SkinDetailPageState extends State<SkinDetailPage> {
                                   padding: const EdgeInsets.all(6),
                                   decoration: BoxDecoration(
                                     color: isSelected
-                                        ? AppTheme.valorantRed
-                                            .withValues(alpha: 0.2)
-                                        : AppTheme.surfaceLight,
-                                    borderRadius: BorderRadius.circular(12),
+                                        ? AppTheme.accentMagenta
+                                            .withValues(alpha: 0.15)
+                                        : AppTheme.surfaceDark,
+                                    borderRadius: BorderRadius.circular(6),
                                     border: Border.all(
                                       color: isSelected
-                                          ? AppTheme.valorantRed
-                                          : Colors.white.withValues(alpha: 0.1),
-                                      width: isSelected ? 2 : 1,
+                                          ? AppTheme.accentMagenta
+                                          : Colors.white.withValues(alpha: 0.08),
+                                      width: isSelected ? 1.5 : 1,
                                     ),
                                   ),
                                   child: chroma.displayIcon != null
@@ -372,9 +408,9 @@ class _SkinDetailPageState extends State<SkinDetailPage> {
                                       : Center(
                                           child: Text(
                                             'V${index + 1}',
-                                            style: const TextStyle(
+                                            style: GoogleFonts.rajdhani(
                                               fontWeight: FontWeight.bold,
-                                              fontSize: 12,
+                                              fontSize: 13,
                                             ),
                                           ),
                                         ),
@@ -388,13 +424,28 @@ class _SkinDetailPageState extends State<SkinDetailPage> {
 
                       // ─── Upgrade Levels ──────────────────────
                       if (skin.levels.isNotEmpty) ...[
-                        Text(
-                          'UPGRADE LEVELS',
-                          style:
-                              Theme.of(context).textTheme.titleMedium?.copyWith(
+                        Row(
+                          children: [
+                            Container(
+                              width: 3,
+                              height: 14,
+                              margin: const EdgeInsets.only(right: 8),
+                              decoration: BoxDecoration(
+                                color: AppTheme.accentMagenta,
+                                borderRadius: BorderRadius.circular(2),
+                              ),
+                            ),
+                            Text(
+                              'UPGRADE LEVELS',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleMedium
+                                  ?.copyWith(
                                     letterSpacing: 1.5,
                                     fontWeight: FontWeight.bold,
                                   ),
+                            ),
+                          ],
                         ),
                         const SizedBox(height: 12),
                         ...List.generate(skin.levels.length, (index) {
@@ -403,8 +454,8 @@ class _SkinDetailPageState extends State<SkinDetailPage> {
                             margin: const EdgeInsets.only(bottom: 8),
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: AppTheme.surfaceLight.withValues(alpha: 0.5),
-                              borderRadius: BorderRadius.circular(12),
+                              color: AppTheme.cardDark,
+                              borderRadius: BorderRadius.circular(6),
                               border: Border.all(
                                 color: Colors.white.withValues(alpha: 0.05),
                               ),
@@ -412,23 +463,23 @@ class _SkinDetailPageState extends State<SkinDetailPage> {
                             child: Row(
                               children: [
                                 Container(
-                                  width: 28,
-                                  height: 28,
+                                  width: 24,
+                                  height: 24,
                                   decoration: BoxDecoration(
-                                    color: AppTheme.surfaceColor,
-                                    shape: BoxShape.circle,
+                                    color: AppTheme.surfaceDark,
+                                    borderRadius: BorderRadius.circular(4),
                                     border: Border.all(
-                                      color: AppTheme.valorantRed
-                                          .withValues(alpha: 0.5),
+                                      color: AppTheme.accentMagenta
+                                          .withValues(alpha: 0.4),
                                     ),
                                   ),
                                   child: Center(
                                     child: Text(
                                       '${index + 1}',
-                                      style: const TextStyle(
+                                      style: GoogleFonts.rajdhani(
                                         fontSize: 12,
                                         fontWeight: FontWeight.bold,
-                                        color: AppTheme.valorantRed,
+                                        color: AppTheme.accentMagenta,
                                       ),
                                     ),
                                   ),
@@ -447,18 +498,21 @@ class _SkinDetailPageState extends State<SkinDetailPage> {
                                 if (level.levelItem != null)
                                   Container(
                                     padding: const EdgeInsets.symmetric(
-                                      horizontal: 8,
-                                      vertical: 3,
+                                      horizontal: 6,
+                                      vertical: 2,
                                     ),
                                     decoration: BoxDecoration(
                                       color: AppTheme.surfaceDark,
-                                      borderRadius: BorderRadius.circular(6),
+                                      borderRadius: BorderRadius.circular(4),
+                                      border: Border.all(
+                                        color: Colors.white.withValues(alpha: 0.06),
+                                      ),
                                     ),
                                     child: Text(
                                       level.levelItem!
                                           .replaceAll('EEquippableSkinLevelItem::', ''),
                                       style: const TextStyle(
-                                        fontSize: 10,
+                                        fontSize: 9,
                                         color: AppTheme.textSecondary,
                                       ),
                                     ),

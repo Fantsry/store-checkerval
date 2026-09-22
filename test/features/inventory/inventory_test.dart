@@ -159,6 +159,15 @@ void main() {
       // Reset to all
       cubit.filterBySource(InventorySourceFilter.all);
       expect((cubit.state as InventoryLoaded).filteredSkins.length, equals(3));
+
+      // Tapping same source filter toggles back to all
+      cubit.filterBySource(InventorySourceFilter.store);
+      expect((cubit.state as InventoryLoaded).sourceFilter, equals(InventorySourceFilter.store));
+      expect((cubit.state as InventoryLoaded).filteredSkins.length, equals(2));
+
+      cubit.filterBySource(InventorySourceFilter.store);
+      expect((cubit.state as InventoryLoaded).sourceFilter, equals(InventorySourceFilter.all));
+      expect((cubit.state as InventoryLoaded).filteredSkins.length, equals(3));
     });
 
     test('filterByTier filters owned skins by tier name', () async {

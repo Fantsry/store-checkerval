@@ -31,7 +31,7 @@ class _BattlepassPageState extends State<BattlepassPage> {
           child: BlocBuilder<BattlepassCubit, BattlepassState>(
             builder: (context, state) {
               return RefreshIndicator(
-                color: AppTheme.valorantRed,
+                color: AppTheme.accentMagenta,
                 backgroundColor: AppTheme.surfaceDark,
                 onRefresh: () async {
                   await context
@@ -48,27 +48,50 @@ class _BattlepassPageState extends State<BattlepassPage> {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                            Row(
                               children: [
-                                Text(
-                                  'BATTLEPASS & MISSIONS',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .headlineLarge
-                                      ?.copyWith(letterSpacing: 2),
+                                Container(
+                                  width: 3,
+                                  height: 38,
+                                  margin: const EdgeInsets.only(right: 12),
+                                  decoration: BoxDecoration(
+                                    color: AppTheme.accentMagenta,
+                                    borderRadius: BorderRadius.circular(1.5),
+                                  ),
                                 ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  'Act progress & active challenges',
-                                  style: Theme.of(context).textTheme.bodyMedium,
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'BATTLEPASS',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .headlineLarge
+                                          ?.copyWith(
+                                            letterSpacing: 2.5,
+                                            fontWeight: FontWeight.w900,
+                                          ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      'ACT PROGRESS & MISSIONS',
+                                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                        letterSpacing: 0.8,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),
                             Container(
                               decoration: BoxDecoration(
-                                color: AppTheme.surfaceLight,
-                                borderRadius: BorderRadius.circular(12),
+                                color: AppTheme.cardDark,
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(
+                                  color: Colors.white.withValues(alpha: 0.08),
+                                ),
                               ),
                               child: IconButton(
                                 onPressed: () {
@@ -78,6 +101,7 @@ class _BattlepassPageState extends State<BattlepassPage> {
                                 },
                                 icon: const Icon(
                                   Icons.refresh_rounded,
+                                  size: 18,
                                   color: AppTheme.textPrimary,
                                 ),
                               ),
@@ -98,8 +122,8 @@ class _BattlepassPageState extends State<BattlepassPage> {
                             child: Container(
                               height: 180,
                               decoration: BoxDecoration(
-                                color: AppTheme.surfaceLight,
-                                borderRadius: BorderRadius.circular(20),
+                                color: AppTheme.cardDark,
+                                borderRadius: BorderRadius.circular(8),
                               ),
                             ),
                           ),

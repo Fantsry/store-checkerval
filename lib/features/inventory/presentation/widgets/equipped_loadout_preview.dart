@@ -1,5 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:valorant_store_tracker/app/theme.dart';
 import 'package:valorant_store_tracker/features/inventory/domain/entities/inventory_overview.dart';
 
@@ -31,16 +32,18 @@ class EquippedLoadoutPreview extends StatelessWidget {
             const Text(
               'EQUIPPED LOADOUT',
               style: TextStyle(
-                fontSize: 12,
+                fontSize: 11,
                 fontWeight: FontWeight.w800,
                 letterSpacing: 1.2,
                 color: AppTheme.textSecondary,
               ),
             ),
             Text(
-              '${equippedWeapons.length} Weapons',
-              style: const TextStyle(
-                fontSize: 11,
+              '${equippedWeapons.length} WEAPONS',
+              style: GoogleFonts.rajdhani(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.5,
                 color: AppTheme.textSecondary,
               ),
             ),
@@ -52,7 +55,7 @@ class EquippedLoadoutPreview extends StatelessWidget {
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             itemCount: equippedWeapons.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 10),
+            separatorBuilder: (_, __) => const SizedBox(width: 8),
             itemBuilder: (context, index) {
               final weapon = equippedWeapons[index];
               final tierColor = _parseTierColor(weapon.tierColor);
@@ -61,8 +64,8 @@ class EquippedLoadoutPreview extends StatelessWidget {
                 width: 140,
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: AppTheme.surfaceDark,
-                  borderRadius: BorderRadius.circular(14),
+                  color: AppTheme.cardDark,
+                  borderRadius: BorderRadius.circular(6),
                   border: Border.all(
                     color: tierColor.withValues(alpha: 0.35),
                   ),
@@ -104,7 +107,7 @@ class EquippedLoadoutPreview extends StatelessWidget {
                                     height: 14,
                                     child: CircularProgressIndicator(
                                       strokeWidth: 1.5,
-                                      color: AppTheme.valorantRed,
+                                      color: AppTheme.accentMagenta,
                                     ),
                                   ),
                                 ),

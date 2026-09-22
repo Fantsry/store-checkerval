@@ -1,39 +1,37 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:valorant_store_tracker/app/theme.dart';
 import 'package:valorant_store_tracker/features/inventory/domain/entities/inventory_overview.dart';
 
 class AccountValueCard extends StatelessWidget {
   final InventoryOverview overview;
+  final VoidCallback? onOwnedSkinsTap;
 
-  const AccountValueCard({super.key, required this.overview});
+  const AccountValueCard({
+    super.key,
+    required this.overview,
+    this.onOwnedSkinsTap,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Color(0xFF22162B),
-            Color(0xFF0F1923),
-            Color(0xFF14202E),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(20),
+        color: AppTheme.cardDark,
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: AppTheme.valorantRed.withValues(alpha: 0.45),
+          color: AppTheme.accentMagenta.withValues(alpha: 0.35),
           width: 1.2,
         ),
         boxShadow: [
           BoxShadow(
-            color: AppTheme.valorantRed.withValues(alpha: 0.12),
-            blurRadius: 20,
-            offset: const Offset(0, 6),
+            color: AppTheme.accentMagenta.withValues(alpha: 0.08),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -42,12 +40,12 @@ class AccountValueCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: AppTheme.valorantRed.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(6),
+                  color: AppTheme.accentMagenta.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(4),
                   border: Border.all(
-                    color: AppTheme.valorantRed.withValues(alpha: 0.4),
+                    color: AppTheme.accentMagenta.withValues(alpha: 0.4),
                   ),
                 ),
                 child: const Row(
@@ -56,16 +54,16 @@ class AccountValueCard extends StatelessWidget {
                     Icon(
                       Icons.account_balance_wallet_outlined,
                       size: 13,
-                      color: AppTheme.valorantRed,
+                      color: AppTheme.accentMagenta,
                     ),
                     SizedBox(width: 5),
                     Text(
                       'ACCOUNT INVENTORY VALUE',
                       style: TextStyle(
-                        fontSize: 10,
+                        fontSize: 9,
                         fontWeight: FontWeight.w900,
                         letterSpacing: 1.2,
-                        color: AppTheme.valorantRed,
+                        color: AppTheme.accentMagenta,
                       ),
                     ),
                   ],
@@ -83,34 +81,34 @@ class AccountValueCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
 
           // Total Estimated IDR (Rupiah)
           Text(
             overview.formattedEstimatedIdr,
-            style: const TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.w900,
+            style: GoogleFonts.rajdhani(
+              fontSize: 30,
+              fontWeight: FontWeight.w800,
               letterSpacing: 1,
               color: Colors.white,
             ),
           ),
-          const SizedBox(height: 4),
-          const Text(
+          const SizedBox(height: 2),
+          Text(
             'Estimated Total Spent (Indonesian Rupiah)',
-            style: TextStyle(
-              fontSize: 12,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              fontSize: 11,
               color: AppTheme.textSecondary,
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
 
           // Divider
           Container(
             height: 1,
-            color: Colors.white.withValues(alpha: 0.08),
+            color: Colors.white.withValues(alpha: 0.06),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
 
           // Stats Sub-Row: Total VP & Total Skins
           Row(
@@ -119,10 +117,10 @@ class AccountValueCard extends StatelessWidget {
                 child: Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.3),
-                    borderRadius: BorderRadius.circular(12),
+                    color: AppTheme.surfaceDark,
+                    borderRadius: BorderRadius.circular(6),
                     border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.05),
+                      color: Colors.white.withValues(alpha: 0.06),
                     ),
                   ),
                   child: Column(
@@ -146,13 +144,13 @@ class AccountValueCard extends StatelessWidget {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 4),
                       Text(
                         '${overview.totalVpSpent} VP',
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w900,
-                          color: Color(0xFFE5B94E),
+                        style: GoogleFonts.rajdhani(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          color: const Color(0xFFE5B94E),
                         ),
                       ),
                       const SizedBox(height: 2),
@@ -168,57 +166,61 @@ class AccountValueCard extends StatelessWidget {
                   ),
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 10),
               Expanded(
-                child: Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.3),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.05),
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: onOwnedSkinsTap,
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppTheme.surfaceDark,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.06),
+                      ),
                     ),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Row(
-                        children: [
-                          Icon(
-                            Icons.inventory_2_outlined,
-                            size: 14,
-                            color: Color(0xFF00E5FF),
-                          ),
-                          SizedBox(width: 4),
-                          Text(
-                            'OWNED SKINS',
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                              color: AppTheme.textSecondary,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Row(
+                          children: [
+                            Icon(
+                              Icons.inventory_2_outlined,
+                              size: 14,
+                              color: Color(0xFF00E5FF),
                             ),
+                            SizedBox(width: 4),
+                            Text(
+                              'OWNED SKINS',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                color: AppTheme.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${overview.totalSkinsCount} Skins',
+                          style: GoogleFonts.rajdhani(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                            color: const Color(0xFF00E5FF),
                           ),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        '${overview.totalSkinsCount} Skins',
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w900,
-                          color: Color(0xFF00E5FF),
                         ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        '${overview.storeSkinsCount} Store • ${overview.battlepassSkinsCount} BP',
-                        style: TextStyle(
-                          fontSize: 9,
-                          fontWeight: FontWeight.w600,
-                          color: AppTheme.textSecondary.withValues(alpha: 0.8),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${overview.storeSkinsCount} Store • ${overview.battlepassSkinsCount} BP',
+                          style: TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.w600,
+                            color: AppTheme.textSecondary.withValues(alpha: 0.8),
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -232,9 +234,9 @@ class AccountValueCard extends StatelessWidget {
   void _showCalculationInfo(BuildContext context) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: AppTheme.surfaceDark,
+      backgroundColor: AppTheme.cardDark,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(10)),
       ),
       builder: (context) {
         return Padding(
