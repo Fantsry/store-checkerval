@@ -353,21 +353,16 @@ class _StorePageState extends State<StorePage>
                     ),
                   ),
 
-                  // ─── Store Items Body ────────────────────────
+                  // ─── Store Items Body (Horizontal Gun Cards) ──
                   if (state is StoreLoading)
                     SliverPadding(
-                      padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
-                      sliver: SliverGrid(
-                        gridDelegate:
-                            const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          mainAxisSpacing: 12,
-                          crossAxisSpacing: 12,
-                          childAspectRatio: 0.75,
-                        ),
+                      padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+                      sliver: SliverList(
                         delegate: SliverChildBuilderDelegate(
-                          (context, index) =>
-                              _SkinCardPlaceholder(index: index),
+                          (context, index) => const Padding(
+                            padding: EdgeInsets.only(bottom: 12),
+                            child: _SkinCardPlaceholder(),
+                          ),
                           childCount: 4,
                         ),
                       ),
@@ -419,19 +414,15 @@ class _StorePageState extends State<StorePage>
                     )
                   else if (state is StoreLoaded) ...[
                     SliverPadding(
-                      padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
-                      sliver: SliverGrid(
-                        gridDelegate:
-                            const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          mainAxisSpacing: 12,
-                          crossAxisSpacing: 12,
-                          childAspectRatio: 0.72,
-                        ),
+                      padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+                      sliver: SliverList(
                         delegate: SliverChildBuilderDelegate(
                           (context, index) {
                             final skin = state.store.featuredOffers[index];
-                            return _SkinCard(skin: skin);
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 12),
+                              child: _SkinCard(skin: skin),
+                            );
                           },
                           childCount: state.store.featuredOffers.length,
                         ),
@@ -522,7 +513,7 @@ class _StorePageState extends State<StorePage>
   }
 }
 
-/// Real interactive Skin Card
+/// Real interactive Horizontal Skin Card
 class _SkinCard extends StatelessWidget {
   final SkinItem skin;
 
@@ -552,22 +543,23 @@ class _SkinCard extends StatelessWidget {
             context.pushNamed('skinDetail', pathParameters: {'skinId': skin.uuid});
           },
           child: Container(
+            height: 108,
             decoration: BoxDecoration(
               color: AppTheme.cardDark,
               borderRadius: BorderRadius.circular(6),
               border: Border.all(
                 color: isWishlisted
                     ? AppTheme.accentMagenta.withValues(alpha: 0.8)
-                    : Colors.white.withValues(alpha: 0.06),
+                    : Colors.white.withValues(alpha: 0.08),
                 width: isWishlisted ? 1.5 : 1.0,
               ),
               boxShadow: [
                 BoxShadow(
                   color: isWishlisted
-                      ? AppTheme.accentMagenta.withValues(alpha: 0.2)
-                      : Colors.black.withValues(alpha: 0.3),
+                      ? AppTheme.accentMagenta.withValues(alpha: 0.22)
+                      : Colors.black.withValues(alpha: 0.35),
                   blurRadius: 10,
-                  offset: const Offset(0, 4),
+                  offset: const Offset(0, 3),
                 ),
               ],
             ),
@@ -575,162 +567,250 @@ class _SkinCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(6),
               child: Stack(
                 children: [
-                  // Subtle tier accent light
+                  // Left vertical tier accent stripe
                   Positioned(
-                    top: -30,
-                    right: -30,
+                    top: 0,
+                    bottom: 0,
+                    left: 0,
+                    width: 3.5,
                     child: Container(
-                      width: 90,
-                      height: 90,
+                      color: isWishlisted ? AppTheme.accentMagenta : tierColor,
+                    ),
+                  ),
+
+                  // Background subtle tier glow on the right
+                  Positioned(
+                    right: -20,
+                    top: -20,
+                    bottom: -20,
+                    width: 170,
+                    child: Container(
                       decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: tierColor.withValues(alpha: 0.12),
+                        gradient: RadialGradient(
+                          center: Alignment.centerRight,
+                          radius: 0.9,
+                          colors: [
+                            tierColor.withValues(alpha: 0.16),
+                            Colors.transparent,
+                          ],
+                        ),
                       ),
                     ),
                   ),
 
+                  // Content Row: Left info, Right gun image
                   Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    padding: const EdgeInsets.fromLTRB(14, 10, 10, 10),
+                    child: Row(
                       children: [
-                        // Top row: Weapon type badge & Wishlist button
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: tierColor.withValues(alpha: 0.15),
-                                borderRadius: BorderRadius.circular(4),
-                                border: Border.all(
-                                  color: tierColor.withValues(alpha: 0.35),
-                                  width: 0.8,
-                                ),
-                              ),
-                              child: Text(
-                                skin.weaponName?.toUpperCase() ?? 'VALORANT',
-                                style: TextStyle(
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.w800,
-                                  color: tierColor,
-                                  letterSpacing: 0.8,
-                                ),
-                              ),
-                            ),
-                            // Wishlist Toggle
-                            GestureDetector(
-                              onTap: () {
-                                context.read<WishlistCubit>().toggleWishlist(skin);
-                              },
-                              child: Container(
-                                padding: const EdgeInsets.all(5),
-                                decoration: BoxDecoration(
-                                  color: isWishlisted
-                                      ? AppTheme.accentMagenta.withValues(alpha: 0.2)
-                                      : AppTheme.surfaceDark,
-                                  borderRadius: BorderRadius.circular(4),
-                                  border: Border.all(
-                                    color: isWishlisted
-                                        ? AppTheme.accentMagenta.withValues(alpha: 0.4)
-                                        : Colors.white.withValues(alpha: 0.05),
-                                  ),
-                                ),
-                                child: Icon(
-                                  isWishlisted
-                                      ? Icons.favorite_rounded
-                                      : Icons.favorite_border_rounded,
-                                  size: 14,
-                                  color: isWishlisted
-                                      ? AppTheme.accentMagenta
-                                      : AppTheme.textSecondary,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-
-                        // Skin Image
+                        // Left Details Column
                         Expanded(
-                          child: Center(
-                            child: skin.displayIcon != null
-                                ? CachedNetworkImage(
-                                    imageUrl: skin.displayIcon!,
-                                    fit: BoxFit.contain,
-                                    placeholder: (context, url) =>
-                                        const Center(
-                                      child: SizedBox(
-                                        width: 24,
-                                        height: 24,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          color: AppTheme.accentMagenta,
+                          flex: 5,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              // Top Tag: Weapon Type & Tier
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                      vertical: 2,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: tierColor.withValues(alpha: 0.15),
+                                      borderRadius: BorderRadius.circular(4),
+                                      border: Border.all(
+                                        color: tierColor.withValues(alpha: 0.4),
+                                        width: 0.8,
+                                      ),
+                                    ),
+                                    child: Text(
+                                      skin.weaponName?.toUpperCase() ?? 'VALORANT',
+                                      style: TextStyle(
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.w800,
+                                        color: tierColor,
+                                        letterSpacing: 0.6,
+                                      ),
+                                    ),
+                                  ),
+                                  if (skin.tierName != null &&
+                                      skin.tierName!.isNotEmpty) ...[
+                                    const SizedBox(width: 6),
+                                    Flexible(
+                                      child: Text(
+                                        skin.tierName!.toUpperCase(),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          fontSize: 9,
+                                          color: AppTheme.textSecondary,
+                                          fontWeight: FontWeight.w700,
+                                          letterSpacing: 0.5,
                                         ),
                                       ),
                                     ),
-                                    errorWidget: (context, url, error) =>
-                                        const Icon(
-                                      Icons.image_not_supported_outlined,
-                                      color: AppTheme.textMuted,
-                                    ),
-                                  )
-                                : const Icon(
-                                    Icons.sports_esports_rounded,
-                                    size: 48,
-                                    color: AppTheme.textMuted,
-                                  ),
-                          ),
-                        ),
-
-                        const SizedBox(height: 8),
-
-                        // Skin Name
-                        Text(
-                          skin.displayName,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: AppTheme.textPrimary,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-
-                        // Price Row
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Row(
-                              children: [
-                                const Icon(
-                                  Icons.shield_outlined,
-                                  size: 13,
-                                  color: AppTheme.accentMagenta,
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  '${skin.cost} VP',
-                                  style: GoogleFonts.rajdhani(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppTheme.textPrimary,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            Text(
-                              skin.tierName ?? '',
-                              style: TextStyle(
-                                fontSize: 9,
-                                color: tierColor,
-                                fontWeight: FontWeight.w600,
+                                  ],
+                                ],
                               ),
-                            ),
-                          ],
+
+                              // Skin Name
+                              Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 2),
+                                child: Text(
+                                  skin.displayName,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w800,
+                                    color: AppTheme.textPrimary,
+                                    letterSpacing: 0.3,
+                                    height: 1.2,
+                                  ),
+                                ),
+                              ),
+
+                              // Price & Wishlist Badge
+                              Row(
+                                children: [
+                                  const Icon(
+                                    Icons.monetization_on_outlined,
+                                    size: 14,
+                                    color: AppTheme.accentMagenta,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    '${skin.cost} VP',
+                                    style: GoogleFonts.rajdhani(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: 0.5,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                  if (isWishlisted) ...[
+                                    const SizedBox(width: 8),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 5,
+                                        vertical: 1,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: AppTheme.accentMagenta
+                                            .withValues(alpha: 0.2),
+                                        borderRadius: BorderRadius.circular(3),
+                                        border: Border.all(
+                                          color: AppTheme.accentMagenta
+                                              .withValues(alpha: 0.4),
+                                          width: 0.8,
+                                        ),
+                                      ),
+                                      child: const Text(
+                                        'WISHLIST',
+                                        style: TextStyle(
+                                          fontSize: 8,
+                                          fontWeight: FontWeight.w800,
+                                          color: AppTheme.accentMagenta,
+                                          letterSpacing: 0.5,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(width: 8),
+
+                        // Right Weapon Gun Image & Wishlist Icon
+                        Expanded(
+                          flex: 6,
+                          child: Stack(
+                            children: [
+                              // Horizontal Gun Image
+                              Positioned.fill(
+                                child: Align(
+                                  alignment: Alignment.centerRight,
+                                  child: skin.displayIcon != null
+                                      ? Hero(
+                                          tag: 'skin_image_${skin.uuid}',
+                                          child: CachedNetworkImage(
+                                            imageUrl: skin.displayIcon!,
+                                            fit: BoxFit.contain,
+                                            placeholder: (context, url) =>
+                                                const Center(
+                                              child: SizedBox(
+                                                width: 20,
+                                                height: 20,
+                                                child: CircularProgressIndicator(
+                                                  strokeWidth: 1.5,
+                                                  color: AppTheme.accentMagenta,
+                                                ),
+                                              ),
+                                            ),
+                                            errorWidget: (context, url, error) =>
+                                                const Icon(
+                                              Icons.image_not_supported_outlined,
+                                              color: AppTheme.textMuted,
+                                              size: 32,
+                                            ),
+                                          ),
+                                        )
+                                      : const Icon(
+                                          Icons.sports_esports_rounded,
+                                          size: 40,
+                                          color: AppTheme.textMuted,
+                                        ),
+                                ),
+                              ),
+
+                              // Wishlist Toggle
+                              Positioned(
+                                top: 0,
+                                right: 0,
+                                child: GestureDetector(
+                                  behavior: HitTestBehavior.opaque,
+                                  onTap: () {
+                                    context
+                                        .read<WishlistCubit>()
+                                        .toggleWishlist(skin);
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.all(5),
+                                    decoration: BoxDecoration(
+                                      color: isWishlisted
+                                          ? AppTheme.accentMagenta
+                                              .withValues(alpha: 0.25)
+                                          : AppTheme.surfaceDark
+                                              .withValues(alpha: 0.75),
+                                      borderRadius: BorderRadius.circular(4),
+                                      border: Border.all(
+                                        color: isWishlisted
+                                            ? AppTheme.accentMagenta
+                                            : Colors.white
+                                                .withValues(alpha: 0.08),
+                                        width: 0.8,
+                                      ),
+                                    ),
+                                    child: Icon(
+                                      isWishlisted
+                                          ? Icons.favorite_rounded
+                                          : Icons.favorite_border_rounded,
+                                      size: 13,
+                                      color: isWishlisted
+                                          ? AppTheme.accentMagenta
+                                          : AppTheme.textSecondary,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),
@@ -849,8 +929,7 @@ class _CountdownCard extends StatelessWidget {
 
 /// Shimmer placeholder for loading
 class _SkinCardPlaceholder extends StatelessWidget {
-  final int index;
-  const _SkinCardPlaceholder({required this.index});
+  const _SkinCardPlaceholder();
 
   @override
   Widget build(BuildContext context) {
@@ -858,6 +937,7 @@ class _SkinCardPlaceholder extends StatelessWidget {
       baseColor: AppTheme.surfaceLight.withValues(alpha: 0.4),
       highlightColor: AppTheme.surfaceColor,
       child: Container(
+        height: 108,
         decoration: BoxDecoration(
           color: AppTheme.cardDark,
           borderRadius: BorderRadius.circular(6),
