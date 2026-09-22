@@ -17,6 +17,11 @@ class LiveMatchData extends Equatable {
   final List<LivePlayerInfo> blueTeam;
   final List<LivePlayerInfo> redTeam;
 
+  // ─── Ascend Companion HUD fields ─────────────────────────────
+  final String? playerSide; // "Attack" / "Defense" (nullable)
+  final int blueScore; // Ally team score
+  final int redScore; // Enemy team score
+
   const LiveMatchData({
     required this.phase,
     this.matchId = '',
@@ -25,6 +30,9 @@ class LiveMatchData extends Equatable {
     this.modeName = 'Competitive',
     this.blueTeam = const [],
     this.redTeam = const [],
+    this.playerSide,
+    this.blueScore = 0,
+    this.redScore = 0,
   });
 
   bool get isInMatch => phase != LiveMatchPhase.inLobby;
@@ -37,6 +45,9 @@ class LiveMatchData extends Equatable {
         'modeName': modeName,
         'blueTeam': blueTeam.map((p) => p.toJson()).toList(),
         'redTeam': redTeam.map((p) => p.toJson()).toList(),
+        'playerSide': playerSide,
+        'blueScore': blueScore,
+        'redScore': redScore,
       };
 
   factory LiveMatchData.fromJson(Map<String, dynamic> json) {
@@ -62,6 +73,9 @@ class LiveMatchData extends Equatable {
           .whereType<Map>()
           .map((p) => LivePlayerInfo.fromJson(Map<String, dynamic>.from(p)))
           .toList(),
+      playerSide: json['playerSide'] as String?,
+      blueScore: json['blueScore'] as int? ?? 0,
+      redScore: json['redScore'] as int? ?? 0,
     );
   }
 
@@ -74,5 +88,8 @@ class LiveMatchData extends Equatable {
         modeName,
         blueTeam,
         redTeam,
+        playerSide,
+        blueScore,
+        redScore,
       ];
 }

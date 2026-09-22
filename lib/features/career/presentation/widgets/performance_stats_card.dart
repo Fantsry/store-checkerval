@@ -1,11 +1,12 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:valorant_store_tracker/app/theme.dart';
 import 'package:valorant_store_tracker/features/career/domain/entities/career_overview.dart';
 import 'package:valorant_store_tracker/features/career/domain/entities/match_summary.dart';
 
-/// Tracker.gg-style performance overview card showing:
-/// - Recent Form: last 5 match W/L indicator pills
+/// Ascend Companion-style performance overview card showing:
+/// - Recent Form: last 5 match W/L indicator squares
 /// - Win/Loss Streak
 /// - Top 3 Agents (icon + win rate + K/D)
 /// - Top 3 Maps (name + win rate bar + games played)
@@ -31,37 +32,23 @@ class PerformanceStatsCard extends StatelessWidget {
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            AppTheme.surfaceDark,
-            AppTheme.cardDark.withValues(alpha: 0.9),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(14),
+        color: AppTheme.cardDark,
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: Colors.white.withValues(alpha: 0.07),
+          color: Colors.white.withValues(alpha: 0.06),
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.25),
-            blurRadius: 8,
-            offset: const Offset(0, 3),
-          ),
-        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Section Title
-          const Row(
+          Row(
             children: [
-              Icon(Icons.insights_rounded, size: 14, color: AppTheme.valorantCyan),
-              SizedBox(width: 6),
+              Icon(Icons.insights_rounded, size: 14, color: AppTheme.accentMagenta),
+              const SizedBox(width: 6),
               Text(
                 'PERFORMANCE INSIGHTS',
-                style: TextStyle(
+                style: GoogleFonts.inter(
                   fontSize: 11,
                   fontWeight: FontWeight.w800,
                   color: AppTheme.textPrimary,
@@ -80,9 +67,9 @@ class PerformanceStatsCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'RECENT FORM',
-                      style: TextStyle(
+                      style: GoogleFonts.inter(
                         fontSize: 9,
                         fontWeight: FontWeight.w600,
                         color: AppTheme.textMuted,
@@ -96,9 +83,9 @@ class PerformanceStatsCard extends StatelessWidget {
                         if (result == null) {
                           color = Colors.amber.shade600;
                         } else if (result) {
-                          color = const Color(0xFF00C4A8);
+                          color = AppTheme.winGreen;
                         } else {
-                          color = AppTheme.valorantRed;
+                          color = AppTheme.loseRed;
                         }
                         return Container(
                           width: 20,
@@ -106,7 +93,7 @@ class PerformanceStatsCard extends StatelessWidget {
                           margin: const EdgeInsets.only(right: 4),
                           decoration: BoxDecoration(
                             color: color.withValues(alpha: 0.2),
-                            borderRadius: BorderRadius.circular(4),
+                            borderRadius: BorderRadius.circular(3),
                             border: Border.all(
                               color: color.withValues(alpha: 0.6),
                               width: 1.5,
@@ -117,7 +104,7 @@ class PerformanceStatsCard extends StatelessWidget {
                               result == null
                                   ? 'D'
                                   : (result ? 'W' : 'L'),
-                              style: TextStyle(
+                              style: GoogleFonts.inter(
                                 fontSize: 9,
                                 fontWeight: FontWeight.w900,
                                 color: color,
@@ -139,15 +126,15 @@ class PerformanceStatsCard extends StatelessWidget {
                 ),
                 decoration: BoxDecoration(
                   color: (streak > 0
-                          ? const Color(0xFF00C4A8)
-                          : (streak < 0 ? AppTheme.valorantRed : AppTheme.textMuted))
+                          ? AppTheme.winGreen
+                          : (streak < 0 ? AppTheme.loseRed : AppTheme.textMuted))
                       .withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(6),
                   border: Border.all(
                     color: (streak > 0
-                            ? const Color(0xFF00C4A8)
+                            ? AppTheme.winGreen
                             : (streak < 0
-                                ? AppTheme.valorantRed
+                                ? AppTheme.loseRed
                                 : AppTheme.textMuted))
                         .withValues(alpha: 0.35),
                   ),
@@ -163,9 +150,9 @@ class PerformanceStatsCard extends StatelessWidget {
                               : Icons.remove_rounded),
                       size: 14,
                       color: streak > 0
-                          ? const Color(0xFF00C4A8)
+                          ? AppTheme.winGreen
                           : (streak < 0
-                              ? AppTheme.valorantRed
+                              ? AppTheme.loseRed
                               : AppTheme.textSecondary),
                     ),
                     const SizedBox(width: 4),
@@ -175,13 +162,13 @@ class PerformanceStatsCard extends StatelessWidget {
                           : (streak < 0
                               ? '${streak.abs()} Loss Streak'
                               : 'No Streak'),
-                      style: TextStyle(
+                      style: GoogleFonts.inter(
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
                         color: streak > 0
-                            ? const Color(0xFF00C4A8)
+                            ? AppTheme.winGreen
                             : (streak < 0
-                                ? AppTheme.valorantRed
+                                ? AppTheme.loseRed
                                 : AppTheme.textSecondary),
                       ),
                     ),
@@ -197,9 +184,9 @@ class PerformanceStatsCard extends StatelessWidget {
 
           // Top Agents
           if (topAgents.isNotEmpty) ...[
-            const Text(
+            Text(
               'TOP AGENTS',
-              style: TextStyle(
+              style: GoogleFonts.inter(
                 fontSize: 9,
                 fontWeight: FontWeight.w600,
                 color: AppTheme.textMuted,
@@ -215,9 +202,9 @@ class PerformanceStatsCard extends StatelessWidget {
 
           // Top Maps
           if (topMaps.isNotEmpty) ...[
-            const Text(
+            Text(
               'TOP MAPS',
-              style: TextStyle(
+              style: GoogleFonts.inter(
                 fontSize: 9,
                 fontWeight: FontWeight.w600,
                 color: AppTheme.textMuted,
@@ -401,7 +388,7 @@ class _AgentStatRow extends StatelessWidget {
               shape: BoxShape.circle,
               color: Colors.black.withValues(alpha: 0.3),
               border: Border.all(
-                color: Colors.white.withValues(alpha: 0.12),
+                color: Colors.white.withValues(alpha: 0.1),
               ),
             ),
             child: ClipOval(
@@ -431,7 +418,7 @@ class _AgentStatRow extends StatelessWidget {
               children: [
                 Text(
                   agent.agentName,
-                  style: const TextStyle(
+                  style: GoogleFonts.inter(
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
                     color: AppTheme.textPrimary,
@@ -439,7 +426,7 @@ class _AgentStatRow extends StatelessWidget {
                 ),
                 Text(
                   '${agent.gamesPlayed} games',
-                  style: const TextStyle(
+                  style: GoogleFonts.inter(
                     fontSize: 10,
                     color: AppTheme.textMuted,
                   ),
@@ -453,19 +440,19 @@ class _AgentStatRow extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
             decoration: BoxDecoration(
               color: (agent.winRate >= 50
-                      ? const Color(0xFF00C4A8)
-                      : AppTheme.valorantRed)
+                      ? AppTheme.winGreen
+                      : AppTheme.loseRed)
                   .withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(4),
             ),
             child: Text(
               '${agent.winRate.toStringAsFixed(0)}% WR',
-              style: TextStyle(
-                fontSize: 10,
+              style: GoogleFonts.rajdhani(
+                fontSize: 11,
                 fontWeight: FontWeight.w700,
                 color: agent.winRate >= 50
-                    ? const Color(0xFF00C4A8)
-                    : AppTheme.valorantRed,
+                    ? AppTheme.winGreen
+                    : AppTheme.loseRed,
               ),
             ),
           ),
@@ -474,11 +461,11 @@ class _AgentStatRow extends StatelessWidget {
           // K/D
           Text(
             '${agent.avgKd.toStringAsFixed(2)} KD',
-            style: TextStyle(
-              fontSize: 10,
+            style: GoogleFonts.rajdhani(
+              fontSize: 11,
               fontWeight: FontWeight.w600,
               color: agent.avgKd >= 1.0
-                  ? const Color(0xFF00C4A8)
+                  ? AppTheme.winGreen
                   : AppTheme.textSecondary,
             ),
           ),
@@ -507,7 +494,7 @@ class _MapStatRow extends StatelessWidget {
               borderRadius: BorderRadius.circular(6),
               color: Colors.black.withValues(alpha: 0.3),
               border: Border.all(
-                color: Colors.white.withValues(alpha: 0.1),
+                color: Colors.white.withValues(alpha: 0.08),
               ),
             ),
             child: const Center(
@@ -528,7 +515,7 @@ class _MapStatRow extends StatelessWidget {
               children: [
                 Text(
                   mapStat.mapName,
-                  style: const TextStyle(
+                  style: GoogleFonts.inter(
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
                     color: AppTheme.textPrimary,
@@ -536,7 +523,7 @@ class _MapStatRow extends StatelessWidget {
                 ),
                 Text(
                   '${mapStat.gamesPlayed} games • ${mapStat.wins}W ${mapStat.gamesPlayed - mapStat.wins}L',
-                  style: const TextStyle(
+                  style: GoogleFonts.inter(
                     fontSize: 10,
                     color: AppTheme.textMuted,
                   ),
@@ -555,12 +542,12 @@ class _MapStatRow extends StatelessWidget {
                     borderRadius: BorderRadius.circular(3),
                     child: LinearProgressIndicator(
                       value: mapStat.winRate / 100,
-                      minHeight: 6,
+                      minHeight: 5,
                       backgroundColor: Colors.black.withValues(alpha: 0.3),
                       valueColor: AlwaysStoppedAnimation<Color>(
                         mapStat.winRate >= 50
-                            ? const Color(0xFF00C4A8)
-                            : AppTheme.valorantRed,
+                            ? AppTheme.winGreen
+                            : AppTheme.loseRed,
                       ),
                     ),
                   ),
@@ -568,12 +555,12 @@ class _MapStatRow extends StatelessWidget {
                 const SizedBox(width: 8),
                 Text(
                   '${mapStat.winRate.toStringAsFixed(0)}%',
-                  style: TextStyle(
-                    fontSize: 11,
+                  style: GoogleFonts.rajdhani(
+                    fontSize: 12,
                     fontWeight: FontWeight.w700,
                     color: mapStat.winRate >= 50
-                        ? const Color(0xFF00C4A8)
-                        : AppTheme.valorantRed,
+                        ? AppTheme.winGreen
+                        : AppTheme.loseRed,
                   ),
                 ),
               ],

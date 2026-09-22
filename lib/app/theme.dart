@@ -1,10 +1,10 @@
-/// Valorant-themed dark UI theme.
+/// Ascend Companion – Esports HUD Dark Overlay Theme.
 ///
-/// Color palette inspired by Valorant's brand:
-/// - Primary Red: #FF4655 (Valorant red)
-/// - Background: #0F1923 (deep dark blue)
-/// - Surface: #1B2733 (card background)
-/// - Accent: #BD3944 (darker red for accents)
+/// Color palette inspired by professional esports broadcast overlays:
+/// - Background: #0B0C10 (almost black)
+/// - Surface: #121319 (deep dark violet-grey)
+/// - Accent Magenta: #FF2FB0 (ally highlight, self glow)
+/// - Accent Purple: #7C4DFF (enemy accent)
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -12,28 +12,35 @@ import 'package:google_fonts/google_fonts.dart';
 class AppTheme {
   AppTheme._();
 
-  // ─── Brand Colors ───────────────────────────────────────────
-  static const Color valorantRed = Color(0xFFFF4655);
-  static const Color valorantDarkRed = Color(0xFFBD3944);
-  static const Color valorantCyan = Color(0xFF17DEE6);
+  // ─── Esports HUD Colors ────────────────────────────────────
+  static const Color accentMagenta = Color(0xFFFF2FB0);
+  static const Color accentPurple = Color(0xFF7C4DFF);
+  static const Color winGreen = Color(0xFF3DDC84);
+  static const Color loseRed = Color(0xFFE5484D);
+  static const Color selfHighlight = Color(0xFFFF2FB0);
 
-  static const Color backgroundDark = Color(0xFF0F1923);
+  static const Color backgroundDark = Color(0xFF0B0C10);
   static const Color backgroundColor = backgroundDark;
-  static const Color surfaceDark = Color(0xFF1B2733);
+  static const Color surfaceDark = Color(0xFF121319);
   static const Color surfaceColor = surfaceDark;
-  static const Color surfaceLight = Color(0xFF253340);
-  static const Color cardDark = Color(0xFF1E2D3B);
+  static const Color surfaceLight = Color(0xFF22232C);
+  static const Color cardDark = Color(0xFF1A1B22);
 
-  static const Color textPrimary = Color(0xFFECE8E1);
-  static const Color textSecondary = Color(0xFF8B978F);
-  static const Color textMuted = Color(0xFF5A6B5F);
+  static const Color textPrimary = Color(0xFFE8E6E3);
+  static const Color textSecondary = Color(0xFF6B6F7B);
+  static const Color textMuted = Color(0xFF3E4049);
+
+  // ─── Legacy aliases (for backward compat in match_card, etc.) ──
+  static const Color valorantRed = accentMagenta;
+  static const Color valorantDarkRed = Color(0xFFC91E78);
+  static const Color valorantCyan = accentMagenta;
 
   // ─── Skin Tier Colors ───────────────────────────────────────
   static const Color tierSelect = Color(0xFF5A9FE1);
-  static const Color tierDeluxe = Color(0xFF00C4A8);
+  static const Color tierDeluxe = Color(0xFF3DDC84);
   static const Color tierPremium = Color(0xFFD1548D);
   static const Color tierUltra = Color(0xFFF5D662);
-  static const Color tierExclusive = Color(0xFFFF4655);
+  static const Color tierExclusive = Color(0xFFFF2FB0);
 
   // ─── VP (Valorant Points) ───────────────────────────────────
   static const Color vpGold = Color(0xFFEAD085);
@@ -42,20 +49,61 @@ class AppTheme {
   static const LinearGradient primaryGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [valorantRed, valorantDarkRed],
+    colors: [accentMagenta, Color(0xFFC91E78)],
   );
 
   static const LinearGradient backgroundGradient = LinearGradient(
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
-    colors: [Color(0xFF0F1923), Color(0xFF0A1018)],
+    colors: [Color(0xFF0B0C10), Color(0xFF080910)],
   );
 
   static const LinearGradient cardGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [Color(0xFF1E2D3B), Color(0xFF152230)],
+    colors: [Color(0xFF1A1B22), Color(0xFF14151C)],
   );
+
+  // ─── Stat Typography Helpers (Rajdhani for numbers) ─────────
+  static TextStyle statLarge({Color color = textPrimary}) =>
+      GoogleFonts.rajdhani(
+        fontSize: 18,
+        fontWeight: FontWeight.w700,
+        color: color,
+        height: 1.1,
+      );
+
+  static TextStyle statMedium({Color color = textPrimary}) =>
+      GoogleFonts.rajdhani(
+        fontSize: 15,
+        fontWeight: FontWeight.w700,
+        color: color,
+        height: 1.1,
+      );
+
+  static TextStyle statSmall({Color color = textPrimary}) =>
+      GoogleFonts.rajdhani(
+        fontSize: 13,
+        fontWeight: FontWeight.w600,
+        color: color,
+        height: 1.1,
+      );
+
+  static TextStyle scoreBig({Color color = textPrimary}) =>
+      GoogleFonts.rajdhani(
+        fontSize: 48,
+        fontWeight: FontWeight.w800,
+        color: color,
+        height: 1.0,
+      );
+
+  static TextStyle labelCaption({Color color = textSecondary}) =>
+      GoogleFonts.inter(
+        fontSize: 9,
+        fontWeight: FontWeight.w400,
+        color: color,
+        letterSpacing: 0.8,
+      );
 
   // ─── Theme Data ─────────────────────────────────────────────
   static ThemeData get darkTheme {
@@ -64,14 +112,14 @@ class AppTheme {
       brightness: Brightness.dark,
       scaffoldBackgroundColor: backgroundDark,
       colorScheme: const ColorScheme.dark(
-        primary: valorantRed,
-        secondary: valorantCyan,
+        primary: accentMagenta,
+        secondary: accentPurple,
         surface: surfaceDark,
-        error: Color(0xFFCF6679),
+        error: Color(0xFFE5484D),
         onPrimary: Colors.white,
-        onSecondary: Colors.black,
+        onSecondary: Colors.white,
         onSurface: textPrimary,
-        onError: Colors.black,
+        onError: Colors.white,
       ),
       textTheme: GoogleFonts.interTextTheme(
         const TextTheme(
@@ -146,7 +194,7 @@ class AppTheme {
         color: cardDark,
         elevation: 0,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(6),
           side: BorderSide(
             color: Colors.white.withValues(alpha: 0.05),
           ),
@@ -154,12 +202,12 @@ class AppTheme {
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: valorantRed,
+          backgroundColor: accentMagenta,
           foregroundColor: Colors.white,
           elevation: 0,
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(6),
           ),
           textStyle: GoogleFonts.inter(
             fontSize: 14,
@@ -170,11 +218,11 @@ class AppTheme {
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: valorantRed,
-          side: const BorderSide(color: valorantRed, width: 1.5),
+          foregroundColor: accentMagenta,
+          side: const BorderSide(color: accentMagenta, width: 1.5),
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(6),
           ),
         ),
       ),
@@ -183,12 +231,12 @@ class AppTheme {
         fillColor: surfaceLight,
         hintStyle: const TextStyle(color: textMuted),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(6),
           borderSide: BorderSide.none,
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: valorantRed, width: 1.5),
+          borderRadius: BorderRadius.circular(6),
+          borderSide: const BorderSide(color: accentMagenta, width: 1.5),
         ),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 16,
@@ -196,26 +244,26 @@ class AppTheme {
         ),
       ),
       bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-        backgroundColor: surfaceDark,
-        selectedItemColor: valorantRed,
+        backgroundColor: backgroundDark,
+        selectedItemColor: accentMagenta,
         unselectedItemColor: textMuted,
         type: BottomNavigationBarType.fixed,
         elevation: 0,
       ),
       chipTheme: ChipThemeData(
         backgroundColor: surfaceLight,
-        selectedColor: valorantRed.withValues(alpha: 0.2),
+        selectedColor: accentMagenta.withValues(alpha: 0.2),
         labelStyle: const TextStyle(color: textPrimary, fontSize: 12),
         side: BorderSide.none,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(6),
         ),
       ),
       snackBarTheme: SnackBarThemeData(
-        backgroundColor: surfaceDark,
+        backgroundColor: cardDark,
         contentTextStyle: const TextStyle(color: textPrimary),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(6),
         ),
         behavior: SnackBarBehavior.floating,
       ),
@@ -224,7 +272,7 @@ class AppTheme {
         thickness: 1,
       ),
       progressIndicatorTheme: const ProgressIndicatorThemeData(
-        color: valorantRed,
+        color: accentMagenta,
       ),
     );
   }
@@ -239,5 +287,20 @@ class AppTheme {
       'exclusive' => tierExclusive,
       _ => textSecondary,
     };
+  }
+
+  /// Get color for rank tier name (used by GemRankIcon).
+  static Color getRankTierColor(String tierName) {
+    final lower = tierName.toLowerCase();
+    if (lower.contains('iron')) return const Color(0xFF6E6E6E);
+    if (lower.contains('bronze')) return const Color(0xFFB47742);
+    if (lower.contains('silver')) return const Color(0xFFB0B0B0);
+    if (lower.contains('gold')) return const Color(0xFFE5B94E);
+    if (lower.contains('platinum')) return const Color(0xFF32C8B0);
+    if (lower.contains('diamond')) return const Color(0xFF3DDC84);
+    if (lower.contains('ascendant')) return const Color(0xFF2DCD70);
+    if (lower.contains('immortal')) return const Color(0xFFE5484D);
+    if (lower.contains('radiant')) return const Color(0xFFFFFACD);
+    return const Color(0xFF6B6F7B);
   }
 }

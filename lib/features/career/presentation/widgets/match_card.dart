@@ -58,8 +58,8 @@ class _MatchCardState extends State<MatchCard> {
     final isWin = match.won == true;
     final isDraw = match.isDraw;
     final outcomeColor = isWin
-        ? const Color(0xFF00C4A8)
-        : (isDraw ? Colors.amber : AppTheme.valorantRed);
+        ? AppTheme.winGreen
+        : (isDraw ? Colors.amber : AppTheme.loseRed);
 
     final selfPlayer = match.allPlayers.where((p) => p.isSelf).firstOrNull;
     final isMatchMvp = selfPlayer != null && match.matchMvpPuuid == selfPlayer.puuid;
@@ -73,22 +73,17 @@ class _MatchCardState extends State<MatchCard> {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
       decoration: BoxDecoration(
-        color: AppTheme.surfaceDark,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: outcomeColor.withValues(alpha: 0.35),
-          width: 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.3),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
+        color: AppTheme.cardDark,
+        borderRadius: BorderRadius.circular(6),
+        border: Border(
+          left: BorderSide(
+            color: outcomeColor,
+            width: 3,
           ),
-        ],
+        ),
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(6),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [

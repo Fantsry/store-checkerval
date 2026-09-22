@@ -280,8 +280,8 @@ void main() {
       when(() => mockCareer.fetchCompetitiveUpdates(
             shard: tShard,
             puuid: tPuuid,
-            startIndex: 0,
-            endIndex: 10,
+            startIndex: any(named: 'startIndex'),
+            endIndex: any(named: 'endIndex'),
           )).thenAnswer((_) async => [
             {'TierAfterUpdate': 20, 'TierBeforeUpdate': 20, 'RankedRatingEarned': 21},
             {'TierAfterUpdate': 20, 'TierBeforeUpdate': 20, 'RankedRatingEarned': 18},

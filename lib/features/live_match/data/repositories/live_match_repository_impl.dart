@@ -234,6 +234,7 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
     }
 
     // Parallelize metadata, names, and player MMR + Competitive lookups
+    // Fetch 15 competitive updates for extended stats
     final results = await Future.wait([
       _careerDataSource
           .fetchMapsMetadata()
@@ -262,7 +263,7 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
               shard: shard,
               puuid: sub,
               startIndex: 0,
-              endIndex: 10,
+              endIndex: 15,
             );
           } catch (_) {}
           return MapEntry(sub, _PlayerStats(mmr: mmrData, updates: compUpdates));
@@ -343,6 +344,7 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
         }
 
         final wl = _calculateRecentWinLoss(compUpdates);
+        final extendedStats = _calculateExtendedStats(compUpdates, mmrData);
 
         final isSelf = sub == selfPuuid;
         final player = LivePlayerInfo(
@@ -362,6 +364,20 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
           recentWins: wl.wins,
           recentLosses: wl.losses,
           recentMatchOutcomes: wl.outcomes,
+          // Extended stats
+          averageCombatScore: extendedStats.acs,
+          kdRatio: extendedStats.kd,
+          kastPercentage: extendedStats.kast,
+          kda: extendedStats.kda,
+          averageDamageRound: extendedStats.adr,
+          headshotPercentage: extendedStats.hs,
+          winPercentage: wl.wins + wl.losses > 0
+              ? (wl.wins / (wl.wins + wl.losses)) * 100
+              : null,
+          lastNMatchCount: compUpdates.isNotEmpty ? compUpdates.length : null,
+          lastNActScore: extendedStats.actScore,
+          currentRankEpisodeAct: extendedStats.currentEpisodeAct,
+          peakRankEpisodeAct: extendedStats.peakEpisodeAct,
         );
 
         // Put user's team into blueTeam (Allies) and opponent team into redTeam (Enemies)
@@ -382,6 +398,9 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
         modeName: modeName,
         blueTeam: blueTeam,
         redTeam: redTeam,
+        playerSide: 'Attack', // placeholder — API doesn't expose side directly
+        blueScore: 0,
+        redScore: 0,
       ),
     );
   }
@@ -438,7 +457,7 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
               shard: shard,
               puuid: sub,
               startIndex: 0,
-              endIndex: 10,
+              endIndex: 15,
             );
           } catch (_) {}
           return MapEntry(sub, _PlayerStats(mmr: mmrData, updates: compUpdates));
@@ -509,6 +528,7 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
         }
 
         final wl = _calculateRecentWinLoss(compUpdates);
+        final extendedStats = _calculateExtendedStats(compUpdates, mmrData);
 
         allyTeam.add(
           LivePlayerInfo(
@@ -528,6 +548,20 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
             recentWins: wl.wins,
             recentLosses: wl.losses,
             recentMatchOutcomes: wl.outcomes,
+            // Extended stats
+            averageCombatScore: extendedStats.acs,
+            kdRatio: extendedStats.kd,
+            kastPercentage: extendedStats.kast,
+            kda: extendedStats.kda,
+            averageDamageRound: extendedStats.adr,
+            headshotPercentage: extendedStats.hs,
+            winPercentage: wl.wins + wl.losses > 0
+                ? (wl.wins / (wl.wins + wl.losses)) * 100
+                : null,
+            lastNMatchCount: compUpdates.isNotEmpty ? compUpdates.length : null,
+            lastNActScore: extendedStats.actScore,
+            currentRankEpisodeAct: extendedStats.currentEpisodeAct,
+            peakRankEpisodeAct: extendedStats.peakEpisodeAct,
           ),
         );
       }
@@ -542,6 +576,9 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
         modeName: modeName,
         blueTeam: allyTeam,
         redTeam: const [],
+        playerSide: 'Attack',
+        blueScore: 0,
+        redScore: 0,
       ),
     );
   }
@@ -698,6 +735,138 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
     return (wins: wins, losses: losses, outcomes: outcomes);
   }
 
+  /// Calculate extended stats for Ascend Companion player card.
+  /// Data derivable from competitive updates: WIN%, K/D proxy.
+  /// ACS, ADR, HS%, KAST, KDA are not available from competitive updates
+  /// alone, so they remain null unless we can extract them.
+  _ExtendedStats _calculateExtendedStats(
+    List<Map<String, dynamic>> compUpdates,
+    Map<String, dynamic>? mmrData,
+  ) {
+    // Try to extract episode/act info from MMR data
+    String? currentEpisodeAct;
+    String? peakEpisodeAct;
+    int? actScore;
+
+    if (mmrData != null) {
+      final queueSkills = mmrData['QueueSkills'] is Map
+          ? Map<String, dynamic>.from(mmrData['QueueSkills'] as Map)
+          : null;
+      final compSkill = queueSkills?['competitive'] is Map
+          ? Map<String, dynamic>.from(queueSkills!['competitive'] as Map)
+          : null;
+
+      // Extract current season episode/act
+      final seasonal = compSkill?['SeasonalInfoBySeasonID'] is Map
+          ? Map<String, dynamic>.from(compSkill!['SeasonalInfoBySeasonID'] as Map)
+          : null;
+
+      if (seasonal != null && seasonal.isNotEmpty) {
+        // Sort seasons to find the most recent with data
+        final entries = seasonal.entries.toList();
+        // Season IDs are UUIDs but we can just pick the last entry as "current"
+        for (final entry in entries.reversed) {
+          if (entry.value is Map) {
+            final seasonData = Map<String, dynamic>.from(entry.value as Map);
+            final tier = seasonData['CompetitiveTier'] as int? ?? 0;
+            final wins = seasonData['NumberOfWins'] as int? ?? 0;
+            final winsWithPlacements = seasonData['NumberOfWinsWithPlacements'] as int? ?? 0;
+            final rankedRating = seasonData['RankedRating'] as int? ?? 0;
+
+            if (tier > 0 || wins > 0 || winsWithPlacements > 0) {
+              // Try to extract Act Rank (RankedRating from seasonal info)
+              actScore = rankedRating > 0 ? rankedRating : null;
+
+              // Episode/Act label from season ID pattern
+              final seasonId = entry.key;
+              currentEpisodeAct = _seasonIdToLabel(seasonId);
+              break;
+            }
+          }
+        }
+
+        // Find peak season
+        int peakTier = 0;
+        String? peakSeasonId;
+        for (final entry in entries) {
+          if (entry.value is Map) {
+            final seasonData = Map<String, dynamic>.from(entry.value as Map);
+            final tier = seasonData['CompetitiveTier'] as int? ?? 0;
+            final badgeRank = (seasonData['SeasonalBadgeInfo'] is Map)
+                ? ((seasonData['SeasonalBadgeInfo'] as Map)['Rank'] as int? ?? 0)
+                : 0;
+            final bestTier = tier > badgeRank ? tier : badgeRank;
+            if (bestTier > peakTier) {
+              peakTier = bestTier;
+              peakSeasonId = entry.key;
+            }
+          }
+        }
+        if (peakSeasonId != null) {
+          peakEpisodeAct = _seasonIdToLabel(peakSeasonId);
+        }
+      }
+    }
+
+    // Stats that can't be computed from competitive updates alone remain null
+    return _ExtendedStats(
+      acs: null,
+      kd: null,
+      kast: null,
+      kda: null,
+      adr: null,
+      hs: null,
+      actScore: actScore,
+      currentEpisodeAct: currentEpisodeAct,
+      peakEpisodeAct: peakEpisodeAct,
+    );
+  }
+
+  /// Convert Riot season UUID to human-readable Episode/Act label.
+  /// This is a best-effort mapping based on known season patterns.
+  String? _seasonIdToLabel(String seasonId) {
+    // Known Riot Season ID mappings (shortened for readability)
+    // These are stable UUIDs that Riot doesn't change
+    final knownSeasons = <String, String>{
+      // Episode 1
+      '0df5adb9-4dcb-6899-1306-3e9860661dd3': 'E1A1',
+      '3f61c772-4560-cd3f-5d3f-a7ab5abda6b3': 'E1A2',
+      '2a27e5d2-4d30-c9e2-b15a-93b8909a442c': 'E1A3',
+      // Episode 2
+      'a16955a5-4ad0-f761-5e47-2b9c06c5e275': 'E2A1',
+      '97b6e739-44cc-ffa7-49ad-398ba502ceb0': 'E2A2',
+      'ab57ef51-4e59-da91-cc8d-51a5a2b9b8ff': 'E2A3',
+      // Episode 3
+      '52e9b2cb-4ce0-a74f-e269-3dbe0d2b4ab1': 'E3A1',
+      '71c81c67-4fae-ceb1-844c-aab2bb8710fa': 'E3A2',
+      'a3bfb853-43b2-7238-a4f1-ad90e9e46bcc': 'E3A3',
+      // Episode 4
+      '4cb622e1-4244-6b69-a9f2-40b4b43f32d6': 'E4A1',
+      'a5f25e17-45a0-3d8c-5e7b-5db8c3068ebc': 'E4A2',
+      '59b7a0b2-4b31-ab3f-80ea-3daaa7c5a0f2': 'E4A3',
+      // Episode 5
+      'fe44ab0b-4eed-8fc5-b2bd-17b7c06e4880': 'E5A1',
+      'cc86ae46-49a4-76a4-b78f-179a32d0a81e': 'E5A2',
+      '3e4bb74c-4a30-1c25-8d1b-5d46fea39a51': 'E5A3',
+      // Episode 6+
+      '67e373c7-48f7-b422-641b-079ace30b427': 'E6A1',
+      'aca29595-40e4-01f5-3f35-b1b3d304c96e': 'E6A2',
+      'f2b40f2e-4983-21f1-fa7b-87a6d2e97277': 'E6A3',
+      // Episode 7
+      '1c4e0700-45eb-5f80-8e88-b3b4fdacb0e0': 'E7A1',
+      '5c89c37f-4d2f-5d5d-bfef-d19dce90ea0c': 'E7A2',
+      '5e15e6fe-44d4-a1b0-8053-36bbbe5adc69': 'E7A3',
+      // Episode 8
+      'e8927d6c-46ab-54a3-99cd-9b557c11e8ca': 'E8A1',
+      '80523e12-4ff1-56c9-a5bf-1eb7f99f282d': 'E8A2',
+      'b7451e55-4b4f-dc42-7c66-4b83b1a75fbb': 'E8A3',
+      // Episode 9
+      'f1c85909-4b2f-5a01-cc28-7eab3d7e75b7': 'E9A1',
+    };
+
+    return knownSeasons[seasonId];
+  }
+
   String _cleanModeName(String raw) {
     final lower = raw.toLowerCase();
     if (lower.contains('competitive')) return 'Competitive';
@@ -717,5 +886,29 @@ class _PlayerStats {
   const _PlayerStats({
     this.mmr,
     this.updates = const [],
+  });
+}
+
+class _ExtendedStats {
+  final double? acs;
+  final double? kd;
+  final double? kast;
+  final double? kda;
+  final double? adr;
+  final double? hs;
+  final int? actScore;
+  final String? currentEpisodeAct;
+  final String? peakEpisodeAct;
+
+  const _ExtendedStats({
+    this.acs,
+    this.kd,
+    this.kast,
+    this.kda,
+    this.adr,
+    this.hs,
+    this.actScore,
+    this.currentEpisodeAct,
+    this.peakEpisodeAct,
   });
 }

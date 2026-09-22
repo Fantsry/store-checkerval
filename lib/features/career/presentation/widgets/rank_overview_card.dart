@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:valorant_store_tracker/app/theme.dart';
 import 'package:valorant_store_tracker/features/career/domain/entities/career_overview.dart';
+import 'package:valorant_store_tracker/features/live_match/presentation/widgets/gem_rank_icon.dart';
 
 class RankOverviewCard extends StatelessWidget {
   final CareerOverview overview;
@@ -18,60 +20,24 @@ class RankOverviewCard extends StatelessWidget {
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            AppTheme.surfaceDark,
-            AppTheme.cardDark.withValues(alpha: 0.9),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(16),
+        color: AppTheme.cardDark,
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: Colors.white.withValues(alpha: 0.08),
+          color: Colors.white.withValues(alpha: 0.06),
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.3),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ─── Header: Rank Icon + Name + Peak Rank ──────────────
+          // ─── Header: Gem Rank Icon + Name + Peak Rank ──────────
           Row(
             children: [
-              // Rank Icon
-              Container(
-                width: 60,
-                height: 60,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.black.withValues(alpha: 0.2),
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.1),
-                  ),
-                ),
-                padding: const EdgeInsets.all(6),
-                child: overview.currentTierIcon != null &&
-                        overview.currentTierIcon!.isNotEmpty
-                    ? Image.network(
-                        overview.currentTierIcon!,
-                        fit: BoxFit.contain,
-                        errorBuilder: (_, __, ___) => const Icon(
-                          Icons.military_tech_rounded,
-                          color: AppTheme.textSecondary,
-                          size: 32,
-                        ),
-                      )
-                    : const Icon(
-                        Icons.military_tech_rounded,
-                        color: AppTheme.textSecondary,
-                        size: 32,
-                      ),
+              // Gem Rank Icon (large)
+              GemRankIcon(
+                tierName: overview.currentTierName,
+                size: 48,
+                showGlow: true,
+                isCurrent: true,
               ),
               const SizedBox(width: 14),
 
@@ -86,7 +52,7 @@ class RankOverviewCard extends StatelessWidget {
                         Flexible(
                           child: Text(
                             overview.currentTierName.toUpperCase(),
-                            style: const TextStyle(
+                            style: GoogleFonts.inter(
                               color: AppTheme.textPrimary,
                               fontWeight: FontWeight.w800,
                               fontSize: 18,
@@ -100,49 +66,46 @@ class RankOverviewCard extends StatelessWidget {
                             overview.currentRankRating > 0)
                           Text(
                             '${overview.currentRankRating} RR',
-                            style: const TextStyle(
-                              color: AppTheme.valorantCyan,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 15,
+                            style: AppTheme.statLarge(
+                              color: AppTheme.accentMagenta,
                             ),
                           ),
                       ],
                     ),
                     const SizedBox(height: 4),
 
-                    // RR Progress Bar
+                    // RR Progress Bar (magenta)
                     if (overview.currentTier > 0 ||
                         overview.currentRankRating > 0) ...[
                       ClipRRect(
-                        borderRadius: BorderRadius.circular(4),
+                        borderRadius: BorderRadius.circular(3),
                         child: LinearProgressIndicator(
                           value: rrProgress,
-                          minHeight: 6,
+                          minHeight: 5,
                           backgroundColor: Colors.black.withValues(alpha: 0.4),
                           valueColor: const AlwaysStoppedAnimation<Color>(
-                            AppTheme.valorantCyan,
+                            AppTheme.accentMagenta,
                           ),
                         ),
                       ),
                       const SizedBox(height: 4),
                     ],
 
-                    // Peak Rank if available
+                    // Peak Rank with gem icon inline
                     if (overview.peakTierName != null &&
                         overview.peakTierName!.isNotEmpty &&
                         overview.peakTierName != 'Unrated')
                       Row(
                         children: [
-                          Icon(
-                            Icons.trending_up_rounded,
-                            size: 13,
-                            color: Colors.amber.shade400,
+                          GemRankIcon(
+                            tierName: overview.peakTierName!,
+                            size: 14,
                           ),
                           const SizedBox(width: 4),
                           Text(
                             'Peak: ${overview.peakTierName}',
-                            style: TextStyle(
-                              color: Colors.amber.shade300,
+                            style: GoogleFonts.inter(
+                              color: AppTheme.textSecondary,
                               fontSize: 11,
                               fontWeight: FontWeight.w600,
                             ),
@@ -152,7 +115,7 @@ class RankOverviewCard extends StatelessWidget {
                     else
                       Text(
                         'Recent Competitive Performance',
-                        style: TextStyle(
+                        style: GoogleFonts.inter(
                           color: AppTheme.textMuted,
                           fontSize: 11,
                         ),
@@ -166,7 +129,7 @@ class RankOverviewCard extends StatelessWidget {
           const SizedBox(height: 16),
           Divider(
             height: 1,
-            color: Colors.white.withValues(alpha: 0.08),
+            color: Colors.white.withValues(alpha: 0.06),
           ),
           const SizedBox(height: 14),
 
@@ -179,8 +142,8 @@ class RankOverviewCard extends StatelessWidget {
                   value: '${overview.winRate.toStringAsFixed(1)}%',
                   subValue: '${overview.totalWins}W ${overview.totalLosses}L',
                   color: overview.winRate >= 50
-                      ? const Color(0xFF00C4A8)
-                      : AppTheme.valorantRed,
+                      ? AppTheme.winGreen
+                      : AppTheme.loseRed,
                 ),
               ),
               Container(
@@ -194,7 +157,7 @@ class RankOverviewCard extends StatelessWidget {
                   value: overview.avgKdRatio.toStringAsFixed(2),
                   subValue: overview.avgKdRatio >= 1.0 ? 'Positive' : 'Negative',
                   color: overview.avgKdRatio >= 1.0
-                      ? const Color(0xFF00C4A8)
+                      ? AppTheme.winGreen
                       : AppTheme.textSecondary,
                 ),
               ),
@@ -222,7 +185,7 @@ class RankOverviewCard extends StatelessWidget {
                   value: '${overview.avgHeadshotPct.toStringAsFixed(1)}%',
                   subValue: 'Accuracy',
                   color: overview.avgHeadshotPct >= 20
-                      ? Colors.amber.shade300
+                      ? AppTheme.accentMagenta
                       : AppTheme.textPrimary,
                 ),
               ),
@@ -253,8 +216,8 @@ class _TrackerStatItem extends StatelessWidget {
       children: [
         Text(
           label,
-          style: const TextStyle(
-            fontSize: 10,
+          style: GoogleFonts.inter(
+            fontSize: 9,
             fontWeight: FontWeight.w600,
             color: AppTheme.textMuted,
             letterSpacing: 0.5,
@@ -263,8 +226,8 @@ class _TrackerStatItem extends StatelessWidget {
         const SizedBox(height: 3),
         Text(
           value,
-          style: TextStyle(
-            fontSize: 16,
+          style: GoogleFonts.rajdhani(
+            fontSize: 18,
             fontWeight: FontWeight.w800,
             color: color,
           ),
@@ -272,7 +235,7 @@ class _TrackerStatItem extends StatelessWidget {
         const SizedBox(height: 2),
         Text(
           subValue,
-          style: const TextStyle(
+          style: GoogleFonts.inter(
             fontSize: 10,
             color: AppTheme.textSecondary,
           ),

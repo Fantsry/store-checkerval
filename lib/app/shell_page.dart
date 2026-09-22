@@ -94,7 +94,8 @@ class _ValorantBottomNav extends StatelessWidget {
         color: AppTheme.surfaceDark,
         border: Border(
           top: BorderSide(
-            color: Colors.white.withValues(alpha: 0.05),
+            color: Colors.white.withValues(alpha: 0.06),
+            width: 1,
           ),
         ),
       ),
@@ -162,28 +163,35 @@ class _NavItem extends StatelessWidget {
       behavior: HitTestBehavior.opaque,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
           color: isSelected
-              ? AppTheme.valorantRed.withValues(alpha: 0.15)
+              ? AppTheme.accentMagenta.withValues(alpha: 0.12)
               : Colors.transparent,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(6),
+          border: isSelected
+              ? Border.all(
+                  color: AppTheme.accentMagenta.withValues(alpha: 0.35),
+                  width: 1,
+                )
+              : Border.all(color: Colors.transparent, width: 1),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
               icon,
-              size: 24,
-              color: isSelected ? AppTheme.valorantRed : AppTheme.textMuted,
+              size: 22,
+              color: isSelected ? AppTheme.accentMagenta : AppTheme.textSecondary,
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 3),
             Text(
               label,
               style: TextStyle(
-                fontSize: 11,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                color: isSelected ? AppTheme.valorantRed : AppTheme.textMuted,
+                fontSize: 10,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                color: isSelected ? AppTheme.accentMagenta : AppTheme.textSecondary,
+                letterSpacing: 0.5,
               ),
             ),
           ],

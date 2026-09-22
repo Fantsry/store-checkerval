@@ -6,15 +6,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:valorant_store_tracker/core/error/failures.dart';
 import 'package:valorant_store_tracker/core/error/result.dart';
-import 'package:valorant_store_tracker/features/daily_store/domain/entities/daily_store.dart';
 import 'package:valorant_store_tracker/features/daily_store/domain/entities/skin_item.dart';
 import 'package:valorant_store_tracker/features/daily_store/domain/repositories/store_repository.dart';
 import 'package:valorant_store_tracker/features/daily_store/presentation/bloc/store_cubit.dart';
-import 'package:valorant_store_tracker/features/daily_store/presentation/bloc/store_state.dart';
 import 'package:valorant_store_tracker/features/wishlist/domain/entities/wishlist_item.dart';
 import 'package:valorant_store_tracker/features/wishlist/domain/repositories/wishlist_repository.dart';
 import 'package:valorant_store_tracker/features/wishlist/presentation/cubit/wishlist_cubit.dart';
-import 'package:valorant_store_tracker/features/wishlist/presentation/cubit/wishlist_state.dart';
 import 'package:valorant_store_tracker/features/wishlist/presentation/pages/catalog_page.dart';
 import 'package:valorant_store_tracker/features/wishlist/presentation/pages/wishlist_page.dart';
 

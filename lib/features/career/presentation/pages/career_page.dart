@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:valorant_store_tracker/app/theme.dart';
 import 'package:valorant_store_tracker/features/career/presentation/cubit/career_cubit.dart';
 import 'package:valorant_store_tracker/features/career/presentation/cubit/career_state.dart';
@@ -30,24 +31,24 @@ class _CareerPageState extends State<CareerPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.backgroundColor,
+      backgroundColor: AppTheme.backgroundDark,
       appBar: AppBar(
-        backgroundColor: AppTheme.surfaceDark,
+        backgroundColor: AppTheme.backgroundDark,
         elevation: 0,
         title: Row(
           children: [
             Container(
-              width: 8,
+              width: 3,
               height: 20,
               decoration: BoxDecoration(
-                color: AppTheme.valorantRed,
+                color: AppTheme.accentMagenta,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
             const SizedBox(width: 10),
-            const Text(
+            Text(
               'CAREER & TRACKER',
-              style: TextStyle(
+              style: GoogleFonts.inter(
                 color: AppTheme.textPrimary,
                 fontWeight: FontWeight.w900,
                 fontSize: 18,
@@ -67,7 +68,7 @@ class _CareerPageState extends State<CareerPage> {
                         height: 18,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          color: AppTheme.valorantRed,
+                          color: AppTheme.accentMagenta,
                         ),
                       )
                     : const Icon(
@@ -103,15 +104,15 @@ class _CareerPageState extends State<CareerPage> {
         },
         builder: (context, state) {
           if (state is CareerLoading && state.cachedOverview == null) {
-            return const Center(
+            return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  CircularProgressIndicator(color: AppTheme.valorantRed),
-                  SizedBox(height: 16),
+                  const CircularProgressIndicator(color: AppTheme.accentMagenta),
+                  const SizedBox(height: 16),
                   Text(
                     'Loading career & match stats...',
-                    style: TextStyle(color: AppTheme.textSecondary),
+                    style: GoogleFonts.inter(color: AppTheme.textSecondary),
                   ),
                 ],
               ),
@@ -127,31 +128,20 @@ class _CareerPageState extends State<CareerPage> {
                   children: [
                     const Icon(
                       Icons.error_outline_rounded,
-                      color: AppTheme.valorantRed,
+                      color: AppTheme.loseRed,
                       size: 48,
                     ),
                     const SizedBox(height: 16),
                     Text(
                       state.message,
                       textAlign: TextAlign.center,
-                      style: const TextStyle(
+                      style: GoogleFonts.inter(
                         color: AppTheme.textSecondary,
                         fontSize: 14,
                       ),
                     ),
                     const SizedBox(height: 20),
                     ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.valorantRed,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 24,
-                          vertical: 12,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
                       onPressed: () => context.read<CareerCubit>().loadCareer(forceRefresh: true),
                       icon: const Icon(Icons.refresh_rounded),
                       label: const Text('Try Again'),
@@ -182,8 +172,8 @@ class _CareerPageState extends State<CareerPage> {
               : overview.matches;
 
           return RefreshIndicator(
-            color: AppTheme.valorantRed,
-            backgroundColor: AppTheme.surfaceDark,
+            color: AppTheme.accentMagenta,
+            backgroundColor: AppTheme.cardDark,
             onRefresh: () => context.read<CareerCubit>().refresh(),
             child: ListView(
               physics: const AlwaysScrollableScrollPhysics(),
@@ -208,9 +198,9 @@ class _CareerPageState extends State<CareerPage> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
+                      Text(
                         'MATCH HISTORY',
-                        style: TextStyle(
+                        style: GoogleFonts.inter(
                           fontSize: 13,
                           fontWeight: FontWeight.w800,
                           color: AppTheme.textPrimary,
@@ -222,7 +212,7 @@ class _CareerPageState extends State<CareerPage> {
                         children: [
                           Text(
                             '${matches.length} Matches',
-                            style: const TextStyle(
+                            style: GoogleFonts.inter(
                               fontSize: 12,
                               color: AppTheme.textMuted,
                               fontWeight: FontWeight.w600,
@@ -243,12 +233,12 @@ class _CareerPageState extends State<CareerPage> {
                               ),
                               decoration: BoxDecoration(
                                 color: _expandAll
-                                    ? AppTheme.valorantRed.withValues(alpha: 0.18)
+                                    ? AppTheme.accentMagenta.withValues(alpha: 0.18)
                                     : Colors.white.withValues(alpha: 0.06),
                                 borderRadius: BorderRadius.circular(6),
                                 border: Border.all(
                                   color: _expandAll
-                                      ? AppTheme.valorantRed.withValues(alpha: 0.45)
+                                      ? AppTheme.accentMagenta.withValues(alpha: 0.45)
                                       : Colors.white.withValues(alpha: 0.12),
                                 ),
                               ),
@@ -261,17 +251,17 @@ class _CareerPageState extends State<CareerPage> {
                                         : Icons.unfold_more_rounded,
                                     size: 13,
                                     color: _expandAll
-                                        ? AppTheme.valorantRed
+                                        ? AppTheme.accentMagenta
                                         : AppTheme.textSecondary,
                                   ),
                                   const SizedBox(width: 3),
                                   Text(
                                     _expandAll ? 'Collapse' : 'Expand Teams',
-                                    style: TextStyle(
+                                    style: GoogleFonts.inter(
                                       fontSize: 10,
                                       fontWeight: FontWeight.w700,
                                       color: _expandAll
-                                          ? AppTheme.valorantRed
+                                          ? AppTheme.accentMagenta
                                           : AppTheme.textSecondary,
                                     ),
                                   ),
@@ -332,31 +322,31 @@ class _CareerPageState extends State<CareerPage> {
                     margin: const EdgeInsets.all(16),
                     padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
                     decoration: BoxDecoration(
-                      color: AppTheme.surfaceDark.withValues(alpha: 0.5),
-                      borderRadius: BorderRadius.circular(14),
+                      color: AppTheme.cardDark,
+                      borderRadius: BorderRadius.circular(6),
                       border: Border.all(
                         color: Colors.white.withValues(alpha: 0.05),
                       ),
                     ),
-                    child: const Column(
+                    child: Column(
                       children: [
-                        Icon(
+                        const Icon(
                           Icons.sports_esports_outlined,
                           color: AppTheme.textMuted,
                           size: 40,
                         ),
-                        SizedBox(height: 12),
+                        const SizedBox(height: 12),
                         Text(
                           'No matches found for this filter',
-                          style: TextStyle(
+                          style: GoogleFonts.inter(
                             color: AppTheme.textSecondary,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
-                        SizedBox(height: 4),
+                        const SizedBox(height: 4),
                         Text(
                           'Play more matches or select another mode above.',
-                          style: TextStyle(
+                          style: GoogleFonts.inter(
                             color: AppTheme.textMuted,
                             fontSize: 12,
                           ),
@@ -401,18 +391,18 @@ class _FilterChip extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
         decoration: BoxDecoration(
           color: isSelected
-              ? AppTheme.valorantRed
-              : AppTheme.surfaceDark,
-          borderRadius: BorderRadius.circular(20),
+              ? AppTheme.accentMagenta
+              : AppTheme.cardDark,
+          borderRadius: BorderRadius.circular(6),
           border: Border.all(
             color: isSelected
-                ? AppTheme.valorantRed
+                ? AppTheme.accentMagenta
                 : Colors.white.withValues(alpha: 0.1),
           ),
         ),
         child: Text(
           label,
-          style: TextStyle(
+          style: GoogleFonts.inter(
             color: isSelected ? Colors.white : AppTheme.textSecondary,
             fontSize: 12,
             fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,

@@ -5,8 +5,6 @@ import 'package:valorant_store_tracker/core/storage/local_store_service.dart';
 import 'package:valorant_store_tracker/core/storage/secure_storage_service.dart';
 import 'package:valorant_store_tracker/features/battlepass/data/datasources/contracts_remote_datasource.dart';
 import 'package:valorant_store_tracker/features/battlepass/data/repositories/battlepass_repository_impl.dart';
-import 'package:valorant_store_tracker/features/battlepass/domain/entities/battlepass_overview.dart';
-import 'package:valorant_store_tracker/features/battlepass/domain/entities/mission_item.dart';
 
 class MockContractsRemoteDataSource extends Mock
     implements ContractsRemoteDataSource {}

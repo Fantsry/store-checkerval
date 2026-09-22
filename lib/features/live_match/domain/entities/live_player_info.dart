@@ -19,6 +19,19 @@ class LivePlayerInfo extends Equatable {
   final int recentLosses;
   final List<bool> recentMatchOutcomes; // true = win, false = loss (up to 10)
 
+  // ─── Extended Stats (Ascend Companion) ────────────────────────
+  final double? averageCombatScore; // ACS
+  final double? kdRatio; // K/D
+  final double? kastPercentage; // KAST%
+  final double? kda; // KDA
+  final double? averageDamageRound; // ADR
+  final double? headshotPercentage; // HS%
+  final double? winPercentage; // WIN%
+  final int? lastNActScore; // LAST 15/20 acting score
+  final int? lastNMatchCount; // how many matches "LAST N" (15 or 20)
+  final String? currentRankEpisodeAct; // e.g. "E26A4"
+  final String? peakRankEpisodeAct; // e.g. "E25A3"
+
   const LivePlayerInfo({
     required this.puuid,
     required this.gameName,
@@ -37,6 +50,18 @@ class LivePlayerInfo extends Equatable {
     this.recentWins = 0,
     this.recentLosses = 0,
     this.recentMatchOutcomes = const [],
+    // Extended stats
+    this.averageCombatScore,
+    this.kdRatio,
+    this.kastPercentage,
+    this.kda,
+    this.averageDamageRound,
+    this.headshotPercentage,
+    this.winPercentage,
+    this.lastNActScore,
+    this.lastNMatchCount,
+    this.currentRankEpisodeAct,
+    this.peakRankEpisodeAct,
   });
 
   String get displayName =>
@@ -65,6 +90,17 @@ class LivePlayerInfo extends Equatable {
         'recentWins': recentWins,
         'recentLosses': recentLosses,
         'recentMatchOutcomes': recentMatchOutcomes,
+        'averageCombatScore': averageCombatScore,
+        'kdRatio': kdRatio,
+        'kastPercentage': kastPercentage,
+        'kda': kda,
+        'averageDamageRound': averageDamageRound,
+        'headshotPercentage': headshotPercentage,
+        'winPercentage': winPercentage,
+        'lastNActScore': lastNActScore,
+        'lastNMatchCount': lastNMatchCount,
+        'currentRankEpisodeAct': currentRankEpisodeAct,
+        'peakRankEpisodeAct': peakRankEpisodeAct,
       };
 
   factory LivePlayerInfo.fromJson(Map<String, dynamic> json) => LivePlayerInfo(
@@ -90,6 +126,17 @@ class LivePlayerInfo extends Equatable {
                 ?.map((e) => e == true)
                 .toList() ??
             const [],
+        averageCombatScore: (json['averageCombatScore'] as num?)?.toDouble(),
+        kdRatio: (json['kdRatio'] as num?)?.toDouble(),
+        kastPercentage: (json['kastPercentage'] as num?)?.toDouble(),
+        kda: (json['kda'] as num?)?.toDouble(),
+        averageDamageRound: (json['averageDamageRound'] as num?)?.toDouble(),
+        headshotPercentage: (json['headshotPercentage'] as num?)?.toDouble(),
+        winPercentage: (json['winPercentage'] as num?)?.toDouble(),
+        lastNActScore: json['lastNActScore'] as int?,
+        lastNMatchCount: json['lastNMatchCount'] as int?,
+        currentRankEpisodeAct: json['currentRankEpisodeAct'] as String?,
+        peakRankEpisodeAct: json['peakRankEpisodeAct'] as String?,
       );
 
   @override
@@ -111,5 +158,16 @@ class LivePlayerInfo extends Equatable {
         recentWins,
         recentLosses,
         recentMatchOutcomes,
+        averageCombatScore,
+        kdRatio,
+        kastPercentage,
+        kda,
+        averageDamageRound,
+        headshotPercentage,
+        winPercentage,
+        lastNActScore,
+        lastNMatchCount,
+        currentRankEpisodeAct,
+        peakRankEpisodeAct,
       ];
 }
