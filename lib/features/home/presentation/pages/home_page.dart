@@ -23,6 +23,7 @@ import 'package:valorant_store_tracker/ui/widgets/agent_avatar.dart';
 import 'package:valorant_store_tracker/ui/widgets/ascend_card.dart';
 import 'package:valorant_store_tracker/ui/widgets/countdown_timer_widget.dart';
 import 'package:valorant_store_tracker/ui/widgets/rank_badge.dart';
+import 'package:valorant_store_tracker/features/live_match/presentation/widgets/gem_rank_icon.dart';
 import 'package:valorant_store_tracker/ui/widgets/section_header.dart';
 import 'package:valorant_store_tracker/ui/widgets/shimmer_loading.dart';
 import 'package:valorant_store_tracker/ui/widgets/skin_preview_dialog.dart';
@@ -594,12 +595,41 @@ class _HomePageState extends State<HomePage> {
       borderColor: outcomeColor.withValues(alpha: 0.35),
       child: Row(
         children: [
-          // Agent Avatar
-          AgentAvatar(
-            imageUrl: match.agentIconUrl,
-            agentName: match.agentName,
-            size: 48,
-            borderColor: outcomeColor,
+          // Agent Avatar with Rank Badge
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              AgentAvatar(
+                imageUrl: match.agentIconUrl,
+                agentName: match.agentName,
+                size: 48,
+                borderColor: outcomeColor,
+              ),
+              if (match.competitiveTier != null ||
+                  (match.rankIconUrl != null && match.rankIconUrl!.isNotEmpty) ||
+                  (match.rankName != null && match.rankName!.isNotEmpty))
+                Positioned(
+                  right: -3,
+                  bottom: -3,
+                  child: Container(
+                    padding: const EdgeInsets.all(1.5),
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: outcomeColor.withValues(alpha: 0.8),
+                        width: 1.5,
+                      ),
+                    ),
+                    child: ValorantRankIcon(
+                      tier: match.competitiveTier,
+                      iconUrl: match.rankIconUrl,
+                      tierName: match.rankName ?? 'Unrated',
+                      size: 18,
+                    ),
+                  ),
+                ),
+            ],
           ),
           const SizedBox(width: AppSpacing.md),
           // Match Info
@@ -618,18 +648,33 @@ class _HomePageState extends State<HomePage> {
                       '• ${match.scoreDisplay}',
                       style: AppTextStyles.h4(color: AppColors.textPrimary),
                     ),
-                    if (match.rankRatingEarned != null) ...[
+                    if (match.rankRatingEarned != null || match.competitiveTier != null) ...[
                       const SizedBox(width: AppSpacing.xs),
-                      Text(
-                        match.rankRatingEarned! > 0
-                            ? '+${match.rankRatingEarned} RR'
-                            : '${match.rankRatingEarned} RR',
-                        style: AppTextStyles.caption(
-                          color: match.rankRatingEarned! > 0
-                              ? AppColors.winGreen
-                              : AppColors.lossRed,
-                        ).copyWith(fontWeight: FontWeight.w600),
+                      ValorantRankIcon(
+                        tier: match.competitiveTier,
+                        iconUrl: match.rankIconUrl,
+                        tierName: match.rankName ?? 'Unrated',
+                        size: 15,
                       ),
+                      const SizedBox(width: 3),
+                      if (match.rankRatingEarned != null)
+                        Text(
+                          match.rankRatingEarned! > 0
+                              ? '+${match.rankRatingEarned} RR'
+                              : '${match.rankRatingEarned} RR',
+                          style: AppTextStyles.caption(
+                            color: match.rankRatingEarned! > 0
+                                ? AppColors.winGreen
+                                : AppColors.lossRed,
+                          ).copyWith(fontWeight: FontWeight.w600),
+                        )
+                      else if (match.rankName != null)
+                        Text(
+                          match.rankName!,
+                          style: AppTextStyles.caption(
+                            color: AppColors.textSecondary,
+                          ).copyWith(fontWeight: FontWeight.w600),
+                        ),
                     ],
                   ],
                 ),

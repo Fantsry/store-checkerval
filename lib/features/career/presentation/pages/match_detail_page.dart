@@ -13,6 +13,7 @@ import 'package:valorant_store_tracker/ui/widgets/round_timeline_widget.dart';
 import 'package:valorant_store_tracker/ui/widgets/section_header.dart';
 import 'package:valorant_store_tracker/ui/widgets/stat_badge.dart';
 import 'package:valorant_store_tracker/ui/widgets/stat_box.dart';
+import 'package:valorant_store_tracker/features/live_match/presentation/widgets/gem_rank_icon.dart';
 
 class MatchDetailPage extends StatefulWidget {
   final MatchSummary match;
@@ -103,6 +104,13 @@ class _MatchDetailPageState extends State<MatchDetailPage> {
                     color: outcomeColor,
                   ),
                   const SizedBox(width: AppSpacing.sm),
+                  ValorantRankIcon(
+                    tier: match.competitiveTier,
+                    iconUrl: match.rankIconUrl,
+                    tierName: match.rankName ?? 'Unrated',
+                    size: 16,
+                  ),
+                  const SizedBox(width: 4),
                   Text(
                     match.queueDisplayName.toUpperCase(),
                     style: AppTextStyles.statLabel(color: AppColors.textSecondary),
@@ -119,11 +127,37 @@ class _MatchDetailPageState extends State<MatchDetailPage> {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              AgentAvatar(
-                imageUrl: match.agentIconUrl,
-                agentName: match.agentName,
-                size: 52,
-                borderColor: outcomeColor,
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  AgentAvatar(
+                    imageUrl: match.agentIconUrl,
+                    agentName: match.agentName,
+                    size: 52,
+                    borderColor: outcomeColor,
+                  ),
+                  Positioned(
+                    right: -4,
+                    bottom: -4,
+                    child: Container(
+                      padding: const EdgeInsets.all(2),
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: outcomeColor.withValues(alpha: 0.8),
+                          width: 1.5,
+                        ),
+                      ),
+                      child: ValorantRankIcon(
+                        tier: match.competitiveTier,
+                        iconUrl: match.rankIconUrl,
+                        tierName: match.rankName ?? 'Unrated',
+                        size: 20,
+                      ),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(width: AppSpacing.xl),
               Row(
@@ -251,14 +285,42 @@ class _MatchDetailPageState extends State<MatchDetailPage> {
       ),
       child: Row(
         children: [
-          // Agent avatar
-          AgentAvatar(
-            imageUrl: player.agentIconUrl,
-            agentName: player.agentName,
-            size: 36,
-            borderColor: isSelf
-                ? AppColors.cyan
-                : (isAlly ? AppColors.cyan.withValues(alpha: 0.3) : AppColors.lossRed.withValues(alpha: 0.3)),
+          // Agent avatar with rank badge
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              AgentAvatar(
+                imageUrl: player.agentIconUrl,
+                agentName: player.agentName,
+                size: 38,
+                borderColor: isSelf
+                    ? AppColors.cyan
+                    : (isAlly ? AppColors.cyan.withValues(alpha: 0.3) : AppColors.lossRed.withValues(alpha: 0.3)),
+              ),
+              Positioned(
+                right: -3,
+                bottom: -3,
+                child: Container(
+                  padding: const EdgeInsets.all(1.5),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: isSelf
+                          ? AppColors.cyan
+                          : (isAlly ? AppColors.cyan.withValues(alpha: 0.6) : AppColors.lossRed.withValues(alpha: 0.6)),
+                      width: 1,
+                    ),
+                  ),
+                  child: ValorantRankIcon(
+                    tier: player.competitiveTier,
+                    iconUrl: player.rankIconUrl,
+                    tierName: player.rankName ?? 'Unrated',
+                    size: 15,
+                  ),
+                ),
+              ),
+            ],
           ),
           const SizedBox(width: AppSpacing.sm),
 
@@ -292,14 +354,31 @@ class _MatchDetailPageState extends State<MatchDetailPage> {
                     ],
                   ],
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 3),
                 Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    if (player.rankName != null)
-                      Text(
-                        player.rankName!.toUpperCase(),
-                        style: AppTextStyles.caption(color: AppColors.textSecondary),
+                    ValorantRankIcon(
+                      tier: player.competitiveTier,
+                      iconUrl: player.rankIconUrl,
+                      tierName: player.rankName ?? 'Unrated',
+                      size: 16,
+                    ),
+                    const SizedBox(width: 4),
+                    Flexible(
+                      child: Text(
+                        (player.rankName != null && player.rankName!.isNotEmpty
+                                ? player.rankName!
+                                : 'UNRATED')
+                            .toUpperCase(),
+                        style: AppTextStyles.caption(color: AppColors.textSecondary).copyWith(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 11,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
+                    ),
                   ],
                 ),
               ],

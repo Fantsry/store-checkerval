@@ -54,7 +54,7 @@ class ValorantRankIcon extends StatelessWidget {
 
   /// Official Valorant-API.com competitive tiers image URL.
   static String getOfficialTierIconUrl(int tier) {
-    return 'https://media.valorant-api.com/competitivetiers/03621f52-342b-449e-a4f6-4eb2b294d734/$tier/largeicon.png';
+    return 'https://media.valorant-api.com/competitivetiers/03621f52-342b-cf4e-4f86-9350a49c6d04/$tier/largeicon.png';
   }
 
   String _resolveImageUrl() {

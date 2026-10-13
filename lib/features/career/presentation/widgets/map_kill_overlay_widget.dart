@@ -222,7 +222,7 @@ class _MapKillOverlayWidgetState extends State<MapKillOverlayWidget> {
                 ),
                 const SizedBox(height: 8),
 
-                // Legend & Filter Row
+                // Legend Row
                 Row(
                   children: [
                     _LegendDot(
@@ -260,45 +260,51 @@ class _MapKillOverlayWidgetState extends State<MapKillOverlayWidget> {
                         ),
                       ],
                     ),
-                    const Spacer(),
-                    // Filter "My Kills Only"
-                    InkWell(
-                      onTap: () => setState(() => _onlySelfEvents = !_onlySelfEvents),
-                      borderRadius: AppRadius.roundedSm,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: _onlySelfEvents
-                              ? _colorFriendly.withValues(alpha: 0.15)
-                              : Colors.white.withValues(alpha: 0.04),
-                          borderRadius: AppRadius.roundedSm,
-                          border: Border.all(
-                            color: _onlySelfEvents
-                                ? _colorFriendly.withValues(alpha: 0.5)
-                                : AppColors.border,
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              _onlySelfEvents ? Icons.filter_alt_rounded : Icons.filter_alt_outlined,
-                              size: 11,
-                              color: _onlySelfEvents ? _colorFriendly : AppColors.textMuted,
-                            ),
-                            const SizedBox(width: 3),
-                            Text(
-                              _onlySelfEvents ? 'Mine Only' : 'All Players',
-                              style: AppTextStyles.caption(
-                                color: _onlySelfEvents ? _colorFriendly : AppColors.textMuted,
-                              ).copyWith(fontWeight: FontWeight.w700),
-                            ),
-                          ],
-                        ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+
+                // Filter Row: [Semuanya] vs [Aku Sendiri]
+                Row(
+                  children: [
+                    Text(
+                      'FILTER:',
+                      style: AppTextStyles.caption(color: AppColors.textMuted).copyWith(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 10,
+                        letterSpacing: 0.8,
                       ),
+                    ),
+                    const SizedBox(width: 8),
+                    _FilterChipButton(
+                      label: 'All',
+                      isSelected: !_onlySelfEvents,
+                      icon: Icons.groups_rounded,
+                      onTap: () {
+                        setState(() {
+                          _onlySelfEvents = false;
+                          _selectedKill = null;
+                        });
+                      },
+                    ),
+                    const SizedBox(width: 6),
+                    _FilterChipButton(
+                      label: 'Me',
+                      isSelected: _onlySelfEvents,
+                      icon: Icons.person_rounded,
+                      onTap: () {
+                        setState(() {
+                          _onlySelfEvents = true;
+                          _selectedKill = null;
+                        });
+                      },
                     ),
                   ],
                 ),
+                const SizedBox(height: 6),
+
+                // Step-by-step kill inspection scrubber
+                _buildKillScrubber(displayKills),
               ],
             ),
           ),
@@ -325,8 +331,13 @@ class _MapKillOverlayWidgetState extends State<MapKillOverlayWidget> {
                     final unselectedMarkers = <Widget>[];
                     final selectedMarkers = <Widget>[];
 
+                    final isAnyKillSelected = _selectedKill != null;
+
                     for (final kill in displayKills) {
                       final isSelected = _selectedKill == kill;
+                      final markerOpacity = isAnyKillSelected
+                          ? (isSelected ? 1.0 : 0.22)
+                          : 1.0;
 
                       // 1. Killer Marker (if location is available)
                       if (kill.killerLocationX != null && kill.killerLocationY != null) {
@@ -344,6 +355,7 @@ class _MapKillOverlayWidgetState extends State<MapKillOverlayWidget> {
                           isDead: false,
                           isSelf: kill.isKillerSelf,
                           isSelected: isSelected,
+                          opacity: markerOpacity,
                           onTap: () {
                             setState(() {
                               _selectedKill = _selectedKill == kill ? null : kill;
@@ -374,6 +386,7 @@ class _MapKillOverlayWidgetState extends State<MapKillOverlayWidget> {
                           isDead: true,
                           isSelf: kill.isVictimSelf,
                           isSelected: isSelected,
+                          opacity: markerOpacity,
                           onTap: () {
                             setState(() {
                               _selectedKill = _selectedKill == kill ? null : kill;
@@ -428,9 +441,11 @@ class _MapKillOverlayWidgetState extends State<MapKillOverlayWidget> {
               ),
             ),
 
-          // Selected Kill Detail Callout Banner
+          // Selected Kill Detail Callout Banner or Hint
           if (_selectedKill != null)
-            _buildSelectedKillBanner(_selectedKill!),
+            _buildSelectedKillBanner(_selectedKill!, displayKills)
+          else if (displayKills.isNotEmpty)
+            _buildUnselectedPrompt(displayKills.length),
         ],
       ),
     );
@@ -453,15 +468,18 @@ class _MapKillOverlayWidgetState extends State<MapKillOverlayWidget> {
     required bool isDead,
     required bool isSelf,
     required bool isSelected,
+    double opacity = 1.0,
     required VoidCallback onTap,
   }) {
     final ringColor = isFriendly ? _colorFriendly : _colorEnemy;
-    final markerSize = isSelected ? 30.0 : 25.0;
+    final markerSize = isSelected ? 32.0 : 25.0;
 
     return Positioned(
       left: offset.dx - markerSize / 2,
       top: offset.dy - markerSize / 2,
-      child: GestureDetector(
+      child: Opacity(
+        opacity: opacity,
+        child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: onTap,
         child: Container(
@@ -544,8 +562,9 @@ class _MapKillOverlayWidgetState extends State<MapKillOverlayWidget> {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildAgentFallback(String agentName, Color color) {
     final initial = agentName.isNotEmpty ? agentName[0].toUpperCase() : '?';
@@ -564,114 +583,433 @@ class _MapKillOverlayWidgetState extends State<MapKillOverlayWidget> {
     );
   }
 
-  Widget _buildSelectedKillBanner(MatchRoundKill kill) {
+  Widget _buildKillScrubber(List<MatchRoundKill> kills) {
+    if (kills.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      height: 38,
+      margin: const EdgeInsets.only(top: 4, bottom: 2),
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: kills.length + 1,
+        separatorBuilder: (_, __) => const SizedBox(width: 6),
+        itemBuilder: (context, index) {
+          if (index == 0) {
+            final isAllSelected = _selectedKill == null;
+            return GestureDetector(
+              onTap: () {
+                setState(() {
+                  _selectedKill = null;
+                });
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: isAllSelected
+                      ? _colorFriendly.withValues(alpha: 0.2)
+                      : Colors.white.withValues(alpha: 0.05),
+                  borderRadius: AppRadius.roundedPill,
+                  border: Border.all(
+                    color: isAllSelected ? _colorFriendly : AppColors.border,
+                    width: isAllSelected ? 1.5 : 1,
+                  ),
+                ),
+                child: Center(
+                  child: Text(
+                    'ALL (${kills.length})',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      color: isAllSelected ? _colorFriendly : AppColors.textSecondary,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }
+
+          final killIndex = index - 1;
+          final kill = kills[killIndex];
+          final isSelected = _selectedKill == kill;
+          final isFriendlyKiller = _isFriendlyKiller(kill);
+          final isFriendlyVictim = _isFriendlyVictim(kill);
+
+          return GestureDetector(
+            onTap: () {
+              setState(() {
+                _selectedKill = kill;
+              });
+            },
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? const Color(0xFFFFD700).withValues(alpha: 0.18)
+                    : Colors.white.withValues(alpha: 0.04),
+                borderRadius: AppRadius.roundedPill,
+                border: Border.all(
+                  color: isSelected ? const Color(0xFFFFD700) : AppColors.border,
+                  width: isSelected ? 1.5 : 1,
+                ),
+                boxShadow: isSelected
+                    ? [
+                        BoxShadow(
+                          color: const Color(0xFFFFD700).withValues(alpha: 0.35),
+                          blurRadius: 6,
+                        ),
+                      ]
+                    : null,
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    '#${killIndex + 1}',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      color: isSelected ? const Color(0xFFFFD700) : AppColors.textMuted,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  // Killer avatar thumbnail
+                  Container(
+                    width: 18,
+                    height: 18,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: isFriendlyKiller ? _colorFriendly : _colorEnemy,
+                        width: 1.2,
+                      ),
+                    ),
+                    child: ClipOval(
+                      child: kill.killerAgentIconUrl != null && kill.killerAgentIconUrl!.isNotEmpty
+                          ? CachedNetworkImage(
+                              imageUrl: kill.killerAgentIconUrl!,
+                              fit: BoxFit.cover,
+                              errorWidget: (_, __, ___) => _buildAgentFallback(
+                                kill.killerAgentName,
+                                isFriendlyKiller ? _colorFriendly : _colorEnemy,
+                              ),
+                            )
+                          : _buildAgentFallback(
+                              kill.killerAgentName,
+                              isFriendlyKiller ? _colorFriendly : _colorEnemy,
+                            ),
+                    ),
+                  ),
+                  const SizedBox(width: 3),
+                  Icon(
+                    Icons.bolt_rounded,
+                    size: 11,
+                    color: isSelected ? const Color(0xFFFFD700) : _colorFriendly,
+                  ),
+                  const SizedBox(width: 3),
+                  // Victim avatar thumbnail with X
+                  Stack(
+                    children: [
+                      Container(
+                        width: 18,
+                        height: 18,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: isFriendlyVictim ? _colorFriendly : _colorEnemy,
+                            width: 1.2,
+                          ),
+                        ),
+                        child: ClipOval(
+                          child: kill.victimAgentIconUrl != null && kill.victimAgentIconUrl!.isNotEmpty
+                              ? CachedNetworkImage(
+                                  imageUrl: kill.victimAgentIconUrl!,
+                                  fit: BoxFit.cover,
+                                  errorWidget: (_, __, ___) => _buildAgentFallback(
+                                    kill.victimAgentName,
+                                    isFriendlyVictim ? _colorFriendly : _colorEnemy,
+                                  ),
+                                )
+                              : _buildAgentFallback(
+                                  kill.victimAgentName,
+                                  isFriendlyVictim ? _colorFriendly : _colorEnemy,
+                                ),
+                        ),
+                      ),
+                      Positioned.fill(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Colors.black.withValues(alpha: 0.45),
+                          ),
+                          child: const Icon(
+                            Icons.close_rounded,
+                            size: 12,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildSelectedKillBanner(MatchRoundKill kill, List<MatchRoundKill> displayKills) {
     final isFriendlyKill = _isFriendlyKiller(kill);
     final isFriendlyVictim = _isFriendlyVictim(kill);
     final timeSec = kill.roundTime > 0 ? (kill.roundTime ~/ 1000) : 0;
     final timeStr = '${(timeSec ~/ 60).toString().padLeft(1, '0')}:${(timeSec % 60).toString().padLeft(2, '0')}';
 
+    final currentIndex = displayKills.indexOf(kill);
+    final hasPrev = currentIndex > 0;
+    final hasNext = currentIndex >= 0 && currentIndex < displayKills.length - 1;
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.7),
+        color: Colors.black.withValues(alpha: 0.8),
         borderRadius: const BorderRadius.vertical(bottom: Radius.circular(14)),
         border: Border(
           top: BorderSide(
-            color: (isFriendlyKill ? _colorFriendly : _colorEnemy).withValues(alpha: 0.4),
+            color: const Color(0xFFFFD700).withValues(alpha: 0.5),
+            width: 1.5,
           ),
         ),
       ),
       child: Row(
         children: [
-          // Killer icon + name
-          Container(
-            padding: const EdgeInsets.all(1.5),
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: isFriendlyKill ? _colorFriendly : _colorEnemy,
-                width: 1.5,
-              ),
+          // Step Prev Button
+          IconButton(
+            visualDensity: VisualDensity.compact,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+            icon: Icon(
+              Icons.chevron_left_rounded,
+              size: 20,
+              color: hasPrev ? Colors.white : Colors.white24,
             ),
-            child: ClipOval(
-              child: kill.killerAgentIconUrl != null && kill.killerAgentIconUrl!.isNotEmpty
-                  ? CachedNetworkImage(
-                      imageUrl: kill.killerAgentIconUrl!,
-                      width: 18,
-                      height: 18,
-                      fit: BoxFit.cover,
-                      errorWidget: (_, __, ___) => const SizedBox.shrink(),
-                    )
-                  : const SizedBox(width: 18, height: 18),
-            ),
+            onPressed: hasPrev
+                ? () {
+                    setState(() {
+                      _selectedKill = displayKills[currentIndex - 1];
+                    });
+                  }
+                : null,
           ),
-          const SizedBox(width: 6),
-          Flexible(
-            child: Text(
-              kill.killerName.isNotEmpty ? kill.killerName : kill.killerAgentName,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: isFriendlyKill ? _colorFriendly : _colorEnemy,
-              ),
-            ),
-          ),
-          const SizedBox(width: 6),
-          const Icon(Icons.bolt_rounded, size: 14, color: _colorFriendly),
-          const SizedBox(width: 6),
-          // Victim icon + name (with dead indicator)
-          Stack(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(1.5),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: isFriendlyVictim ? _colorFriendly : _colorEnemy,
-                    width: 1.5,
+
+          // Killer Info
+          Expanded(
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(1.5),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: isFriendlyKill ? _colorFriendly : _colorEnemy,
+                      width: 1.5,
+                    ),
+                  ),
+                  child: ClipOval(
+                    child: kill.killerAgentIconUrl != null && kill.killerAgentIconUrl!.isNotEmpty
+                        ? CachedNetworkImage(
+                            imageUrl: kill.killerAgentIconUrl!,
+                            width: 22,
+                            height: 22,
+                            fit: BoxFit.cover,
+                            errorWidget: (_, __, ___) => const SizedBox.shrink(),
+                          )
+                        : const SizedBox(width: 22, height: 22),
                   ),
                 ),
-                child: ClipOval(
-                  child: kill.victimAgentIconUrl != null && kill.victimAgentIconUrl!.isNotEmpty
-                      ? CachedNetworkImage(
-                          imageUrl: kill.victimAgentIconUrl!,
-                          width: 18,
-                          height: 18,
-                          fit: BoxFit.cover,
-                          errorWidget: (_, __, ___) => const SizedBox.shrink(),
-                        )
-                      : const SizedBox(width: 18, height: 18),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        kill.killerName.isNotEmpty ? kill.killerName : kill.killerAgentName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: isFriendlyKill ? _colorFriendly : _colorEnemy,
+                        ),
+                      ),
+                      Text(
+                        kill.killerAgentName,
+                        style: const TextStyle(
+                          fontSize: 9.5,
+                          color: AppColors.textMuted,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const Positioned.fill(
-                child: Icon(Icons.close_rounded, size: 14, color: Colors.white),
-              ),
-            ],
-          ),
-          const SizedBox(width: 6),
-          Flexible(
-            child: Text(
-              kill.victimName.isNotEmpty ? kill.victimName : kill.victimAgentName,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: isFriendlyVictim ? _colorFriendly : _colorEnemy,
-              ),
+              ],
             ),
           ),
-          const Spacer(),
-          Text(
-            timeStr,
-            style: const TextStyle(fontSize: 10, color: AppColors.textMuted),
+
+          // Center VS / Time Badge
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    timeStr,
+                    style: const TextStyle(
+                      fontSize: 9.5,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white70,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 1),
+                const Icon(Icons.bolt_rounded, size: 14, color: Color(0xFFFFD700)),
+              ],
+            ),
           ),
-          const SizedBox(width: 6),
+
+          // Victim Info
+          Expanded(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        kill.victimName.isNotEmpty ? kill.victimName : kill.victimAgentName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: isFriendlyVictim ? _colorFriendly : _colorEnemy,
+                        ),
+                      ),
+                      Text(
+                        kill.victimAgentName,
+                        style: const TextStyle(
+                          fontSize: 9.5,
+                          color: AppColors.textMuted,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Stack(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(1.5),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: isFriendlyVictim ? _colorFriendly : _colorEnemy,
+                          width: 1.5,
+                        ),
+                      ),
+                      child: ClipOval(
+                        child: kill.victimAgentIconUrl != null && kill.victimAgentIconUrl!.isNotEmpty
+                            ? CachedNetworkImage(
+                                imageUrl: kill.victimAgentIconUrl!,
+                                width: 22,
+                                height: 22,
+                                fit: BoxFit.cover,
+                                errorWidget: (_, __, ___) => const SizedBox.shrink(),
+                              )
+                            : const SizedBox(width: 22, height: 22),
+                      ),
+                    ),
+                    Positioned.fill(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.black.withValues(alpha: 0.45),
+                        ),
+                        child: const Icon(
+                          Icons.close_rounded,
+                          size: 14,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+
+          // Step Next Button
+          IconButton(
+            visualDensity: VisualDensity.compact,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+            icon: Icon(
+              Icons.chevron_right_rounded,
+              size: 20,
+              color: hasNext ? Colors.white : Colors.white24,
+            ),
+            onPressed: hasNext
+                ? () {
+                    setState(() {
+                      _selectedKill = displayKills[currentIndex + 1];
+                    });
+                  }
+                : null,
+          ),
+
+          // Close / Clear Selection
           InkWell(
             onTap: () => setState(() => _selectedKill = null),
-            child: const Icon(Icons.close_rounded, size: 14, color: AppColors.textMuted),
+            child: const Padding(
+              padding: EdgeInsets.only(left: 4),
+              child: Icon(Icons.close_rounded, size: 16, color: AppColors.textMuted),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildUnselectedPrompt(int killCount) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.55),
+        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(14)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.touch_app_rounded, size: 13, color: AppColors.textMuted),
+          const SizedBox(width: 6),
+          Text(
+            'Ketuk duel di atas untuk melihat duel satu per satu di map',
+            style: AppTextStyles.caption(color: AppColors.textMuted).copyWith(
+              fontSize: 10.5,
+              fontWeight: FontWeight.w500,
+            ),
           ),
         ],
       ),
@@ -776,6 +1114,61 @@ class _LegendDot extends StatelessWidget {
           ).copyWith(fontWeight: FontWeight.w600),
         ),
       ],
+    );
+  }
+}
+
+class _FilterChipButton extends StatelessWidget {
+  final String label;
+  final bool isSelected;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  const _FilterChipButton({
+    required this.label,
+    required this.isSelected,
+    required this.icon,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: AppRadius.roundedPill,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? AppColors.cyan.withValues(alpha: 0.16)
+              : Colors.white.withValues(alpha: 0.04),
+          borderRadius: AppRadius.roundedPill,
+          border: Border.all(
+            color: isSelected ? AppColors.cyan : AppColors.border,
+            width: isSelected ? 1.5 : 1.0,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 13,
+              color: isSelected ? AppColors.cyan : AppColors.textMuted,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                color: isSelected ? AppColors.cyan : AppColors.textSecondary,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

@@ -196,5 +196,54 @@ void main() {
 
       expect(find.text('KILL MAP — ROUND 1'), findsNothing);
     });
+
+    testWidgets('supports step-by-step kill inspection scrubber and filter pills', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: MapKillOverlayWidget(
+                match: matchWithMinimap,
+                selectedRoundIndex: 0,
+              ),
+            ),
+          ),
+        ),
+      );
+
+      // Verify filter pills are present
+      expect(find.text('All'), findsOneWidget);
+      expect(find.text('Me'), findsOneWidget);
+
+      // Verify kill scrubber chips are present
+      expect(find.text('ALL (2)'), findsOneWidget);
+      expect(find.text('#1'), findsOneWidget);
+      expect(find.text('#2'), findsOneWidget);
+
+      // Tap kill chip #1 to inspect duel
+      await tester.tap(find.text('#1'));
+      await tester.pumpAndSettle();
+
+      // Duel banner should display killer (Me#123) and victim (Enemy#456)
+      expect(find.text('Me#123'), findsOneWidget);
+      expect(find.text('Enemy#456'), findsOneWidget);
+
+      // Tap filter "Me"
+      await tester.tap(find.text('Me'));
+      await tester.pumpAndSettle();
+
+      // In self kills, only kill #1 is self
+      expect(find.text('ALL (1)'), findsOneWidget);
+      expect(find.text('#1'), findsOneWidget);
+      expect(find.text('#2'), findsNothing);
+
+      // Tap filter "All" to restore
+      await tester.tap(find.text('All'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('ALL (2)'), findsOneWidget);
+      expect(find.text('#1'), findsOneWidget);
+      expect(find.text('#2'), findsOneWidget);
+    });
   });
 }

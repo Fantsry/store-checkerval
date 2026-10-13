@@ -17,6 +17,7 @@ import 'package:valorant_store_tracker/ui/widgets/empty_state_view.dart';
 import 'package:valorant_store_tracker/ui/widgets/error_state_view.dart';
 import 'package:valorant_store_tracker/ui/widgets/rank_badge.dart';
 import 'package:valorant_store_tracker/ui/widgets/section_header.dart';
+import 'package:valorant_store_tracker/features/live_match/presentation/widgets/gem_rank_icon.dart';
 import 'package:valorant_store_tracker/ui/widgets/shimmer_loading.dart';
 import 'package:valorant_store_tracker/ui/widgets/stat_box.dart';
 
@@ -283,12 +284,41 @@ class _CareerPageState extends State<CareerPage> {
         gradient: isDraw ? null : (isWon ? AppColors.winGradient : AppColors.lossGradient),
         child: Row(
           children: [
-            // Agent Avatar
-            AgentAvatar(
-              imageUrl: match.agentIconUrl,
-              agentName: match.agentName,
-              size: 48,
-              borderColor: outcomeColor,
+            // Agent Avatar with Rank Badge
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                AgentAvatar(
+                  imageUrl: match.agentIconUrl,
+                  agentName: match.agentName,
+                  size: 48,
+                  borderColor: outcomeColor,
+                ),
+                if (match.competitiveTier != null ||
+                    (match.rankIconUrl != null && match.rankIconUrl!.isNotEmpty) ||
+                    (match.rankName != null && match.rankName!.isNotEmpty))
+                  Positioned(
+                    right: -3,
+                    bottom: -3,
+                    child: Container(
+                      padding: const EdgeInsets.all(1.5),
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: outcomeColor.withValues(alpha: 0.8),
+                          width: 1.5,
+                        ),
+                      ),
+                      child: ValorantRankIcon(
+                        tier: match.competitiveTier,
+                        iconUrl: match.rankIconUrl,
+                        tierName: match.rankName ?? 'Unrated',
+                        size: 18,
+                      ),
+                    ),
+                  ),
+              ],
             ),
             const SizedBox(width: AppSpacing.md),
 
@@ -308,18 +338,33 @@ class _CareerPageState extends State<CareerPage> {
                         '• ${match.scoreDisplay}',
                         style: AppTextStyles.h4(color: AppColors.textPrimary),
                       ),
-                      if (match.rankRatingEarned != null) ...[
+                      if (match.rankRatingEarned != null || match.competitiveTier != null) ...[
                         const SizedBox(width: AppSpacing.xs),
-                        Text(
-                          match.rankRatingEarned! > 0
-                              ? '+${match.rankRatingEarned} RR'
-                              : '${match.rankRatingEarned} RR',
-                          style: AppTextStyles.caption(
-                            color: match.rankRatingEarned! > 0
-                                ? AppColors.winGreen
-                                : AppColors.lossRed,
-                          ).copyWith(fontWeight: FontWeight.w700),
+                        ValorantRankIcon(
+                          tier: match.competitiveTier,
+                          iconUrl: match.rankIconUrl,
+                          tierName: match.rankName ?? 'Unrated',
+                          size: 15,
                         ),
+                        const SizedBox(width: 3),
+                        if (match.rankRatingEarned != null)
+                          Text(
+                            match.rankRatingEarned! > 0
+                                ? '+${match.rankRatingEarned} RR'
+                                : '${match.rankRatingEarned} RR',
+                            style: AppTextStyles.caption(
+                              color: match.rankRatingEarned! > 0
+                                  ? AppColors.winGreen
+                                  : AppColors.lossRed,
+                            ).copyWith(fontWeight: FontWeight.w700),
+                          )
+                        else if (match.rankName != null)
+                          Text(
+                            match.rankName!,
+                            style: AppTextStyles.caption(
+                              color: AppColors.textSecondary,
+                            ).copyWith(fontWeight: FontWeight.w600),
+                          ),
                       ],
                     ],
                   ),
