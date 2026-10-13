@@ -3,11 +3,11 @@
 [![Flutter](https://img.shields.io/badge/Flutter-3.x-02569B?logo=flutter)](https://flutter.dev)
 [![Dart](https://img.shields.io/badge/Dart-3.x-0175C2?logo=dart)](https://dart.dev)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Style](https://img.shields.io/badge/Style-Ascend_Companion_Esports_HUD-FF2FB0)](https://github.com/Fantsry/store-checkerval)
+[![Style](https://img.shields.io/badge/Style-Dark_Esports_HUD-FF2FB0)](https://github.com/Fantsry/store-checkerval)
 
 **StoreCheckerVal** adalah aplikasi mobile Android berbasis Flutter yang dirancang untuk memantau rotasi skin harian Valorant (Daily Store), status pertandingan langsung (Live Match), riwayat karier kompetitif (Career & Rank), valuasi akun (Inventory Valuation), serta progres Battlepass langsung dari smartphone tanpa perlu membuka PC.
 
-Aplikasi ini mengusung antarmuka **Ascend Companion Dark Esports HUD Overlay** dengan palet gelap siaran turnamen, tipografi Rajdhani, sudut tajam presisi (4px-8px), dan aksen neon magenta yang modern.
+Aplikasi ini dibangun secara mandiri dengan antarmuka **Dark Esports HUD Overlay** berpalet gelap siaran turnamen kompetitif, tipografi Rajdhani, sudut tajam presisi (4px-8px), dan aksen neon modern.
 
 ---
 

@@ -350,7 +350,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 child: Column(
                   children: [
                     Text(
-                      'ASCEND COMPANION MOBILE',
+                      'STORECHECKERVAL MOBILE',
                       style: AppTextStyles.statLabel(color: AppColors.textSecondary),
                     ),
                     const SizedBox(height: 2),
