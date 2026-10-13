@@ -1,12 +1,8 @@
-import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:shimmer/shimmer.dart';
-import 'package:valorant_store_tracker/app/theme.dart';
-import 'package:valorant_store_tracker/core/utils/timezone_helper.dart';
+import 'package:valorant_store_tracker/features/daily_store/domain/entities/daily_store.dart';
 import 'package:valorant_store_tracker/features/daily_store/domain/entities/skin_item.dart';
 import 'package:valorant_store_tracker/features/daily_store/presentation/bloc/store_cubit.dart';
 import 'package:valorant_store_tracker/features/daily_store/presentation/bloc/store_state.dart';
@@ -17,6 +13,18 @@ import 'package:valorant_store_tracker/features/profile/presentation/cubit/profi
 import 'package:valorant_store_tracker/features/profile/presentation/cubit/profile_state.dart';
 import 'package:valorant_store_tracker/features/wishlist/presentation/cubit/wishlist_cubit.dart';
 import 'package:valorant_store_tracker/features/wishlist/presentation/cubit/wishlist_state.dart';
+import 'package:valorant_store_tracker/ui/theme/app_colors.dart';
+import 'package:valorant_store_tracker/ui/theme/app_radius.dart';
+import 'package:valorant_store_tracker/ui/theme/app_spacing.dart';
+import 'package:valorant_store_tracker/ui/theme/app_text_styles.dart';
+import 'package:valorant_store_tracker/ui/widgets/ascend_card.dart';
+import 'package:valorant_store_tracker/ui/widgets/countdown_timer_widget.dart';
+import 'package:valorant_store_tracker/ui/widgets/error_state_view.dart';
+import 'package:valorant_store_tracker/ui/widgets/section_header.dart';
+import 'package:valorant_store_tracker/ui/widgets/shimmer_loading.dart';
+import 'package:valorant_store_tracker/ui/widgets/skin_preview_dialog.dart';
+import 'package:valorant_store_tracker/ui/widgets/stat_badge.dart';
+import 'package:valorant_store_tracker/ui/widgets/vp_chip.dart';
 
 class StorePage extends StatefulWidget {
   const StorePage({super.key});
@@ -25,923 +33,389 @@ class StorePage extends StatefulWidget {
   State<StorePage> createState() => _StorePageState();
 }
 
-class _StorePageState extends State<StorePage>
-    with TickerProviderStateMixin, WidgetsBindingObserver {
-  late Timer _countdownTimer;
-  Duration _timeUntilReset = Duration.zero;
-  late AnimationController _pulseController;
-  bool _hasTriggeredResetFetch = false;
+class _StorePageState extends State<StorePage> {
+  final PageController _pageController = PageController(viewportFraction: 0.88);
+  int _currentSkinIndex = 0;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
-    _timeUntilReset = TimezoneHelper.timeUntilReset;
-    _startCountdownTimer();
-
-    _pulseController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 2),
-    )..repeat(reverse: true);
+    _fetchStoreData();
   }
 
-  void _startCountdownTimer() {
-    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (!mounted) return;
-      final currentRemaining = TimezoneHelper.timeUntilReset;
-      setState(() {
-        _timeUntilReset = currentRemaining;
-      });
-
-      // Auto-refresh store when countdown crosses reset (00:00 UTC)
-      if (currentRemaining.inSeconds <= 1 && !_hasTriggeredResetFetch) {
-        _hasTriggeredResetFetch = true;
-        // Wait 3 seconds for Riot servers to rotate store offers
-        Future.delayed(const Duration(seconds: 3), () {
-          if (mounted) {
-            context.read<StoreCubit>().fetchStore(forceRefresh: true);
-            _hasTriggeredResetFetch = false;
-          }
-        });
-      }
-    });
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
-      if (mounted) {
-        setState(() {
-          _timeUntilReset = TimezoneHelper.timeUntilReset;
-        });
-        final storeCubit = context.read<StoreCubit>();
-        final currentState = storeCubit.state;
-        if (currentState is StoreLoaded) {
-          final store = currentState.store;
-          final elapsed =
-              DateTime.now().difference(store.lastFetched).inSeconds;
-          if (elapsed >= store.remainingDurationSeconds) {
-            storeCubit.fetchStore(forceRefresh: true);
-          }
-        }
-      }
-    }
+  void _fetchStoreData({bool forceRefresh = false}) {
+    context.read<StoreCubit>().fetchStore(forceRefresh: forceRefresh);
+    context.read<ProfileCubit>().loadProfile(forceRefresh: forceRefresh);
   }
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    _countdownTimer.cancel();
-    _pulseController.dispose();
+    _pageController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(gradient: AppTheme.backgroundGradient),
-        child: SafeArea(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        title: Text('STORE', style: AppTextStyles.h2(color: AppColors.textPrimary)),
+        actions: [
+          // Wishlist Shortcut with Badge
+          BlocBuilder<WishlistCubit, WishlistState>(
+            builder: (context, state) {
+              final count = state is WishlistLoaded ? state.items.length : 0;
+              return Stack(
+                alignment: Alignment.center,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.favorite_rounded, color: AppColors.red),
+                    onPressed: () => context.push('/wishlist'),
+                    tooltip: 'Wishlist',
+                  ),
+                  if (count > 0)
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
+                          color: AppColors.cyan,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Text(
+                          '$count',
+                          style: const TextStyle(
+                            color: Colors.black,
+                            fontSize: 9,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.refresh_rounded, color: AppColors.textSecondary),
+            onPressed: () => _fetchStoreData(forceRefresh: true),
+            tooltip: 'Refresh Store',
+          ),
+          const SizedBox(width: AppSpacing.sm),
+        ],
+      ),
+      body: SafeArea(
+        child: RefreshIndicator(
+          onRefresh: () async => _fetchStoreData(forceRefresh: true),
+          color: AppColors.red,
+          backgroundColor: AppColors.card,
           child: BlocBuilder<StoreCubit, StoreState>(
             builder: (context, state) {
-              return RefreshIndicator(
-                color: AppTheme.valorantRed,
-                backgroundColor: AppTheme.surfaceDark,
-                onRefresh: () async {
-                  await context
-                      .read<StoreCubit>()
-                      .fetchStore(forceRefresh: true);
-                },
-                child: CustomScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  slivers: [
-                  // ─── Header ─────────────────────────────────
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          BlocBuilder<ProfileCubit, ProfileState>(
-                            builder: (context, profileState) {
-                              if (profileState is ProfileLoaded) {
-                                final profile = profileState.profile;
-                                return Padding(
-                                  padding: const EdgeInsets.only(bottom: 8),
-                                  child: InkWell(
-                                    onTap: () => context.goNamed('settings'),
-                                    borderRadius: BorderRadius.circular(20),
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 10,
-                                        vertical: 4,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: AppTheme.surfaceDark,
-                                        borderRadius: BorderRadius.circular(20),
-                                        border: Border.all(
-                                          color: AppTheme.valorantRed
-                                              .withValues(alpha: 0.35),
-                                        ),
-                                      ),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Builder(
-                                            builder: (_) {
-                                              final miniArt = (profile.cardSmallArt != null && profile.cardSmallArt!.isNotEmpty)
-                                                  ? profile.cardSmallArt!
-                                                  : (profile.cardWideArt ?? profile.cardLargeArt);
-                                              if (miniArt != null && miniArt.isNotEmpty) {
-                                                return ClipRRect(
-                                                  borderRadius: BorderRadius.circular(8),
-                                                  child: CachedNetworkImage(
-                                                    imageUrl: miniArt,
-                                                    width: 18,
-                                                    height: 18,
-                                                    fit: BoxFit.cover,
-                                                    errorWidget: (_, __, ___) => const Icon(
-                                                      Icons.person_rounded,
-                                                      size: 16,
-                                                      color: AppTheme.valorantRed,
-                                                    ),
-                                                  ),
-                                                );
-                                              }
-                                              return const Icon(
-                                                Icons.person_rounded,
-                                                size: 16,
-                                                color: AppTheme.valorantRed,
-                                              );
-                                            },
-                                          ),
-                                          const SizedBox(width: 6),
-                                          Text(
-                                            profile.displayName,
-                                            style: const TextStyle(
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.bold,
-                                              color: AppTheme.textPrimary,
-                                            ),
-                                          ),
-                                          const SizedBox(width: 6),
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 5,
-                                              vertical: 1,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: AppTheme.surfaceLight,
-                                              borderRadius:
-                                                  BorderRadius.circular(4),
-                                            ),
-                                            child: Text(
-                                              'LVL ${profile.accountLevel}',
-                                              style: const TextStyle(
-                                                fontSize: 9,
-                                                fontWeight: FontWeight.w800,
-                                                color: AppTheme.textSecondary,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                );
-                              }
-                              return const SizedBox.shrink();
-                            },
-                          ),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Container(
-                                        width: 3,
-                                        height: 20,
-                                        margin: const EdgeInsets.only(right: 8),
-                                        decoration: BoxDecoration(
-                                          color: AppTheme.accentMagenta,
-                                          borderRadius:
-                                              BorderRadius.circular(2),
-                                        ),
-                                      ),
-                                      Text(
-                                        'DAILY STORE',
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .headlineLarge
-                                            ?.copyWith(
-                                              letterSpacing: 2,
-                                              fontWeight: FontWeight.w900,
-                                            ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    'Your 24-hour rotating offers',
-                                    style:
-                                        Theme.of(context).textTheme.bodyMedium,
-                                  ),
-                                ],
-                              ),
-                              Row(
-                                children: [
-                                  // Wallet balances (if loaded)
-                                  if (state is StoreLoaded)
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 10,
-                                        vertical: 5,
-                                      ),
-                                      margin: const EdgeInsets.only(right: 8),
-                                      decoration: BoxDecoration(
-                                        color: AppTheme.cardDark,
-                                        borderRadius: BorderRadius.circular(6),
-                                        border: Border.all(
-                                          color: Colors.white
-                                              .withValues(alpha: 0.08),
-                                        ),
-                                      ),
-                                      child: Row(
-                                        children: [
-                                          const Icon(
-                                            Icons.monetization_on_outlined,
-                                            size: 14,
-                                            color: AppTheme.accentMagenta,
-                                          ),
-                                          const SizedBox(width: 4),
-                                          Text(
-                                            '${state.wallet.valorantPoints}',
-                                            style: GoogleFonts.rajdhani(
-                                              fontSize: 13,
-                                              fontWeight: FontWeight.w700,
-                                              color: AppTheme.textPrimary,
-                                            ),
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Container(
-                                            width: 6,
-                                            height: 6,
-                                            decoration: const BoxDecoration(
-                                              shape: BoxShape.circle,
-                                              color: Color(0xFF00E5FF),
-                                            ),
-                                          ),
-                                          const SizedBox(width: 4),
-                                          Text(
-                                            '${state.wallet.kingdomCredits}',
-                                            style: GoogleFonts.rajdhani(
-                                              fontSize: 13,
-                                              fontWeight: FontWeight.w700,
-                                              color: const Color(0xFF00E5FF),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  // Refresh button
-                                  Container(
-                                    decoration: BoxDecoration(
-                                      color: AppTheme.cardDark,
-                                      borderRadius: BorderRadius.circular(6),
-                                      border: Border.all(
-                                        color: Colors.white
-                                            .withValues(alpha: 0.08),
-                                      ),
-                                    ),
-                                    child: IconButton(
-                                      constraints: const BoxConstraints(
-                                        minWidth: 36,
-                                        minHeight: 36,
-                                      ),
-                                      padding: EdgeInsets.zero,
-                                      onPressed: () {
-                                        context
-                                            .read<StoreCubit>()
-                                            .fetchStore(forceRefresh: true);
-                                        context
-                                            .read<ProfileCubit>()
-                                            .loadProfile(forceRefresh: true);
-                                      },
-                                      icon: const Icon(
-                                        Icons.refresh_rounded,
-                                        size: 20,
-                                        color: AppTheme.textPrimary,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 16),
+              if (state is StoreLoading) {
+                return _buildLoadingState();
+              }
 
-                          // ─── Countdown Timer ─────────────────
-                          _CountdownCard(
-                            timeRemaining: _timeUntilReset,
-                            pulseController: _pulseController,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
+              if (state is StoreError) {
+                return ErrorStateView(
+                  message: state.message,
+                  onRetry: () => _fetchStoreData(forceRefresh: true),
+                );
+              }
 
-                  // ─── Store Items Body (Horizontal Gun Cards) ──
-                  if (state is StoreLoading)
-                    SliverPadding(
-                      padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
-                      sliver: SliverList(
-                        delegate: SliverChildBuilderDelegate(
-                          (context, index) => const Padding(
-                            padding: EdgeInsets.only(bottom: 12),
-                            child: _SkinCardPlaceholder(),
-                          ),
-                          childCount: 4,
-                        ),
-                      ),
-                    )
-                  else if (state is StoreError)
-                    SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.all(40),
-                        child: Center(
-                          child: Column(
-                            children: [
-                              const Icon(
-                                Icons.error_outline_rounded,
-                                size: 48,
-                                color: AppTheme.valorantRed,
-                              ),
-                              const SizedBox(height: 16),
-                              Text(
-                                state.message,
-                                textAlign: TextAlign.center,
-                                style: const TextStyle(
-                                    color: AppTheme.textSecondary),
-                              ),
-                              const SizedBox(height: 20),
-                              Wrap(
-                                spacing: 12,
-                                runSpacing: 10,
-                                alignment: WrapAlignment.center,
-                                children: [
-                                  ElevatedButton.icon(
-                                    onPressed: () => context.pushNamed('login'),
-                                    icon: const Icon(Icons.login_rounded),
-                                    label: const Text('SIGN IN WITH RIOT'),
-                                  ),
-                                  OutlinedButton(
-                                    onPressed: () {
-                                      context.read<StoreCubit>().fetchStore(
-                                            forceRefresh: true,
-                                          );
-                                    },
-                                    child: const Text('RETRY'),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    )
-                  else if (state is StoreLoaded) ...[
-                    SliverPadding(
-                      padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
-                      sliver: SliverList(
-                        delegate: SliverChildBuilderDelegate(
-                          (context, index) {
-                            final skin = state.store.featuredOffers[index];
-                            return Padding(
-                              padding: const EdgeInsets.only(bottom: 12),
-                              child: _SkinCard(skin: skin),
-                            );
-                          },
-                          childCount: state.store.featuredOffers.length,
-                        ),
-                      ),
-                    ),
+              if (state is StoreLoaded) {
+                return _buildStoreContent(state.store);
+              }
 
-                    // Featured Bundles (if present)
-                    if (state.store.bundles.isNotEmpty) ...[
-                      SliverToBoxAdapter(
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
-                          child: Text(
-                            'FEATURED COLLECTIONS',
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleLarge
-                                ?.copyWith(letterSpacing: 1.5),
-                          ),
-                        ),
-                      ),
-                      SliverPadding(
-                        padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-                        sliver: SliverList(
-                          delegate: SliverChildBuilderDelegate(
-                            (context, index) => Padding(
-                              padding: const EdgeInsets.only(bottom: 16),
-                              child: BundleCard(
-                                bundle: state.store.bundles[index],
-                              ),
-                            ),
-                            childCount: state.store.bundles.length,
-                          ),
-                        ),
-                      ),
-                    ] else if (state.store.bundle != null) ...[
-                      SliverToBoxAdapter(
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'FEATURED BUNDLE',
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .titleLarge
-                                    ?.copyWith(letterSpacing: 1.5),
-                              ),
-                              const SizedBox(height: 12),
-                              BundleCard(bundle: state.store.bundle!),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-
-                    // Night Market (if active)
-                    if (state.store.nightMarket != null &&
-                        state.store.nightMarket!.offers.isNotEmpty)
-                      SliverToBoxAdapter(
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-                          child: NightMarketSection(
-                            nightMarket: state.store.nightMarket!,
-                          ),
-                        ),
-                      ),
-
-                    // Accessory Store (Kingdom Credits rotation)
-                    if (state.store.accessoryOffers.isNotEmpty)
-                      SliverToBoxAdapter(
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-                          child: AccessoryStoreSection(
-                            items: state.store.accessoryOffers,
-                          ),
-                        ),
-                      ),
-                  ],
-                ],
-              ),
-            );
-          },
+              return const SizedBox.shrink();
+            },
+          ),
         ),
       ),
-    ),
-  );
-  }
-}
-
-/// Real interactive Horizontal Skin Card
-class _SkinCard extends StatelessWidget {
-  final SkinItem skin;
-
-  const _SkinCard({required this.skin});
-
-  Color _parseTierColor(String? hex) {
-    if (hex == null || hex.isEmpty) return const Color(0xFF5A9FE2);
-    try {
-      final clean = hex.replaceAll('#', '');
-      return Color(int.parse('FF$clean', radix: 16));
-    } catch (_) {
-      return const Color(0xFF5A9FE2);
-    }
+    );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final tierColor = _parseTierColor(skin.tierColor);
+  Widget _buildLoadingState() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      child: Column(
+        children: const [
+          ShimmerBox(height: 180, borderRadius: AppRadius.xl),
+          SizedBox(height: AppSpacing.lg),
+          ShimmerBox(height: 320, borderRadius: AppRadius.xl),
+          SizedBox(height: AppSpacing.lg),
+          ShimmerBox(height: 200, borderRadius: AppRadius.xl),
+        ],
+      ),
+    );
+  }
 
-    return BlocBuilder<WishlistCubit, WishlistState>(
-      builder: (context, wishlistState) {
-        final isWishlisted = wishlistState is WishlistLoaded &&
-            wishlistState.isInWishlist(skin.uuid);
-
-        return GestureDetector(
-          onTap: () {
-            context.pushNamed('skinDetail', pathParameters: {'skinId': skin.uuid});
-          },
-          child: Container(
-            height: 108,
-            decoration: BoxDecoration(
-              color: AppTheme.cardDark,
-              borderRadius: BorderRadius.circular(6),
-              border: Border.all(
-                color: isWishlisted
-                    ? AppTheme.accentMagenta.withValues(alpha: 0.8)
-                    : Colors.white.withValues(alpha: 0.08),
-                width: isWishlisted ? 1.5 : 1.0,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: isWishlisted
-                      ? AppTheme.accentMagenta.withValues(alpha: 0.22)
-                      : Colors.black.withValues(alpha: 0.35),
-                  blurRadius: 10,
-                  offset: const Offset(0, 3),
-                ),
-              ],
+  Widget _buildStoreContent(DailyStore store) {
+    return SingleChildScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.lg,
+        vertical: AppSpacing.sm,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _buildWalletAndTimerBar(store),
+          const SizedBox(height: AppSpacing.lg),
+          if (store.bundle != null) ...[
+            SectionHeader(
+              title: 'FEATURED BUNDLE',
+              subtitle: store.bundle!.displayName,
             ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(6),
-              child: Stack(
+            const SizedBox(height: AppSpacing.sm),
+            BundleCard(bundle: store.bundle!),
+            const SizedBox(height: AppSpacing.xl),
+          ],
+          _buildDailyOffersSection(store.featuredOffers, store.remainingDurationSeconds),
+          if (store.nightMarket != null && store.nightMarket!.offers.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.xl),
+            NightMarketSection(nightMarket: store.nightMarket!),
+          ],
+          if (store.accessoryOffers.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.xl),
+            AccessoryStoreSection(items: store.accessoryOffers),
+          ],
+          const SizedBox(height: AppSpacing.xxxl),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWalletAndTimerBar(DailyStore store) {
+    return BlocBuilder<ProfileCubit, ProfileState>(
+      builder: (context, state) {
+        final profile = state is ProfileLoaded ? state.profile : null;
+
+        return AscendCard(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.sm,
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              CountdownTimerWidget(
+                initialRemainingSeconds: store.remainingDurationSeconds,
+                onTimerExpired: () => _fetchStoreData(forceRefresh: true),
+                compact: true,
+              ),
+              Row(
                 children: [
-                  // Left vertical tier accent stripe
-                  Positioned(
-                    top: 0,
-                    bottom: 0,
-                    left: 0,
-                    width: 3.5,
-                    child: Container(
-                      color: isWishlisted ? AppTheme.accentMagenta : tierColor,
-                    ),
+                  VpChip(
+                    amount: profile?.valorantPoints ?? 0,
+                    fontSize: 13,
+                    compact: true,
                   ),
-
-                  // Background subtle tier glow on the right
-                  Positioned(
-                    right: -20,
-                    top: -20,
-                    bottom: -20,
-                    width: 170,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        gradient: RadialGradient(
-                          center: Alignment.centerRight,
-                          radius: 0.9,
-                          colors: [
-                            tierColor.withValues(alpha: 0.16),
-                            Colors.transparent,
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  // Content Row: Left info, Right gun image
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(14, 10, 10, 10),
-                    child: Row(
-                      children: [
-                        // Left Details Column
-                        Expanded(
-                          flex: 5,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              // Top Tag: Weapon Type & Tier
-                              Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 6,
-                                      vertical: 2,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: tierColor.withValues(alpha: 0.15),
-                                      borderRadius: BorderRadius.circular(4),
-                                      border: Border.all(
-                                        color: tierColor.withValues(alpha: 0.4),
-                                        width: 0.8,
-                                      ),
-                                    ),
-                                    child: Text(
-                                      skin.weaponName?.toUpperCase() ?? 'VALORANT',
-                                      style: TextStyle(
-                                        fontSize: 9,
-                                        fontWeight: FontWeight.w800,
-                                        color: tierColor,
-                                        letterSpacing: 0.6,
-                                      ),
-                                    ),
-                                  ),
-                                  if (skin.tierName != null &&
-                                      skin.tierName!.isNotEmpty) ...[
-                                    const SizedBox(width: 6),
-                                    Flexible(
-                                      child: Text(
-                                        skin.tierName!.toUpperCase(),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(
-                                          fontSize: 9,
-                                          color: AppTheme.textSecondary,
-                                          fontWeight: FontWeight.w700,
-                                          letterSpacing: 0.5,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ],
-                              ),
-
-                              // Skin Name
-                              Padding(
-                                padding: const EdgeInsets.symmetric(vertical: 2),
-                                child: Text(
-                                  skin.displayName,
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w800,
-                                    color: AppTheme.textPrimary,
-                                    letterSpacing: 0.3,
-                                    height: 1.2,
-                                  ),
-                                ),
-                              ),
-
-                              // Price & Wishlist Badge
-                              Row(
-                                children: [
-                                  const Icon(
-                                    Icons.monetization_on_outlined,
-                                    size: 14,
-                                    color: AppTheme.accentMagenta,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    '${skin.cost} VP',
-                                    style: GoogleFonts.rajdhani(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w800,
-                                      letterSpacing: 0.5,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                  if (isWishlisted) ...[
-                                    const SizedBox(width: 8),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 5,
-                                        vertical: 1,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: AppTheme.accentMagenta
-                                            .withValues(alpha: 0.2),
-                                        borderRadius: BorderRadius.circular(3),
-                                        border: Border.all(
-                                          color: AppTheme.accentMagenta
-                                              .withValues(alpha: 0.4),
-                                          width: 0.8,
-                                        ),
-                                      ),
-                                      child: const Text(
-                                        'WISHLIST',
-                                        style: TextStyle(
-                                          fontSize: 8,
-                                          fontWeight: FontWeight.w800,
-                                          color: AppTheme.accentMagenta,
-                                          letterSpacing: 0.5,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        const SizedBox(width: 8),
-
-                        // Right Weapon Gun Image & Wishlist Icon
-                        Expanded(
-                          flex: 6,
-                          child: Stack(
-                            children: [
-                              // Horizontal Gun Image
-                              Positioned.fill(
-                                child: Align(
-                                  alignment: Alignment.centerRight,
-                                  child: skin.displayIcon != null
-                                      ? Hero(
-                                          tag: 'skin_image_${skin.uuid}',
-                                          child: CachedNetworkImage(
-                                            imageUrl: skin.displayIcon!,
-                                            fit: BoxFit.contain,
-                                            placeholder: (context, url) =>
-                                                const Center(
-                                              child: SizedBox(
-                                                width: 20,
-                                                height: 20,
-                                                child: CircularProgressIndicator(
-                                                  strokeWidth: 1.5,
-                                                  color: AppTheme.accentMagenta,
-                                                ),
-                                              ),
-                                            ),
-                                            errorWidget: (context, url, error) =>
-                                                const Icon(
-                                              Icons.image_not_supported_outlined,
-                                              color: AppTheme.textMuted,
-                                              size: 32,
-                                            ),
-                                          ),
-                                        )
-                                      : const Icon(
-                                          Icons.sports_esports_rounded,
-                                          size: 40,
-                                          color: AppTheme.textMuted,
-                                        ),
-                                ),
-                              ),
-
-                              // Wishlist Toggle
-                              Positioned(
-                                top: 0,
-                                right: 0,
-                                child: GestureDetector(
-                                  behavior: HitTestBehavior.opaque,
-                                  onTap: () {
-                                    context
-                                        .read<WishlistCubit>()
-                                        .toggleWishlist(skin);
-                                  },
-                                  child: Container(
-                                    padding: const EdgeInsets.all(5),
-                                    decoration: BoxDecoration(
-                                      color: isWishlisted
-                                          ? AppTheme.accentMagenta
-                                              .withValues(alpha: 0.25)
-                                          : AppTheme.surfaceDark
-                                              .withValues(alpha: 0.75),
-                                      borderRadius: BorderRadius.circular(4),
-                                      border: Border.all(
-                                        color: isWishlisted
-                                            ? AppTheme.accentMagenta
-                                            : Colors.white
-                                                .withValues(alpha: 0.08),
-                                        width: 0.8,
-                                      ),
-                                    ),
-                                    child: Icon(
-                                      isWishlisted
-                                          ? Icons.favorite_rounded
-                                          : Icons.favorite_border_rounded,
-                                      size: 13,
-                                      color: isWishlisted
-                                          ? AppTheme.accentMagenta
-                                          : AppTheme.textSecondary,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
+                  const SizedBox(width: AppSpacing.sm),
+                  VpChip(
+                    amount: profile?.radianitePoints ?? 0,
+                    isRadianite: true,
+                    fontSize: 13,
+                    compact: true,
                   ),
                 ],
               ),
-            ),
+            ],
           ),
         );
       },
     );
   }
-}
 
-/// Countdown card showing time until store reset.
-class _CountdownCard extends StatelessWidget {
-  final Duration timeRemaining;
-  final AnimationController pulseController;
+  Widget _buildDailyOffersSection(List<SkinItem> skins, int remainingSeconds) {
+    if (skins.isEmpty) {
+      return const SizedBox.shrink();
+    }
 
-  const _CountdownCard({
-    required this.timeRemaining,
-    required this.pulseController,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppTheme.cardDark,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: AppTheme.accentMagenta.withValues(alpha: 0.3),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SectionHeader(
+          title: 'DAILY ROTATION',
+          subtitle: '${skins.length} Skins Available Today',
         ),
-        boxShadow: [
-          BoxShadow(
-            color: AppTheme.accentMagenta.withValues(alpha: 0.08),
-            blurRadius: 12,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          AnimatedBuilder(
-            animation: pulseController,
-            builder: (context, child) {
-              return Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: AppTheme.accentMagenta.withValues(
-                    alpha: 0.12 + (pulseController.value * 0.1),
-                  ),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: const Icon(
-                  Icons.timer_rounded,
-                  color: AppTheme.accentMagenta,
-                  size: 20,
-                ),
+        const SizedBox(height: AppSpacing.sm),
+        SizedBox(
+          height: 380,
+          child: PageView.builder(
+            controller: _pageController,
+            itemCount: skins.length,
+            onPageChanged: (index) {
+              setState(() {
+                _currentSkinIndex = index;
+              });
+            },
+            itemBuilder: (context, index) {
+              final skin = skins[index];
+              return AnimatedBuilder(
+                animation: _pageController,
+                builder: (context, child) {
+                  double value = 1.0;
+                  if (_pageController.position.haveDimensions) {
+                    value = (_pageController.page! - index);
+                    value = (1 - (value.abs() * 0.12)).clamp(0.0, 1.0);
+                  } else {
+                    value = index == 0 ? 1.0 : 0.88;
+                  }
+                  return Center(
+                    child: SizedBox(
+                      height: Curves.easeOut.transform(value) * 380,
+                      width: Curves.easeOut.transform(value) * 340,
+                      child: child,
+                    ),
+                  );
+                },
+                child: _buildFeaturedSkinCard(skin),
               );
             },
           ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'STORE RESETS IN (00:00 UTC)',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        fontSize: 10,
-                        letterSpacing: 1.0,
-                        color: AppTheme.textSecondary,
-                        fontWeight: FontWeight.w600,
-                      ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  TimezoneHelper.formatDuration(timeRemaining),
-                  style: GoogleFonts.rajdhani(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 2,
-                    color: AppTheme.accentMagenta,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: AppTheme.accentMagenta.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(4),
-              border: Border.all(
-                color: AppTheme.accentMagenta.withValues(alpha: 0.35),
-                width: 0.8,
+        ),
+        const SizedBox(height: AppSpacing.md),
+        // Indicators
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(skins.length, (index) {
+            final isSelected = index == _currentSkinIndex;
+            return AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              margin: const EdgeInsets.symmetric(horizontal: 4),
+              width: isSelected ? 24 : 8,
+              height: 4,
+              decoration: BoxDecoration(
+                color: isSelected ? AppColors.red : AppColors.border,
+                borderRadius: AppRadius.roundedPill,
               ),
-            ),
-            child: Text(
-              'LIVE',
-              style: GoogleFonts.rajdhani(
-                color: AppTheme.accentMagenta,
-                fontSize: 11,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 1.0,
-              ),
-            ),
-          ),
-        ],
-      ),
+            );
+          }),
+        ),
+      ],
     );
   }
-}
 
-/// Shimmer placeholder for loading
-class _SkinCardPlaceholder extends StatelessWidget {
-  const _SkinCardPlaceholder();
+  Widget _buildFeaturedSkinCard(SkinItem skin) {
+    final tierColor = AppColors.getTierColor(skin.tierName);
 
-  @override
-  Widget build(BuildContext context) {
-    return Shimmer.fromColors(
-      baseColor: AppTheme.surfaceLight.withValues(alpha: 0.4),
-      highlightColor: AppTheme.surfaceColor,
-      child: Container(
-        height: 108,
-        decoration: BoxDecoration(
-          color: AppTheme.cardDark,
-          borderRadius: BorderRadius.circular(6),
-        ),
+    return AscendCard(
+      onTap: () => SkinPreviewSheet.show(context, skin),
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      borderRadius: AppRadius.xl,
+      hasGlow: true,
+      glowColor: tierColor,
+      borderColor: tierColor.withValues(alpha: 0.4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Top Row: Tier badge, Weapon category, Wishlist button
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  if (skin.tierName != null) ...[
+                    StatBadge(
+                      text: skin.tierName!,
+                      color: tierColor,
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                  ],
+                  if (skin.weaponName != null)
+                    Text(
+                      skin.weaponName!.toUpperCase(),
+                      style: AppTextStyles.statLabel(color: AppColors.textSecondary),
+                    ),
+                ],
+              ),
+              BlocBuilder<WishlistCubit, WishlistState>(
+                builder: (context, state) {
+                  final inWishlist = state is WishlistLoaded && state.isInWishlist(skin.uuid);
+                  return GestureDetector(
+                    onTap: () {
+                      context.read<WishlistCubit>().toggleWishlist(skin);
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: inWishlist
+                            ? AppColors.red.withValues(alpha: 0.2)
+                            : AppColors.surface,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: inWishlist ? AppColors.red : AppColors.border,
+                        ),
+                      ),
+                      child: Icon(
+                        inWishlist ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                        size: 18,
+                        color: inWishlist ? AppColors.red : AppColors.textSecondary,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
+
+          // Central Weapon Display Art with Glow
+          Expanded(
+            child: Center(
+              child: Hero(
+                tag: 'skin_${skin.uuid}',
+                child: skin.displayIcon != null && skin.displayIcon!.isNotEmpty
+                    ? CachedNetworkImage(
+                        imageUrl: skin.displayIcon!,
+                        fit: BoxFit.contain,
+                        placeholder: (context, url) => const Center(
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                        errorWidget: (context, url, error) => const Icon(
+                          Icons.shield_outlined,
+                          size: 64,
+                          color: AppColors.textMuted,
+                        ),
+                      )
+                    : const Icon(
+                        Icons.shield_outlined,
+                        size: 64,
+                        color: AppColors.textMuted,
+                      ),
+              ),
+            ),
+          ),
+
+          // Bottom Info: Title & VP Price
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      skin.displayName.toUpperCase(),
+                      style: AppTextStyles.h3(color: AppColors.textPrimary).copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'TAP TO PREVIEW VARIANTS',
+                      style: AppTextStyles.caption(color: AppColors.textMuted),
+                    ),
+                  ],
+                ),
+              ),
+              VpChip(amount: skin.cost, fontSize: 16),
+            ],
+          ),
+        ],
       ),
     );
   }

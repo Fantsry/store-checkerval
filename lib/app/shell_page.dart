@@ -1,20 +1,18 @@
-/// Main shell page with bottom navigation bar.
-///
-/// Uses Valorant-themed styling with custom nav bar.
-
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:valorant_store_tracker/app/theme.dart';
 import 'package:valorant_store_tracker/features/career/presentation/cubit/career_cubit.dart';
 import 'package:valorant_store_tracker/features/career/presentation/cubit/career_state.dart';
 import 'package:valorant_store_tracker/features/daily_store/presentation/bloc/store_cubit.dart';
 import 'package:valorant_store_tracker/features/daily_store/presentation/bloc/store_state.dart';
 import 'package:valorant_store_tracker/features/inventory/presentation/cubit/inventory_cubit.dart';
 import 'package:valorant_store_tracker/features/inventory/presentation/cubit/inventory_state.dart';
-import 'package:valorant_store_tracker/features/live_match/presentation/cubit/live_match_cubit.dart';
 import 'package:valorant_store_tracker/features/profile/presentation/cubit/profile_cubit.dart';
 import 'package:valorant_store_tracker/features/profile/presentation/cubit/profile_state.dart';
+import 'package:valorant_store_tracker/ui/theme/app_colors.dart';
+import 'package:valorant_store_tracker/ui/theme/app_radius.dart';
+import 'package:valorant_store_tracker/ui/theme/app_spacing.dart';
+import 'package:valorant_store_tracker/ui/theme/app_text_styles.dart';
 
 class ShellPage extends StatelessWidget {
   final Widget child;
@@ -24,8 +22,9 @@ class ShellPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.background,
       body: child,
-      bottomNavigationBar: _ValorantBottomNav(
+      bottomNavigationBar: _AscendBottomNav(
         currentIndex: _calculateSelectedIndex(context),
         onTap: (index) => _onItemTapped(index, context),
       ),
@@ -34,43 +33,38 @@ class ShellPage extends StatelessWidget {
 
   int _calculateSelectedIndex(BuildContext context) {
     final location = GoRouterState.of(context).matchedLocation;
-    if (location.startsWith('/store')) return 0;
-    if (location.startsWith('/career')) return 1;
-    if (location.startsWith('/live-match')) return 2;
-    if (location.startsWith('/inventory')) return 3;
-    if (location.startsWith('/settings') ||
-        location.startsWith('/wishlist') ||
-        location.startsWith('/battlepass')) {
-      return 4;
-    }
+    if (location.startsWith('/home')) return 0;
+    if (location.startsWith('/store')) return 1;
+    if (location.startsWith('/tracker') || location.startsWith('/career')) return 2;
+    if (location.startsWith('/collection') || location.startsWith('/inventory')) return 3;
+    if (location.startsWith('/profile') || location.startsWith('/settings')) return 4;
     return 0;
   }
 
   void _onItemTapped(int index, BuildContext context) {
     switch (index) {
       case 0:
-        context.goNamed('store');
-        if (context.read<StoreCubit>().state is StoreInitial) {
-          context.read<StoreCubit>().fetchStore();
-        }
+        context.goNamed('home');
         if (context.read<ProfileCubit>().state is ProfileInitial) {
           context.read<ProfileCubit>().loadProfile();
         }
       case 1:
-        context.goNamed('career');
+        context.goNamed('store');
+        if (context.read<StoreCubit>().state is StoreInitial) {
+          context.read<StoreCubit>().fetchStore();
+        }
+      case 2:
+        context.goNamed('tracker');
         if (context.read<CareerCubit>().state is CareerInitial) {
           context.read<CareerCubit>().loadCareer();
         }
-      case 2:
-        context.goNamed('liveMatch');
-        context.read<LiveMatchCubit>().scanLiveMatch();
       case 3:
-        context.goNamed('inventory');
+        context.goNamed('collection');
         if (context.read<InventoryCubit>().state is InventoryInitial) {
           context.read<InventoryCubit>().loadInventory();
         }
       case 4:
-        context.goNamed('settings');
+        context.goNamed('profile');
         if (context.read<ProfileCubit>().state is ProfileInitial) {
           context.read<ProfileCubit>().loadProfile();
         }
@@ -78,11 +72,11 @@ class ShellPage extends StatelessWidget {
   }
 }
 
-class _ValorantBottomNav extends StatelessWidget {
+class _AscendBottomNav extends StatelessWidget {
   final int currentIndex;
   final ValueChanged<int> onTap;
 
-  const _ValorantBottomNav({
+  const _AscendBottomNav({
     required this.currentIndex,
     required this.onTap,
   });
@@ -90,50 +84,51 @@ class _ValorantBottomNav extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: BoxDecoration(
-        color: AppTheme.surfaceDark,
+      decoration: const BoxDecoration(
+        color: AppColors.surface,
         border: Border(
-          top: BorderSide(
-            color: Colors.white.withValues(alpha: 0.06),
-            width: 1,
-          ),
+          top: BorderSide(color: AppColors.border, width: 1),
         ),
       ),
       child: SafeArea(
+        top: false,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.sm,
+            vertical: AppSpacing.xs + 2,
+          ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _NavItem(
-                icon: Icons.storefront_rounded,
-                label: 'Store',
-                isSelected: currentIndex == 0,
-                onTap: () => onTap(0),
+              _buildNavItem(
+                index: 0,
+                label: 'HOME',
+                icon: Icons.dashboard_outlined,
+                activeIcon: Icons.dashboard_rounded,
               ),
-              _NavItem(
-                icon: Icons.leaderboard_rounded,
-                label: 'Career',
-                isSelected: currentIndex == 1,
-                onTap: () => onTap(1),
+              _buildNavItem(
+                index: 1,
+                label: 'STORE',
+                icon: Icons.storefront_outlined,
+                activeIcon: Icons.storefront_rounded,
               ),
-              _NavItem(
-                icon: Icons.radar_rounded,
-                label: 'Radar',
-                isSelected: currentIndex == 2,
-                onTap: () => onTap(2),
+              _buildNavItem(
+                index: 2,
+                label: 'TRACKER',
+                icon: Icons.analytics_outlined,
+                activeIcon: Icons.analytics_rounded,
               ),
-              _NavItem(
-                icon: Icons.inventory_2_rounded,
-                label: 'Inventory',
-                isSelected: currentIndex == 3,
-                onTap: () => onTap(3),
+              _buildNavItem(
+                index: 3,
+                label: 'COLLECTION',
+                icon: Icons.shield_outlined,
+                activeIcon: Icons.shield_rounded,
               ),
-              _NavItem(
-                icon: Icons.person_rounded,
-                label: 'Profile',
-                isSelected: currentIndex == 4,
-                onTap: () => onTap(4),
+              _buildNavItem(
+                index: 4,
+                label: 'PROFILE',
+                icon: Icons.person_outline_rounded,
+                activeIcon: Icons.person_rounded,
               ),
             ],
           ),
@@ -141,57 +136,41 @@ class _ValorantBottomNav extends StatelessWidget {
       ),
     );
   }
-}
 
-class _NavItem extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final bool isSelected;
-  final VoidCallback onTap;
+  Widget _buildNavItem({
+    required int index,
+    required String label,
+    required IconData icon,
+    required IconData activeIcon,
+  }) {
+    final isSelected = index == currentIndex;
 
-  const _NavItem({
-    required this.icon,
-    required this.label,
-    required this.isSelected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onTap,
+      onTap: () => onTap(index),
       behavior: HitTestBehavior.opaque,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: isSelected
-              ? AppTheme.accentMagenta.withValues(alpha: 0.12)
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(6),
-          border: isSelected
-              ? Border.all(
-                  color: AppTheme.accentMagenta.withValues(alpha: 0.35),
-                  width: 1,
-                )
-              : Border.all(color: Colors.transparent, width: 1),
+          color: isSelected ? AppColors.red.withValues(alpha: 0.12) : Colors.transparent,
+          borderRadius: AppRadius.roundedPill,
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
-              icon,
+              isSelected ? activeIcon : icon,
               size: 22,
-              color: isSelected ? AppTheme.accentMagenta : AppTheme.textSecondary,
+              color: isSelected ? AppColors.red : AppColors.textSecondary,
             ),
             const SizedBox(height: 3),
             Text(
               label,
-              style: TextStyle(
+              style: AppTextStyles.badge(
+                color: isSelected ? AppColors.red : AppColors.textSecondary,
+              ).copyWith(
                 fontSize: 10,
-                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                color: isSelected ? AppTheme.accentMagenta : AppTheme.textSecondary,
-                letterSpacing: 0.5,
+                fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
               ),
             ),
           ],
