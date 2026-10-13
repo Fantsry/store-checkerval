@@ -3,18 +3,16 @@ import 'package:flutter/material.dart';
 import 'package:valorant_store_tracker/app/theme.dart';
 import 'package:valorant_store_tracker/features/career/domain/entities/match_summary.dart';
 
+
 /// Interactive 2D minimap overlay showing kill & death positions per round
 /// or overview of the entire match.
 ///
-/// Uses the Valorant API map `displayIcon` as the minimap image and the
-/// coordinate transform fields (`xMultiplier`, `yMultiplier`, `xScalarToAdd`,
-/// `yScalarToAdd`) to convert in-game world coordinates to normalized [0,1]
-/// positions on the minimap.
-///
-/// Kill indicators:
-///   - Teal ring + glow = Your kills — where the victim died
-///   - Red ring + cross = Your deaths — where you died
-///   - Muted circle     = Other player kills
+/// Markers:
+///   - Biru (Friendly / Team Kita): Color(0xFF00E5FF)
+///   - Merah (Enemy / Musuh): Color(0xFFFF4655)
+///   - Yang Mati (Victim): Ikon Agent dengan marker "X" jelas
+///   - Penembak (Killer): Ikon Agent tanpa marker "X"
+///   - Tanpa garis vektor membingungkan (clean spatial readability)
 class MapKillOverlayWidget extends StatefulWidget {
   final MatchSummary match;
   final int selectedRoundIndex;
@@ -36,6 +34,10 @@ class _MapKillOverlayWidgetState extends State<MapKillOverlayWidget> {
   bool _onlySelfEvents = false;
   MatchRoundKill? _selectedKill;
 
+  // Blue for Friendly, Red for Enemy
+  static const Color _colorFriendly = Color(0xFF00E5FF);
+  static const Color _colorEnemy = Color(0xFFFF4655);
+
   @override
   void initState() {
     super.initState();
@@ -50,6 +52,28 @@ class _MapKillOverlayWidgetState extends State<MapKillOverlayWidget> {
     }
   }
 
+  bool _isFriendlyKiller(MatchRoundKill kill) {
+    if (kill.isKillerSelf) return true;
+    if (widget.match.teammates.any((t) => t.puuid == kill.killerPuuid)) return true;
+    if (widget.match.teammates.isNotEmpty &&
+        kill.killerTeamId.isNotEmpty &&
+        kill.killerTeamId == widget.match.teammates.first.teamId) {
+      return true;
+    }
+    return false;
+  }
+
+  bool _isFriendlyVictim(MatchRoundKill kill) {
+    if (kill.isVictimSelf) return true;
+    if (widget.match.teammates.any((t) => t.puuid == kill.victimPuuid)) return true;
+    if (widget.match.teammates.isNotEmpty &&
+        kill.victimTeamId.isNotEmpty &&
+        kill.victimTeamId == widget.match.teammates.first.teamId) {
+      return true;
+    }
+    return false;
+  }
+
   @override
   Widget build(BuildContext context) {
     if (!widget.match.hasMinimapData) {
@@ -57,11 +81,9 @@ class _MapKillOverlayWidgetState extends State<MapKillOverlayWidget> {
         margin: const EdgeInsets.only(top: 10),
         padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
         decoration: BoxDecoration(
-          color: const Color(0xFF0D1117),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: Colors.white.withValues(alpha: 0.09),
-          ),
+          color: AppColors.surface,
+          borderRadius: AppRadius.roundedMd,
+          border: Border.all(color: AppColors.border),
         ),
         child: Center(
           child: Column(
@@ -69,24 +91,17 @@ class _MapKillOverlayWidgetState extends State<MapKillOverlayWidget> {
               Icon(
                 Icons.map_outlined,
                 size: 32,
-                color: AppTheme.textMuted.withValues(alpha: 0.5),
+                color: AppColors.textMuted.withValues(alpha: 0.5),
               ),
               const SizedBox(height: 8),
-              const Text(
+              Text(
                 'Kill map not available for this map/mode',
-                style: TextStyle(
-                  color: AppTheme.textMuted,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                ),
+                style: AppTextStyles.bodyMedium(color: AppColors.textMuted),
               ),
               const SizedBox(height: 4),
               Text(
                 'Minimap data is not provided for some game modes',
-                style: TextStyle(
-                  color: AppTheme.textMuted.withValues(alpha: 0.6),
-                  fontSize: 10,
-                ),
+                style: AppTextStyles.caption(color: AppColors.textMuted),
               ),
             ],
           ),
@@ -125,11 +140,9 @@ class _MapKillOverlayWidgetState extends State<MapKillOverlayWidget> {
     return Container(
       margin: const EdgeInsets.only(top: 10),
       decoration: BoxDecoration(
-        color: const Color(0xFF0D1117),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.09),
-        ),
+        color: AppColors.surface,
+        borderRadius: AppRadius.roundedMd,
+        border: Border.all(color: AppColors.border),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.35),
@@ -155,17 +168,17 @@ class _MapKillOverlayWidgetState extends State<MapKillOverlayWidget> {
                         const Icon(
                           Icons.radar_rounded,
                           size: 15,
-                          color: AppTheme.valorantCyan,
+                          color: _colorFriendly,
                         ),
                         const SizedBox(width: 6),
                         Text(
                           _showAllRounds
                               ? 'MAP OVERVIEW — ALL ROUNDS'
                               : 'KILL MAP — ROUND ${safeRoundIdx + 1}',
-                          style: const TextStyle(
-                            fontSize: 11,
+                          style: AppTextStyles.bodyMedium(
+                            color: AppColors.textPrimary,
+                          ).copyWith(
                             fontWeight: FontWeight.w800,
-                            color: AppTheme.textPrimary,
                             letterSpacing: 0.8,
                           ),
                         ),
@@ -176,10 +189,8 @@ class _MapKillOverlayWidgetState extends State<MapKillOverlayWidget> {
                     Container(
                       decoration: BoxDecoration(
                         color: Colors.black.withValues(alpha: 0.4),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.08),
-                        ),
+                        borderRadius: AppRadius.roundedSm,
+                        border: Border.all(color: AppColors.border),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -215,30 +226,56 @@ class _MapKillOverlayWidgetState extends State<MapKillOverlayWidget> {
                 Row(
                   children: [
                     _LegendDot(
-                      color: const Color(0xFF00C4A8),
+                      color: _colorFriendly,
                       label: 'Your Kill ($yourKillsCount)',
                     ),
                     const SizedBox(width: 8),
                     _LegendDot(
-                      color: AppTheme.valorantRed,
+                      color: _colorEnemy,
                       label: 'Your Death ($yourDeathsCount)',
+                    ),
+                    const SizedBox(width: 8),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 13,
+                          height: 13,
+                          decoration: const BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Colors.black54,
+                          ),
+                          child: const Icon(
+                            Icons.close_rounded,
+                            size: 10,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(width: 3),
+                        Text(
+                          'Mati (X)',
+                          style: AppTextStyles.caption(
+                            color: AppColors.textSecondary,
+                          ).copyWith(fontWeight: FontWeight.w600),
+                        ),
+                      ],
                     ),
                     const Spacer(),
                     // Filter "My Kills Only"
                     InkWell(
                       onTap: () => setState(() => _onlySelfEvents = !_onlySelfEvents),
-                      borderRadius: BorderRadius.circular(6),
+                      borderRadius: AppRadius.roundedSm,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2.5),
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                         decoration: BoxDecoration(
                           color: _onlySelfEvents
-                              ? AppTheme.valorantCyan.withValues(alpha: 0.15)
+                              ? _colorFriendly.withValues(alpha: 0.15)
                               : Colors.white.withValues(alpha: 0.04),
-                          borderRadius: BorderRadius.circular(6),
+                          borderRadius: AppRadius.roundedSm,
                           border: Border.all(
                             color: _onlySelfEvents
-                                ? AppTheme.valorantCyan.withValues(alpha: 0.5)
-                                : Colors.white.withValues(alpha: 0.08),
+                                ? _colorFriendly.withValues(alpha: 0.5)
+                                : AppColors.border,
                           ),
                         ),
                         child: Row(
@@ -247,16 +284,14 @@ class _MapKillOverlayWidgetState extends State<MapKillOverlayWidget> {
                             Icon(
                               _onlySelfEvents ? Icons.filter_alt_rounded : Icons.filter_alt_outlined,
                               size: 11,
-                              color: _onlySelfEvents ? AppTheme.valorantCyan : AppTheme.textMuted,
+                              color: _onlySelfEvents ? _colorFriendly : AppColors.textMuted,
                             ),
                             const SizedBox(width: 3),
                             Text(
                               _onlySelfEvents ? 'Mine Only' : 'All Players',
-                              style: TextStyle(
-                                fontSize: 9.5,
-                                fontWeight: FontWeight.w700,
-                                color: _onlySelfEvents ? AppTheme.valorantCyan : AppTheme.textMuted,
-                              ),
+                              style: AppTextStyles.caption(
+                                color: _onlySelfEvents ? _colorFriendly : AppColors.textMuted,
+                              ).copyWith(fontWeight: FontWeight.w700),
                             ),
                           ],
                         ),
@@ -268,7 +303,7 @@ class _MapKillOverlayWidgetState extends State<MapKillOverlayWidget> {
             ),
           ),
 
-          // 2D Minimap Canvas
+          // 2D Minimap Canvas (Tanpa Garis, Icon Agent Merah & Biru dengan Marker X)
           if (displayKills.isEmpty)
             _buildEmptyState('No kill location data recorded')
           else
@@ -282,6 +317,81 @@ class _MapKillOverlayWidgetState extends State<MapKillOverlayWidget> {
                 child: LayoutBuilder(
                   builder: (context, constraints) {
                     final size = constraints.biggest;
+
+                    // Build list of all markers (killers & victims)
+                    final markerWidgets = <Widget>[];
+
+                    // Separate non-selected and selected markers to ensure selected renders on top
+                    final unselectedMarkers = <Widget>[];
+                    final selectedMarkers = <Widget>[];
+
+                    for (final kill in displayKills) {
+                      final isSelected = _selectedKill == kill;
+
+                      // 1. Killer Marker (if location is available)
+                      if (kill.killerLocationX != null && kill.killerLocationY != null) {
+                        final killerPos = _toMinimapOffset(
+                          kill.killerLocationX!,
+                          kill.killerLocationY!,
+                          size,
+                        );
+                        final isFriendly = _isFriendlyKiller(kill);
+                        final killerWidget = _buildAgentMarker(
+                          offset: killerPos,
+                          agentIconUrl: kill.killerAgentIconUrl,
+                          agentName: kill.killerAgentName,
+                          isFriendly: isFriendly,
+                          isDead: false,
+                          isSelf: kill.isKillerSelf,
+                          isSelected: isSelected,
+                          onTap: () {
+                            setState(() {
+                              _selectedKill = _selectedKill == kill ? null : kill;
+                            });
+                          },
+                        );
+
+                        if (isSelected) {
+                          selectedMarkers.add(killerWidget);
+                        } else {
+                          unselectedMarkers.add(killerWidget);
+                        }
+                      }
+
+                      // 2. Victim Marker (where player died, with prominent X)
+                      if (kill.victimLocationX != null && kill.victimLocationY != null) {
+                        final victimPos = _toMinimapOffset(
+                          kill.victimLocationX!,
+                          kill.victimLocationY!,
+                          size,
+                        );
+                        final isFriendly = _isFriendlyVictim(kill);
+                        final victimWidget = _buildAgentMarker(
+                          offset: victimPos,
+                          agentIconUrl: kill.victimAgentIconUrl,
+                          agentName: kill.victimAgentName,
+                          isFriendly: isFriendly,
+                          isDead: true,
+                          isSelf: kill.isVictimSelf,
+                          isSelected: isSelected,
+                          onTap: () {
+                            setState(() {
+                              _selectedKill = _selectedKill == kill ? null : kill;
+                            });
+                          },
+                        );
+
+                        if (isSelected) {
+                          selectedMarkers.add(victimWidget);
+                        } else {
+                          unselectedMarkers.add(victimWidget);
+                        }
+                      }
+                    }
+
+                    markerWidgets.addAll(unselectedMarkers);
+                    markerWidgets.addAll(selectedMarkers);
+
                     return Stack(
                       children: [
                         // Map Image
@@ -290,14 +400,14 @@ class _MapKillOverlayWidgetState extends State<MapKillOverlayWidget> {
                           width: size.width,
                           height: size.height,
                           fit: BoxFit.contain,
-                          color: Colors.white.withValues(alpha: 0.8),
+                          color: Colors.white.withValues(alpha: 0.85),
                           colorBlendMode: BlendMode.modulate,
                           errorWidget: (_, __, ___) => Container(
-                            color: AppTheme.surfaceDark,
+                            color: AppColors.surface,
                             child: const Center(
                               child: Icon(
                                 Icons.map_outlined,
-                                color: AppTheme.textMuted,
+                                color: AppColors.textMuted,
                                 size: 40,
                               ),
                             ),
@@ -306,24 +416,11 @@ class _MapKillOverlayWidgetState extends State<MapKillOverlayWidget> {
 
                         // Subdued contrast overlay
                         Container(
-                          color: Colors.black.withValues(alpha: 0.22),
+                          color: Colors.black.withValues(alpha: 0.18),
                         ),
 
-                        // Direction vectors (if a kill is selected or for all your kills)
-                        CustomPaint(
-                          size: size,
-                          painter: _KillVectorPainter(
-                            match: match,
-                            kills: _selectedKill != null
-                                ? [_selectedKill!]
-                                : displayKills.where((k) => k.isKillerSelf && k.killerLocationX != null).toList(),
-                          ),
-                        ),
-
-                        // Kill position dots
-                        ...displayKills.map(
-                          (kill) => _buildKillMarker(kill, size),
-                        ),
+                        // Agent Icon Markers (Merah & Biru, X untuk yang mati, tanpa garis)
+                        ...markerWidgets,
                       ],
                     );
                   },
@@ -339,145 +436,242 @@ class _MapKillOverlayWidgetState extends State<MapKillOverlayWidget> {
     );
   }
 
-  Widget _buildKillMarker(MatchRoundKill kill, Size mapSize) {
-    // Formula for converting Valorant in-game world coordinates to [0, 1] minimap coordinates:
+  Offset _toMinimapOffset(double worldX, double worldY, Size mapSize) {
+    // Valorant coordinate transform to [0, 1] minimap space:
     // minimapX = (worldY * mapXMultiplier) + mapXScalarToAdd
     // minimapY = (worldX * mapYMultiplier) + mapYScalarToAdd
-    final victimX = kill.victimLocationX ?? 0;
-    final victimY = kill.victimLocationY ?? 0;
+    final normX = ((worldY * widget.match.mapXMultiplier) + widget.match.mapXScalarToAdd).clamp(0.0, 1.0);
+    final normY = ((worldX * widget.match.mapYMultiplier) + widget.match.mapYScalarToAdd).clamp(0.0, 1.0);
+    return Offset(normX * mapSize.width, normY * mapSize.height);
+  }
 
-    final normX = ((victimY * widget.match.mapXMultiplier) + widget.match.mapXScalarToAdd).clamp(0.0, 1.0);
-    final normY = ((victimX * widget.match.mapYMultiplier) + widget.match.mapYScalarToAdd).clamp(0.0, 1.0);
-
-    final left = normX * mapSize.width;
-    final top = normY * mapSize.height;
-
-    final isYourKill = kill.isKillerSelf;
-    final isYourDeath = kill.isVictimSelf;
-    final isSelected = _selectedKill == kill;
-
-    Color dotColor;
-    double dotSize;
-    if (isSelected) {
-      dotColor = const Color(0xFFFFD700);
-      dotSize = 18;
-    } else if (isYourKill) {
-      dotColor = const Color(0xFF00C4A8);
-      dotSize = 14;
-    } else if (isYourDeath) {
-      dotColor = AppTheme.valorantRed;
-      dotSize = 14;
-    } else {
-      dotColor = Colors.white.withValues(alpha: 0.5);
-      dotSize = 8;
-    }
+  Widget _buildAgentMarker({
+    required Offset offset,
+    required String? agentIconUrl,
+    required String agentName,
+    required bool isFriendly,
+    required bool isDead,
+    required bool isSelf,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    final ringColor = isFriendly ? _colorFriendly : _colorEnemy;
+    final markerSize = isSelected ? 30.0 : 25.0;
 
     return Positioned(
-      left: left - dotSize / 2,
-      top: top - dotSize / 2,
+      left: offset.dx - markerSize / 2,
+      top: offset.dy - markerSize / 2,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
-        onTap: () {
-          setState(() {
-            _selectedKill = _selectedKill == kill ? null : kill;
-          });
-        },
-        child: _KillDotIndicator(
-          color: dotColor,
-          size: dotSize,
-          isYourKill: isYourKill,
-          isYourDeath: isYourDeath,
-          isSelected: isSelected,
-          agentIconUrl: isYourKill
-              ? kill.victimAgentIconUrl
-              : (isYourDeath ? kill.killerAgentIconUrl : null),
+        onTap: onTap,
+        child: Container(
+          width: markerSize,
+          height: markerSize,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: AppColors.surface,
+            border: Border.all(
+              color: isSelected ? const Color(0xFFFFD700) : ringColor,
+              width: isSelected ? 2.5 : 2.0,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: (isSelected ? const Color(0xFFFFD700) : ringColor).withValues(
+                  alpha: isSelected ? 0.8 : 0.45,
+                ),
+                blurRadius: isSelected ? 8 : 4,
+                spreadRadius: isSelected ? 1.5 : 0.5,
+              ),
+            ],
+          ),
+          child: Stack(
+            children: [
+              // 1. Agent Avatar Thumbnail
+              Positioned.fill(
+                child: ClipOval(
+                  child: agentIconUrl != null && agentIconUrl.isNotEmpty
+                      ? CachedNetworkImage(
+                          imageUrl: agentIconUrl,
+                          fit: BoxFit.cover,
+                          errorWidget: (_, __, ___) => _buildAgentFallback(agentName, ringColor),
+                        )
+                      : _buildAgentFallback(agentName, ringColor),
+                ),
+              ),
+
+              // 2. Dead Marker X (Gelap + Tanda Silang X Tebal di atas Icon)
+              if (isDead) ...[
+                Positioned.fill(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.black.withValues(alpha: 0.5),
+                    ),
+                    child: Center(
+                      child: Icon(
+                        Icons.close_rounded,
+                        size: markerSize * 0.76,
+                        color: Colors.white,
+                        shadows: const [
+                          Shadow(
+                            color: Colors.black,
+                            blurRadius: 4,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+
+              // 3. Indicator "YOU" jika diri sendiri
+              if (isSelf && !isDead) ...[
+                Positioned(
+                  top: 0,
+                  right: 0,
+                  child: Container(
+                    width: 7,
+                    height: 7,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: const Color(0xFFFFD700),
+                      border: Border.all(color: Colors.black, width: 1),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAgentFallback(String agentName, Color color) {
+    final initial = agentName.isNotEmpty ? agentName[0].toUpperCase() : '?';
+    return Container(
+      color: AppColors.card,
+      child: Center(
+        child: Text(
+          initial,
+          style: TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w800,
+            color: color,
+          ),
         ),
       ),
     );
   }
 
   Widget _buildSelectedKillBanner(MatchRoundKill kill) {
-    final isYourKill = kill.isKillerSelf;
-    final isYourDeath = kill.isVictimSelf;
+    final isFriendlyKill = _isFriendlyKiller(kill);
+    final isFriendlyVictim = _isFriendlyVictim(kill);
     final timeSec = kill.roundTime > 0 ? (kill.roundTime ~/ 1000) : 0;
     final timeStr = '${(timeSec ~/ 60).toString().padLeft(1, '0')}:${(timeSec % 60).toString().padLeft(2, '0')}';
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.6),
+        color: Colors.black.withValues(alpha: 0.7),
         borderRadius: const BorderRadius.vertical(bottom: Radius.circular(14)),
         border: Border(
           top: BorderSide(
-            color: (isYourKill
-                    ? const Color(0xFF00C4A8)
-                    : (isYourDeath ? AppTheme.valorantRed : Colors.white))
-                .withValues(alpha: 0.3),
+            color: (isFriendlyKill ? _colorFriendly : _colorEnemy).withValues(alpha: 0.4),
           ),
         ),
       ),
       child: Row(
         children: [
           // Killer icon + name
-          if (kill.killerAgentIconUrl != null && kill.killerAgentIconUrl!.isNotEmpty)
-            ClipOval(
-              child: CachedNetworkImage(
-                imageUrl: kill.killerAgentIconUrl!,
-                width: 18,
-                height: 18,
-                fit: BoxFit.cover,
-                errorWidget: (_, __, ___) => const SizedBox.shrink(),
+          Container(
+            padding: const EdgeInsets.all(1.5),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: isFriendlyKill ? _colorFriendly : _colorEnemy,
+                width: 1.5,
               ),
             ),
+            child: ClipOval(
+              child: kill.killerAgentIconUrl != null && kill.killerAgentIconUrl!.isNotEmpty
+                  ? CachedNetworkImage(
+                      imageUrl: kill.killerAgentIconUrl!,
+                      width: 18,
+                      height: 18,
+                      fit: BoxFit.cover,
+                      errorWidget: (_, __, ___) => const SizedBox.shrink(),
+                    )
+                  : const SizedBox(width: 18, height: 18),
+            ),
+          ),
           const SizedBox(width: 6),
           Flexible(
             child: Text(
-              kill.killerName,
+              kill.killerName.isNotEmpty ? kill.killerName : kill.killerAgentName,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
-                color: isYourKill ? const Color(0xFF00C4A8) : AppTheme.textPrimary,
+                color: isFriendlyKill ? _colorFriendly : _colorEnemy,
               ),
             ),
           ),
           const SizedBox(width: 6),
-          const Icon(Icons.bolt_rounded, size: 14, color: AppTheme.valorantCyan),
+          const Icon(Icons.bolt_rounded, size: 14, color: _colorFriendly),
           const SizedBox(width: 6),
-          // Victim icon + name
-          if (kill.victimAgentIconUrl != null && kill.victimAgentIconUrl!.isNotEmpty)
-            ClipOval(
-              child: CachedNetworkImage(
-                imageUrl: kill.victimAgentIconUrl!,
-                width: 18,
-                height: 18,
-                fit: BoxFit.cover,
-                errorWidget: (_, __, ___) => const SizedBox.shrink(),
+          // Victim icon + name (with dead indicator)
+          Stack(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(1.5),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: isFriendlyVictim ? _colorFriendly : _colorEnemy,
+                    width: 1.5,
+                  ),
+                ),
+                child: ClipOval(
+                  child: kill.victimAgentIconUrl != null && kill.victimAgentIconUrl!.isNotEmpty
+                      ? CachedNetworkImage(
+                          imageUrl: kill.victimAgentIconUrl!,
+                          width: 18,
+                          height: 18,
+                          fit: BoxFit.cover,
+                          errorWidget: (_, __, ___) => const SizedBox.shrink(),
+                        )
+                      : const SizedBox(width: 18, height: 18),
+                ),
               ),
-            ),
+              const Positioned.fill(
+                child: Icon(Icons.close_rounded, size: 14, color: Colors.white),
+              ),
+            ],
+          ),
           const SizedBox(width: 6),
           Flexible(
             child: Text(
-              kill.victimName,
+              kill.victimName.isNotEmpty ? kill.victimName : kill.victimAgentName,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
-                color: isYourDeath ? AppTheme.valorantRed : AppTheme.textSecondary,
+                color: isFriendlyVictim ? _colorFriendly : _colorEnemy,
               ),
             ),
           ),
           const Spacer(),
           Text(
             timeStr,
-            style: const TextStyle(fontSize: 10, color: AppTheme.textMuted),
+            style: const TextStyle(fontSize: 10, color: AppColors.textMuted),
           ),
           const SizedBox(width: 6),
           InkWell(
             onTap: () => setState(() => _selectedKill = null),
-            child: const Icon(Icons.close_rounded, size: 14, color: AppTheme.textMuted),
+            child: const Icon(Icons.close_rounded, size: 14, color: AppColors.textMuted),
           ),
         ],
       ),
@@ -490,22 +684,17 @@ class _MapKillOverlayWidgetState extends State<MapKillOverlayWidget> {
       padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
       decoration: BoxDecoration(
         color: Colors.black.withValues(alpha: 0.25),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.05),
-        ),
+        borderRadius: AppRadius.roundedSm,
+        border: Border.all(color: AppColors.border),
       ),
       child: Center(
         child: Column(
           children: [
-            const Icon(Icons.radar_rounded, size: 28, color: AppTheme.textMuted),
+            const Icon(Icons.radar_rounded, size: 28, color: AppColors.textMuted),
             const SizedBox(height: 8),
             Text(
               message,
-              style: const TextStyle(
-                color: AppTheme.textMuted,
-                fontSize: 11,
-              ),
+              style: AppTextStyles.bodyMedium(color: AppColors.textMuted),
             ),
           ],
         ),
@@ -529,83 +718,24 @@ class _ModeToggleButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(6),
+      borderRadius: AppRadius.roundedSm,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
         decoration: BoxDecoration(
           color: isSelected
-              ? AppTheme.valorantRed.withValues(alpha: 0.25)
+              ? AppColors.red.withValues(alpha: 0.25)
               : Colors.transparent,
-          borderRadius: BorderRadius.circular(6),
+          borderRadius: AppRadius.roundedSm,
         ),
         child: Text(
           label,
           style: TextStyle(
             fontSize: 9.5,
             fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-            color: isSelected ? Colors.white : AppTheme.textMuted,
+            color: isSelected ? Colors.white : AppColors.textMuted,
           ),
         ),
       ),
-    );
-  }
-}
-
-class _KillDotIndicator extends StatelessWidget {
-  final Color color;
-  final double size;
-  final bool isYourKill;
-  final bool isYourDeath;
-  final bool isSelected;
-  final String? agentIconUrl;
-
-  const _KillDotIndicator({
-    required this.color,
-    required this.size,
-    required this.isYourKill,
-    required this.isYourDeath,
-    required this.isSelected,
-    this.agentIconUrl,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: color.withValues(alpha: 0.8),
-        border: Border.all(
-          color: isSelected ? Colors.white : color,
-          width: (isYourKill || isYourDeath || isSelected) ? 2.0 : 1.0,
-        ),
-        boxShadow: [
-          if (isYourKill || isYourDeath || isSelected)
-            BoxShadow(
-              color: color.withValues(alpha: 0.6),
-              blurRadius: 6,
-              spreadRadius: 1,
-            ),
-        ],
-      ),
-      child: isYourDeath
-          ? const Center(
-              child: Icon(
-                Icons.close_rounded,
-                size: 8,
-                color: Colors.white,
-              ),
-            )
-          : (agentIconUrl != null && agentIconUrl!.isNotEmpty && size >= 14
-              ? ClipOval(
-                  child: CachedNetworkImage(
-                    imageUrl: agentIconUrl!,
-                    fit: BoxFit.cover,
-                    errorWidget: (_, __, ___) => const SizedBox.shrink(),
-                  ),
-                )
-              : null),
     );
   }
 }
@@ -625,8 +755,8 @@ class _LegendDot extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-          width: 7,
-          height: 7,
+          width: 8,
+          height: 8,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             color: color,
@@ -641,60 +771,11 @@ class _LegendDot extends StatelessWidget {
         const SizedBox(width: 4),
         Text(
           label,
-          style: const TextStyle(
-            fontSize: 9.5,
-            color: AppTheme.textSecondary,
-            fontWeight: FontWeight.w600,
-          ),
+          style: AppTextStyles.caption(
+            color: AppColors.textSecondary,
+          ).copyWith(fontWeight: FontWeight.w600),
         ),
       ],
     );
-  }
-}
-
-/// Custom painter to draw directional lines from killer to victim
-class _KillVectorPainter extends CustomPainter {
-  final MatchSummary match;
-  final List<MatchRoundKill> kills;
-
-  _KillVectorPainter({
-    required this.match,
-    required this.kills,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    for (final kill in kills) {
-      if (kill.killerLocationX == null ||
-          kill.killerLocationY == null ||
-          kill.victimLocationX == null ||
-          kill.victimLocationY == null) {
-        continue;
-      }
-
-      final killerNormX = ((kill.killerLocationY! * match.mapXMultiplier) + match.mapXScalarToAdd).clamp(0.0, 1.0);
-      final killerNormY = ((kill.killerLocationX! * match.mapYMultiplier) + match.mapYScalarToAdd).clamp(0.0, 1.0);
-
-      final victimNormX = ((kill.victimLocationY! * match.mapXMultiplier) + match.mapXScalarToAdd).clamp(0.0, 1.0);
-      final victimNormY = ((kill.victimLocationX! * match.mapYMultiplier) + match.mapYScalarToAdd).clamp(0.0, 1.0);
-
-      final start = Offset(killerNormX * size.width, killerNormY * size.height);
-      final end = Offset(victimNormX * size.width, victimNormY * size.height);
-
-      final paint = Paint()
-        ..color = (kill.isKillerSelf
-                ? const Color(0xFF00C4A8)
-                : AppTheme.valorantRed)
-            .withValues(alpha: 0.45)
-        ..strokeWidth = 1.2
-        ..style = PaintingStyle.stroke;
-
-      canvas.drawLine(start, end, paint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _KillVectorPainter oldDelegate) {
-    return oldDelegate.kills != kills;
   }
 }
