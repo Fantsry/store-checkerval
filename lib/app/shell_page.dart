@@ -50,13 +50,17 @@ class ShellPage extends StatelessWidget {
         }
       case 1:
         context.goNamed('store');
-        if (context.read<StoreCubit>().state is StoreInitial) {
+        final storeState = context.read<StoreCubit>().state;
+        if (storeState is StoreInitial ||
+            (storeState is StoreLoaded && storeState.store.remainingDurationSeconds <= 0)) {
           context.read<StoreCubit>().fetchStore();
         }
       case 2:
         context.goNamed('tracker');
         if (context.read<CareerCubit>().state is CareerInitial) {
           context.read<CareerCubit>().loadCareer();
+        } else {
+          context.read<CareerCubit>().loadCareer(forceRefresh: true);
         }
       case 3:
         context.goNamed('collection');

@@ -32,9 +32,7 @@ class StoreRepositoryImpl implements StoreRepository {
     try {
       if (!forceRefresh) {
         final cached = await _localStore.getCachedSkins();
-        if (cached != null &&
-            cached.isNotEmpty &&
-            cached.any((s) => s.isBattlepass)) {
+        if (cached != null && cached.isNotEmpty) {
           return Result.success(cached);
         }
       }
@@ -519,7 +517,7 @@ class StoreRepositoryImpl implements StoreRepository {
     } on AuthException catch (e) {
       if (!forceRefresh) {
         final cached = await _localStore.getCachedDailyStore();
-        if (cached != null && !_isStoreExpired(cached)) return Result.success(cached);
+        if (cached != null && cached.featuredOffers.isNotEmpty) return Result.success(cached);
       }
       return Result.failure(
         AuthFailure(message: e.message, statusCode: e.statusCode),
@@ -527,7 +525,7 @@ class StoreRepositoryImpl implements StoreRepository {
     } catch (e) {
       if (!forceRefresh) {
         final cached = await _localStore.getCachedDailyStore();
-        if (cached != null && !_isStoreExpired(cached)) return Result.success(cached);
+        if (cached != null && cached.featuredOffers.isNotEmpty) return Result.success(cached);
       }
       String cleanMessage = 'Gagal memuat daily store';
       if (e is ServerException) {

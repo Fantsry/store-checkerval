@@ -48,7 +48,32 @@ class RiotStoreRemoteDataSourceImpl implements RiotStoreRemoteDataSource {
     DioException? lastDioException;
 
     for (final s in shardsToTry) {
-      // 1. Primary: POST /store/v3/storefront/{puuid} with empty JSON body
+      // 1. Primary: GET /store/v2/storefront/{puuid} (standard, universal Riot endpoint)
+      try {
+        final urlV2 = ApiConstants.storefrontUrl(s, cleanPuuid);
+        final response = await _dio.get(urlV2);
+
+        dynamic rawData = response.data;
+        if (rawData is String) {
+          try {
+            rawData = jsonDecode(rawData);
+          } catch (_) {}
+        }
+
+        if (rawData is Map) {
+          final data = Map<String, dynamic>.from(rawData);
+          // Attach the successfully resolved shard
+          data['_resolvedShard'] = s;
+          return data;
+        }
+      } on DioException catch (e) {
+        lastDioException = e;
+        // If 401, let AuthInterceptor handle it or try next step
+      } catch (_) {
+        // Fall through to try v3
+      }
+
+      // 2. Secondary: POST /store/v3/storefront/{puuid} with empty JSON body
       try {
         final urlV3 = ApiConstants.storefrontV3Url(s, cleanPuuid);
         final response = await _dio.post(
@@ -69,11 +94,9 @@ class RiotStoreRemoteDataSourceImpl implements RiotStoreRemoteDataSource {
 
         if (rawData is Map) {
           final data = Map<String, dynamic>.from(rawData);
-          // Attach the successfully resolved shard
           data['_resolvedShard'] = s;
 
-          // Riot v3 storefront endpoint often omits AccessoryStore (Kingdom Credits shop)
-          // or BonusStore (Night Market). If missing, enrich with v2 data on the same shard.
+          // Enrich v3 with v2 data if AccessoryStore or BonusStore is missing
           if (data['AccessoryStore'] == null || data['BonusStore'] == null) {
             try {
               final urlV2 = ApiConstants.storefrontUrl(s, cleanPuuid);
@@ -101,46 +124,7 @@ class RiotStoreRemoteDataSourceImpl implements RiotStoreRemoteDataSource {
         }
       } on DioException catch (e) {
         lastDioException = e;
-        if (e.response?.statusCode == 401) {
-          throw const AuthException(
-            message: 'Session expired, please re-authenticate',
-          );
-        }
-        // Fall through to try v2 on this shard
-      } catch (_) {
-        // Fall through to try v2 on this shard
-      }
-
-      // 2. Fallback: GET /store/v2/storefront/{puuid}
-      try {
-        final urlV2 = ApiConstants.storefrontUrl(s, cleanPuuid);
-        final response = await _dio.get(urlV2);
-
-        dynamic rawData = response.data;
-        if (rawData is String) {
-          try {
-            rawData = jsonDecode(rawData);
-          } catch (_) {}
-        }
-
-        if (rawData is Map) {
-          final data = Map<String, dynamic>.from(rawData);
-          // Attach the successfully resolved shard
-          data['_resolvedShard'] = s;
-          return data;
-        }
-      } on DioException catch (e) {
-        lastDioException = e;
-        if (e.response?.statusCode == 401) {
-          throw const AuthException(
-            message: 'Session expired, please re-authenticate',
-          );
-        }
-        // Player not on this shard, try next shard
-        continue;
-      } catch (_) {
-        continue;
-      }
+      } catch (_) {}
     }
 
     if (lastDioException?.response?.statusCode == 401) {

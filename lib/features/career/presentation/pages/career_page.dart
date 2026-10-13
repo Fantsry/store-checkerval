@@ -37,6 +37,9 @@ class _CareerPageState extends State<CareerPage> {
     final cubit = context.read<CareerCubit>();
     if (cubit.state is CareerInitial) {
       cubit.loadCareer();
+    } else {
+      // Revalidate in background so today's matches appear without waiting for pull-to-refresh
+      cubit.loadCareer(forceRefresh: true);
     }
   }
 
