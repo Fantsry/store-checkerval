@@ -8,6 +8,7 @@ import 'package:valorant_store_tracker/features/career/domain/entities/match_sum
 import 'package:valorant_store_tracker/features/career/domain/repositories/career_repository.dart';
 import 'package:valorant_store_tracker/features/live_match/data/datasources/live_match_remote_datasource.dart';
 import 'package:valorant_store_tracker/features/profile/data/datasources/profile_remote_datasource.dart';
+import 'package:valorant_store_tracker/features/social/data/datasources/riot_chat_remote_datasource.dart';
 import 'package:valorant_store_tracker/features/social/domain/entities/friend_entity.dart';
 import 'package:valorant_store_tracker/features/social/domain/repositories/social_repository.dart';
 
@@ -18,6 +19,7 @@ class SocialRepositoryImpl implements SocialRepository {
   final CareerRepository _careerRepository;
   final SecureStorageService _storage;
   final LocalStoreService _localStore;
+  final RiotChatRemoteDataSource _chatDataSource;
 
   SocialRepositoryImpl({
     required LiveMatchRemoteDataSource liveDataSource,
@@ -26,12 +28,14 @@ class SocialRepositoryImpl implements SocialRepository {
     required CareerRepository careerRepository,
     required SecureStorageService storage,
     required LocalStoreService localStore,
+    RiotChatRemoteDataSource? chatDataSource,
   })  : _liveDataSource = liveDataSource,
         _careerDataSource = careerDataSource,
         _profileDataSource = profileDataSource,
         _careerRepository = careerRepository,
         _storage = storage,
-        _localStore = localStore;
+        _localStore = localStore,
+        _chatDataSource = chatDataSource ?? RiotChatRemoteDataSource();
 
   static String _extractMatchId(Map<String, dynamic>? data) {
     if (data == null) return '';
@@ -66,29 +70,32 @@ class SocialRepositoryImpl implements SocialRepository {
   @override
   Future<Result<List<FriendEntity>>> getFriends({bool forceRefresh = false}) async {
     try {
+      final selfPuuid = await _storage.getPuuid();
       final rawList = await _localStore.getSavedFriendsJson();
       final List<FriendEntity> friends = [];
 
       for (final raw in rawList) {
         try {
           final map = jsonDecode(raw) as Map<String, dynamic>;
-          friends.add(FriendEntity.fromJson(map));
+          final friend = FriendEntity.fromJson(map);
+          // If user is authenticated, purge mock/dummy seed friends automatically
+          if (selfPuuid != null && selfPuuid.isNotEmpty && friend.puuid.startsWith('mock-')) {
+            await _localStore.deleteSavedFriend(friend.puuid);
+            continue;
+          }
+          friends.add(friend);
         } catch (_) {}
       }
 
-      // If friends list is empty, attempt auto-import from recent matches
-      if (friends.isEmpty) {
-        final importedResult = await importRecentTeammates();
-        if (importedResult.isSuccess && importedResult.valueOrNull != null && importedResult.valueOrNull!.isNotEmpty) {
-          return Result.success(importedResult.valueOrNull!);
+      // If friends list is empty and user is logged in, attempt syncing real friends
+      if (friends.isEmpty && selfPuuid != null && selfPuuid.isNotEmpty) {
+        final syncResult = await syncRiotFriends(clearMocks: true);
+        if (syncResult.isSuccess &&
+            syncResult.valueOrNull != null &&
+            syncResult.valueOrNull!.isNotEmpty) {
+          return Result.success(syncResult.valueOrNull!);
         }
-
-        // If still empty (new account with no match history), seed default squad
-        final seeded = _getSeedFriends();
-        for (final f in seeded) {
-          await _localStore.saveFriendJson(f.puuid, jsonEncode(f.toJson()));
-        }
-        return Result.success(seeded);
+        return const Result.success([]);
       }
 
       if (forceRefresh) {
@@ -645,6 +652,190 @@ class SocialRepositoryImpl implements SocialRepository {
       return Result.success(updatedFriend);
     } catch (e) {
       return Result.failure(ServerFailure(message: 'Gagal memperbarui round: $e'));
+    }
+  }
+
+  @override
+  Future<Result<List<FriendEntity>>> syncRiotFriends({bool clearMocks = true}) async {
+    try {
+      final accessToken = await _storage.getAccessToken();
+      final selfPuuid = await _storage.getPuuid() ?? '';
+      final shard = await _storage.getShard() ?? 'ap';
+
+      if (clearMocks) {
+        await clearMockFriends();
+      }
+
+      final List<FriendEntity> realFriends = [];
+
+      // ─── Method 1: Riot XMPP Remote Chat Service (Real Friends Roster) ───────
+      if (accessToken != null && accessToken.isNotEmpty) {
+        try {
+          final roster = await _chatDataSource.fetchRemoteRoster(accessToken: accessToken);
+          if (roster.isNotEmpty) {
+            final List<String> puuidsToResolve = [];
+            final Map<String, RiotFriendRosterItem> rosterMap = {};
+
+            for (final item in roster) {
+              if (item.puuid.isNotEmpty && item.puuid != selfPuuid) {
+                rosterMap[item.puuid] = item;
+                puuidsToResolve.add(item.puuid);
+              }
+            }
+
+            // Pre-fetch player names via Riot GLZ Name-Service
+            Map<String, Map<String, String>> resolvedNames = {};
+            try {
+              final namesList = await _liveDataSource.fetchPlayerNames(
+                shard: shard,
+                puuids: puuidsToResolve,
+              );
+              for (final n in namesList) {
+                final sub = (n['Subject'] ?? '').toString();
+                resolvedNames[sub] = {
+                  'gameName': (n['GameName'] ?? '').toString(),
+                  'tagLine': (n['TagLine'] ?? '').toString(),
+                };
+              }
+            } catch (_) {}
+
+            final tiersMeta = await _careerDataSource
+                .fetchCompetitiveTiersMetadata()
+                .catchError((_) => <int, Map<String, dynamic>>{});
+
+            for (final puuid in puuidsToResolve) {
+              final rosterItem = rosterMap[puuid];
+              final nameInfo = resolvedNames[puuid];
+
+              var gameName = nameInfo?['gameName'] ?? '';
+              var tagLine = nameInfo?['tagLine'] ?? '';
+
+              if (gameName.isEmpty) {
+                gameName = rosterItem?.name ?? '';
+                tagLine = rosterItem?.tag ?? '';
+              }
+              if (gameName.isEmpty) {
+                gameName = puuid.length > 8 ? puuid.substring(0, 8) : 'Friend';
+              }
+
+              // Fetch Equipped Card Banner & Account Level
+              Map<String, dynamic>? cardData;
+              int accountLevel = 1;
+              String? cardUuid;
+              try {
+                final idRes = await _profileDataSource.fetchPlayerIdentity(shard: shard, puuid: puuid);
+                final idMap = idRes['identity'] as Map<String, dynamic>? ?? {};
+                cardUuid = (idMap['PlayerCardID'] ?? idMap['playerCardId'])?.toString();
+                final lvl = idMap['AccountLevel'] ?? idMap['accountLevel'];
+                if (lvl is num) accountLevel = lvl.toInt();
+                if (cardUuid != null && cardUuid.isNotEmpty && cardUuid != '00000000-0000-0000-0000-000000000000') {
+                  cardData = await _profileDataSource.fetchPlayerCardDetails(cardUuid);
+                }
+              } catch (_) {}
+
+              // Fetch MMR & Rank
+              int? rankTier;
+              String? rankName;
+              String? rankIcon;
+              int rr = 0;
+              try {
+                final mmr = await _liveDataSource.fetchPlayerMmr(shard: shard, puuid: puuid);
+                if (mmr != null && mmr['QueueSkills'] is Map) {
+                  final qs = Map<String, dynamic>.from(mmr['QueueSkills'] as Map);
+                  final comp = qs['competitive'] as Map?;
+                  if (comp != null) {
+                    rankTier = (comp['Tier'] as num?)?.toInt();
+                    rr = (comp['RankedRating'] as num?)?.toInt() ?? 0;
+                    if (rankTier != null && tiersMeta.containsKey(rankTier)) {
+                      rankName = tiersMeta[rankTier]?['tierName'];
+                      rankIcon = tiersMeta[rankTier]?['largeIcon'] ?? tiersMeta[rankTier]?['smallIcon'];
+                    }
+                  }
+                }
+              } catch (_) {}
+
+              final friend = FriendEntity(
+                puuid: puuid,
+                gameName: gameName,
+                tagLine: tagLine,
+                accountLevel: accountLevel,
+                cardUuid: cardUuid,
+                cardName: cardData?['displayName']?.toString() ?? 'Player Card',
+                cardWideArt: cardData?['wideArt']?.toString() ??
+                    (cardUuid != null && cardUuid.isNotEmpty
+                        ? 'https://media.valorant-api.com/playercards/$cardUuid/wideart.png'
+                        : 'https://media.valorant-api.com/playercards/9fb348bc-41a0-91ad-8a3e-818035c4e561/wideart.png'),
+                cardSmallArt: cardData?['smallArt']?.toString() ??
+                    (cardUuid != null && cardUuid.isNotEmpty
+                        ? 'https://media.valorant-api.com/playercards/$cardUuid/smallart.png'
+                        : 'https://media.valorant-api.com/playercards/9fb348bc-41a0-91ad-8a3e-818035c4e561/smallart.png'),
+                cardLargeArt: cardData?['largeArt']?.toString(),
+                rankTier: rankTier,
+                rankName: rankName ?? 'Unranked',
+                rankIcon: rankIcon,
+                rankedRating: rr,
+                status: FriendLiveStatus.inLobby,
+                lastUpdated: DateTime.now(),
+              );
+
+              await _localStore.saveFriendJson(puuid, jsonEncode(friend.toJson()));
+              realFriends.add(friend);
+            }
+          }
+        } catch (_) {}
+      }
+
+      // ─── Method 2: Match Teammates Fallback ────────────────────────────────
+      if (realFriends.isEmpty) {
+        final imported = await importRecentTeammates();
+        if (imported.isSuccess && imported.valueOrNull != null && imported.valueOrNull!.isNotEmpty) {
+          realFriends.addAll(imported.valueOrNull!);
+        }
+      }
+
+      // ─── Method 3: Poll Live Match Presence for all Discovered Friends ────
+      if (realFriends.isNotEmpty) {
+        final refreshed = await refreshLivePresence();
+        if (refreshed.isSuccess && refreshed.valueOrNull != null && refreshed.valueOrNull!.isNotEmpty) {
+          return Result.success(refreshed.valueOrNull!);
+        }
+      }
+
+      return Result.success(realFriends);
+    } catch (e) {
+      return Result.failure(ServerFailure(message: 'Gagal menyinkronkan teman: $e'));
+    }
+  }
+
+  @override
+  Future<Result<void>> clearMockFriends() async {
+    try {
+      final rawList = await _localStore.getSavedFriendsJson();
+      for (final raw in rawList) {
+        try {
+          final map = jsonDecode(raw) as Map<String, dynamic>;
+          final puuid = map['puuid']?.toString() ?? '';
+          if (puuid.startsWith('mock-')) {
+            await _localStore.deleteSavedFriend(puuid);
+          }
+        } catch (_) {}
+      }
+      return const Result.success(null);
+    } catch (e) {
+      return Result.failure(ServerFailure(message: 'Gagal membersihkan data dummy: $e'));
+    }
+  }
+
+  @override
+  Future<Result<List<FriendEntity>>> loadDemoSquad() async {
+    try {
+      final seeded = _getSeedFriends();
+      for (final f in seeded) {
+        await _localStore.saveFriendJson(f.puuid, jsonEncode(f.toJson()));
+      }
+      return Result.success(seeded);
+    } catch (e) {
+      return Result.failure(ServerFailure(message: 'Gagal memuat demo squad: $e'));
     }
   }
 

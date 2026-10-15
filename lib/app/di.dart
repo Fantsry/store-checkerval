@@ -38,6 +38,7 @@ import 'package:valorant_store_tracker/features/live_match/data/datasources/live
 import 'package:valorant_store_tracker/features/live_match/data/repositories/live_match_repository_impl.dart';
 import 'package:valorant_store_tracker/features/live_match/domain/repositories/live_match_repository.dart';
 import 'package:valorant_store_tracker/features/live_match/presentation/cubit/live_match_cubit.dart';
+import 'package:valorant_store_tracker/features/social/data/datasources/riot_chat_remote_datasource.dart';
 import 'package:valorant_store_tracker/features/social/data/repositories/social_repository_impl.dart';
 import 'package:valorant_store_tracker/features/social/domain/repositories/social_repository.dart';
 import 'package:valorant_store_tracker/features/social/presentation/cubit/social_cubit.dart';
@@ -168,6 +169,10 @@ Future<void> setupDI() async {
     ),
   );
 
+  getIt.registerLazySingleton<RiotChatRemoteDataSource>(
+    () => RiotChatRemoteDataSource(dio: getIt<DioClient>().dio),
+  );
+
   getIt.registerLazySingleton<SocialRepository>(
     () => SocialRepositoryImpl(
       liveDataSource: getIt<LiveMatchRemoteDataSource>(),
@@ -176,6 +181,7 @@ Future<void> setupDI() async {
       careerRepository: getIt<CareerRepository>(),
       storage: getIt<SecureStorageService>(),
       localStore: getIt<LocalStoreService>(),
+      chatDataSource: getIt<RiotChatRemoteDataSource>(),
     ),
   );
 

@@ -73,6 +73,51 @@ class SocialCubit extends Cubit<SocialState> {
     );
   }
 
+  /// Synchronize real Riot friends via XMPP & Match History, purging mock friends
+  Future<void> syncRiotFriends({bool clearMocks = true}) async {
+    final current = _currentFriends;
+    if (state is SocialLoaded) {
+      emit((state as SocialLoaded).copyWith(isRefreshing: true));
+    } else {
+      emit(SocialLoading(cachedFriends: current));
+    }
+
+    final result = await _socialRepository.syncRiotFriends(clearMocks: clearMocks);
+
+    result.when(
+      success: (friends) {
+        if (state is SocialLoaded) {
+          emit((state as SocialLoaded).copyWith(friends: friends, isRefreshing: false));
+        } else {
+          emit(SocialLoaded(friends: friends));
+        }
+      },
+      failure: (failure) {
+        if (state is SocialLoaded) {
+          emit((state as SocialLoaded).copyWith(isRefreshing: false));
+        } else {
+          emit(SocialError(message: failure.message, cachedFriends: current));
+        }
+      },
+    );
+  }
+
+  /// Remove any dummy/mock friends from the local squad
+  Future<void> clearMockFriends() async {
+    await _socialRepository.clearMockFriends();
+    await loadFriends(forceRefresh: true);
+  }
+
+  /// Explicitly load demo squad for preview
+  Future<void> loadDemoSquad() async {
+    emit(const SocialLoading());
+    final result = await _socialRepository.loadDemoSquad();
+    result.when(
+      success: (friends) => emit(SocialLoaded(friends: friends)),
+      failure: (f) => emit(SocialError(message: f.message)),
+    );
+  }
+
   void setFilter(FriendFilter filter) {
     if (state is SocialLoaded) {
       emit((state as SocialLoaded).copyWith(activeFilter: filter));

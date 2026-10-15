@@ -199,5 +199,45 @@ void main() {
       expect(state.friends.first.liveActivity?.scoreEnemy, 6);
       expect(state.friends.first.liveActivity?.lastRoundOutcome, 'ENEMY_WON');
     });
+
+    test('syncRiotFriends calls repository and reloads friends', () async {
+      when(() => mockRepository.syncRiotFriends(clearMocks: true))
+          .thenAnswer((_) async => Result.success(testFriends));
+
+      await cubit.syncRiotFriends(clearMocks: true);
+
+      expect(cubit.state, isA<SocialLoaded>());
+      final state = cubit.state as SocialLoaded;
+      expect(state.friends, equals(testFriends));
+      verify(() => mockRepository.syncRiotFriends(clearMocks: true)).called(1);
+    });
+
+    test('clearMockFriends calls repository and reloads friends', () async {
+      when(() => mockRepository.clearMockFriends())
+          .thenAnswer((_) async => const Result.success(null));
+      when(() => mockRepository.getFriends(forceRefresh: true))
+          .thenAnswer((_) async => const Result.success([]));
+
+      await cubit.clearMockFriends();
+
+      expect(cubit.state, isA<SocialLoaded>());
+      final state = cubit.state as SocialLoaded;
+      expect(state.friends, isEmpty);
+      verify(() => mockRepository.clearMockFriends()).called(1);
+      verify(() => mockRepository.getFriends(forceRefresh: true)).called(1);
+    });
+
+    test('loadDemoSquad calls repository and updates state', () async {
+      when(() => mockRepository.loadDemoSquad())
+          .thenAnswer((_) async => Result.success(testFriends));
+
+      await cubit.loadDemoSquad();
+
+      expect(cubit.state, isA<SocialLoaded>());
+      final state = cubit.state as SocialLoaded;
+      expect(state.friends, equals(testFriends));
+      verify(() => mockRepository.loadDemoSquad()).called(1);
+    });
   });
 }
+

@@ -124,10 +124,34 @@ class _SocialPageState extends State<SocialPage>
           ],
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.sync_rounded, color: AppColors.cyan),
+            tooltip: 'Sinkronkan Teman Riot (XMPP)',
+            onPressed: () async {
+              _spinController.repeat();
+              try {
+                await context.read<SocialCubit>().syncRiotFriends(clearMocks: true);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Daftar teman Riot berhasil disinkronkan!'),
+                      backgroundColor: AppColors.cardElevated,
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
+              } finally {
+                if (mounted) {
+                  _spinController.stop();
+                  _spinController.reset();
+                }
+              }
+            },
+          ),
           RotationTransition(
             turns: _spinController,
             child: IconButton(
-              icon: const Icon(Icons.refresh_rounded, color: AppColors.cyan),
+              icon: const Icon(Icons.refresh_rounded, color: AppColors.textSecondary),
               tooltip: 'Perbarui Status Live',
               onPressed: _handleRefresh,
             ),
@@ -136,6 +160,69 @@ class _SocialPageState extends State<SocialPage>
             icon: const Icon(Icons.person_add_rounded, color: AppColors.red),
             tooltip: 'Tambah Teman',
             onPressed: _showAddFriendDialog,
+          ),
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert_rounded, color: AppColors.textSecondary),
+            color: AppColors.card,
+            onSelected: (value) async {
+              if (value == 'clear_mock') {
+                await context.read<SocialCubit>().clearMockFriends();
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Data teman dummy berhasil dibersihkan!'),
+                      backgroundColor: AppColors.cardElevated,
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
+              } else if (value == 'import_teammates') {
+                final count = await context.read<SocialCubit>().importRecentTeammates();
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('$count rekan tim berhasil diimpor!'),
+                      backgroundColor: AppColors.cardElevated,
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
+              } else if (value == 'demo_squad') {
+                await context.read<SocialCubit>().loadDemoSquad();
+              }
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'clear_mock',
+                child: Row(
+                  children: [
+                    Icon(Icons.cleaning_services_rounded, color: AppColors.lossRed, size: 18),
+                    SizedBox(width: 8),
+                    Text('Bersihkan Data Dummy'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'import_teammates',
+                child: Row(
+                  children: [
+                    Icon(Icons.history_rounded, color: AppColors.cyan, size: 18),
+                    SizedBox(width: 8),
+                    Text('Impor Rekan Tim Match'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'demo_squad',
+                child: Row(
+                  children: [
+                    Icon(Icons.sports_esports_outlined, color: AppColors.textSecondary, size: 18),
+                    SizedBox(width: 8),
+                    Text('Muat Demo Squad'),
+                  ],
+                ),
+              ),
+            ],
           ),
           const SizedBox(width: 4),
         ],
@@ -193,6 +280,23 @@ class _SocialPageState extends State<SocialPage>
   }
 
   Widget _buildLoadedContent(SocialLoaded state) {
+    if (state.friends.isEmpty) {
+      return RefreshIndicator(
+        onRefresh: () => context.read<SocialCubit>().syncRiotFriends(clearMocks: true),
+        color: AppColors.cyan,
+        backgroundColor: AppColors.card,
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+            SliverFillRemaining(
+              hasScrollBody: false,
+              child: _buildEmptyFriendsState(),
+            ),
+          ],
+        ),
+      );
+    }
+
     final filtered = state.filteredFriends;
 
     return RefreshIndicator(
@@ -513,6 +617,106 @@ class _SocialPageState extends State<SocialPage>
             child: const Text('HAPUS'),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyFriendsState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.xl,
+          vertical: AppSpacing.xxl,
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 76,
+              height: 76,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: AppColors.surface,
+                border: Border.all(color: AppColors.border),
+              ),
+              child: const Center(
+                child: Icon(
+                  Icons.group_off_rounded,
+                  size: 38,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            Text(
+              'Belum Ada Teman Terhubung',
+              style: AppTextStyles.h4(color: AppColors.textPrimary),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+              child: Text(
+                'Sinkronkan daftar teman asli Anda langsung dari akun Riot Games Anda atau tambahkan teman dengan Riot ID.',
+                style: AppTextStyles.bodyMedium(color: AppColors.textSecondary),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xl),
+            ElevatedButton.icon(
+              onPressed: () => context.read<SocialCubit>().syncRiotFriends(clearMocks: true),
+              icon: const Icon(Icons.sync_rounded),
+              label: const Text('SINKRONKAN TEMAN RIOT'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.cyan,
+                foregroundColor: Colors.black,
+                minimumSize: const Size(220, 44),
+                textStyle: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            OutlinedButton.icon(
+              onPressed: _showAddFriendDialog,
+              icon: const Icon(Icons.person_add_rounded, color: AppColors.red),
+              label: const Text(
+                'TAMBAH DENGAN RIOT ID',
+                style: TextStyle(color: AppColors.red, fontWeight: FontWeight.bold),
+              ),
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: AppColors.red),
+                minimumSize: const Size(220, 44),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            TextButton.icon(
+              onPressed: () async {
+                final count = await context.read<SocialCubit>().importRecentTeammates();
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('$count rekan tim dari riwayat pertandingan berhasil diimpor!'),
+                      backgroundColor: AppColors.cardElevated,
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
+              },
+              icon: const Icon(Icons.history_rounded, size: 18, color: AppColors.textSecondary),
+              label: const Text(
+                'Impor Rekan Tim dari Match History',
+                style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            TextButton(
+              onPressed: () => context.read<SocialCubit>().loadDemoSquad(),
+              child: const Text(
+                'Lihat Tampilan Contoh (Demo Squad)',
+                style: TextStyle(color: AppColors.textMuted, fontSize: 11),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

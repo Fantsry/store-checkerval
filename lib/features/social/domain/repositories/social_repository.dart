@@ -36,4 +36,15 @@ abstract class SocialRepository {
     required String puuid,
     required bool isAllyWon,
   });
+
+  /// Synchronize real Riot friends from remote XMPP roster and match history.
+  /// Automatically purges mock/dummy friends.
+  Future<Result<List<FriendEntity>>> syncRiotFriends({bool clearMocks = true});
+
+  /// Remove all mock/dummy seeded friends from local storage.
+  Future<Result<void>> clearMockFriends();
+
+  /// Explicitly load demo squad for testing layout when requested by user.
+  Future<Result<List<FriendEntity>>> loadDemoSquad();
 }
+
