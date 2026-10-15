@@ -12,6 +12,7 @@ import 'package:valorant_store_tracker/features/wishlist/presentation/cubit/wish
 import 'package:valorant_store_tracker/features/inventory/presentation/cubit/inventory_cubit.dart';
 import 'package:valorant_store_tracker/features/battlepass/presentation/cubit/battlepass_cubit.dart';
 import 'package:valorant_store_tracker/features/live_match/presentation/cubit/live_match_cubit.dart';
+import 'package:valorant_store_tracker/features/social/presentation/cubit/social_cubit.dart';
 
 class ValorantStoreApp extends StatelessWidget {
   const ValorantStoreApp({super.key});
@@ -46,6 +47,9 @@ class ValorantStoreApp extends StatelessWidget {
         ),
         BlocProvider<LiveMatchCubit>(
           create: (_) => getIt<LiveMatchCubit>(),
+        ),
+        BlocProvider<SocialCubit>(
+          create: (_) => getIt<SocialCubit>()..loadFriends(),
         ),
       ],
       child: MaterialApp.router(

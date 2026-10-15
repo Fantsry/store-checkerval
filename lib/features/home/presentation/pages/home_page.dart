@@ -12,6 +12,8 @@ import 'package:valorant_store_tracker/features/daily_store/presentation/bloc/st
 import 'package:valorant_store_tracker/features/daily_store/presentation/bloc/store_state.dart';
 import 'package:valorant_store_tracker/features/live_match/presentation/cubit/live_match_cubit.dart';
 import 'package:valorant_store_tracker/features/live_match/presentation/cubit/live_match_state.dart';
+import 'package:valorant_store_tracker/features/social/presentation/cubit/social_cubit.dart';
+import 'package:valorant_store_tracker/features/social/presentation/cubit/social_state.dart';
 import 'package:valorant_store_tracker/features/profile/domain/entities/user_profile.dart';
 import 'package:valorant_store_tracker/features/profile/presentation/cubit/profile_cubit.dart';
 import 'package:valorant_store_tracker/features/profile/presentation/cubit/profile_state.dart';
@@ -50,6 +52,7 @@ class _HomePageState extends State<HomePage> {
     context.read<StoreCubit>().fetchStore();
     context.read<CareerCubit>().loadCareer();
     context.read<BattlepassCubit>().loadBattlepass();
+    context.read<SocialCubit>().loadFriends();
   }
 
   @override
@@ -73,6 +76,8 @@ class _HomePageState extends State<HomePage> {
                 _buildProfileHero(),
                 const SizedBox(height: AppSpacing.xl),
                 _buildLiveMatchBanner(),
+                const SizedBox(height: AppSpacing.md),
+                _buildSocialFriendsBanner(),
                 const SizedBox(height: AppSpacing.xl),
                 _buildDailyStoreSpotlight(),
                 const SizedBox(height: AppSpacing.xl),
@@ -374,6 +379,106 @@ class _HomePageState extends State<HomePage> {
                       isInMatch
                           ? 'Track live players, ACS, KAST% & winrates'
                           : 'Scan real-time pregame & live match lobbies',
+                      style: AppTextStyles.bodySmall(color: AppColors.textSecondary),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(
+                Icons.arrow_forward_ios_rounded,
+                size: 14,
+                color: AppColors.textSecondary,
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildSocialFriendsBanner() {
+    return BlocBuilder<SocialCubit, SocialState>(
+      builder: (context, state) {
+        final playingCount = state is SocialLoaded ? state.playingCount : 0;
+        final totalCount = state is SocialLoaded ? state.totalCount : 0;
+        final hasActiveFriends = playingCount > 0;
+
+        return AscendCard(
+          onTap: () => context.push('/social'),
+          hasGlow: hasActiveFriends,
+          glowColor: AppColors.cyan,
+          borderColor: hasActiveFriends
+              ? AppColors.cyan.withValues(alpha: 0.6)
+              : AppColors.border,
+          gradient: hasActiveFriends
+              ? const LinearGradient(
+                  colors: [Color(0x2200F5D4), Color(0x0A00F5D4)],
+                )
+              : null,
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(AppSpacing.sm),
+                decoration: BoxDecoration(
+                  color: (hasActiveFriends ? AppColors.cyan : AppColors.textSecondary)
+                      .withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.people_alt_rounded,
+                  color: hasActiveFriends ? AppColors.cyan : AppColors.textSecondary,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          'SQUAD & SOCIAL RADAR',
+                          style: AppTextStyles.h4(
+                            color: hasActiveFriends
+                                ? AppColors.cyan
+                                : AppColors.textPrimary,
+                          ),
+                        ),
+                        if (hasActiveFriends) ...[
+                          const SizedBox(width: AppSpacing.xs),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 1.5,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.cyan.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(
+                                color: AppColors.cyan.withValues(alpha: 0.8),
+                              ),
+                            ),
+                            child: Text(
+                              '$playingCount IN-MATCH',
+                              style: const TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w900,
+                                color: AppColors.cyan,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      hasActiveFriends
+                          ? '$playingCount teman sedang bermain Valorant live!'
+                          : (totalCount > 0
+                              ? '$totalCount teman dilacak • Pantau player card & live game'
+                              : 'Pantau teman yang sedang main & player banner mereka'),
                       style: AppTextStyles.bodySmall(color: AppColors.textSecondary),
                     ),
                   ],

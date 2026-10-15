@@ -38,6 +38,9 @@ import 'package:valorant_store_tracker/features/live_match/data/datasources/live
 import 'package:valorant_store_tracker/features/live_match/data/repositories/live_match_repository_impl.dart';
 import 'package:valorant_store_tracker/features/live_match/domain/repositories/live_match_repository.dart';
 import 'package:valorant_store_tracker/features/live_match/presentation/cubit/live_match_cubit.dart';
+import 'package:valorant_store_tracker/features/social/data/repositories/social_repository_impl.dart';
+import 'package:valorant_store_tracker/features/social/domain/repositories/social_repository.dart';
+import 'package:valorant_store_tracker/features/social/presentation/cubit/social_cubit.dart';
 
 final getIt = GetIt.instance;
 
@@ -165,6 +168,17 @@ Future<void> setupDI() async {
     ),
   );
 
+  getIt.registerLazySingleton<SocialRepository>(
+    () => SocialRepositoryImpl(
+      liveDataSource: getIt<LiveMatchRemoteDataSource>(),
+      careerDataSource: getIt<CareerRemoteDataSource>(),
+      profileDataSource: getIt<ProfileRemoteDataSource>(),
+      careerRepository: getIt<CareerRepository>(),
+      storage: getIt<SecureStorageService>(),
+      localStore: getIt<LocalStoreService>(),
+    ),
+  );
+
   // ─── Cubits ─────────────────────────────────────────────────
   getIt.registerFactory<AuthCubit>(
     () => AuthCubit(authRepository: getIt<AuthRepository>()),
@@ -204,5 +218,9 @@ Future<void> setupDI() async {
 
   getIt.registerFactory<LiveMatchCubit>(
     () => LiveMatchCubit(repository: getIt<LiveMatchRepository>()),
+  );
+
+  getIt.registerFactory<SocialCubit>(
+    () => SocialCubit(socialRepository: getIt<SocialRepository>()),
   );
 }

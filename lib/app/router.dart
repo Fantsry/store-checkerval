@@ -30,6 +30,7 @@ import 'package:valorant_store_tracker/features/home/presentation/pages/home_pag
 import 'package:valorant_store_tracker/features/inventory/presentation/pages/inventory_page.dart';
 import 'package:valorant_store_tracker/features/live_match/presentation/pages/live_match_page.dart';
 import 'package:valorant_store_tracker/features/settings/presentation/settings_page.dart';
+import 'package:valorant_store_tracker/features/social/presentation/pages/social_page.dart';
 import 'package:valorant_store_tracker/features/wishlist/presentation/pages/catalog_page.dart';
 import 'package:valorant_store_tracker/features/wishlist/presentation/pages/wishlist_page.dart';
 
@@ -126,6 +127,18 @@ class AppRouter {
         name: 'liveMatch',
         parentNavigatorKey: _rootNavigatorKey,
         builder: (context, state) => const LiveMatchPage(),
+      ),
+      GoRoute(
+        path: '/social',
+        name: 'social',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const SocialPage(),
+      ),
+      GoRoute(
+        path: '/friends',
+        name: 'friends',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const SocialPage(),
       ),
       GoRoute(
         path: '/wishlist',

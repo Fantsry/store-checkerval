@@ -262,6 +262,16 @@ class _SettingsPageState extends State<SettingsPage> {
             children: [
               _buildPlayerCard(),
               const SizedBox(height: AppSpacing.xl),
+              SectionHeader(title: 'SOCIAL & SQUAD', subtitle: 'Friends & Live Activity Radar'),
+              const SizedBox(height: AppSpacing.sm),
+              _buildSettingTile(
+                icon: Icons.people_alt_outlined,
+                title: 'Squad & Friends Radar',
+                subtitle: 'Track live matches, presence & player banners',
+                onTap: () => context.push('/social'),
+                trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.cyan),
+              ),
+              const SizedBox(height: AppSpacing.xl),
               SectionHeader(title: 'PREFERENCES', subtitle: 'Alerts & App Behavior'),
               const SizedBox(height: AppSpacing.sm),
               _buildSettingTile(

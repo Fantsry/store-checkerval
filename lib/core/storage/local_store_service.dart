@@ -14,6 +14,7 @@ class LocalStoreService {
   static const String _profileCacheBoxName = 'profile_cache_box';
   static const String _alertRulesBoxName = 'alert_rules_box';
   static const String _careerCacheBoxName = 'career_cache_box';
+  static const String _socialFriendsBoxName = 'social_friends_box';
 
   late Box<String> _wishlistBox;
   late Box<String> _skinsCacheBox;
@@ -21,6 +22,7 @@ class LocalStoreService {
   late Box<String> _profileCacheBox;
   late Box<String> _alertRulesBox;
   late Box<String> _careerCacheBox;
+  late Box<String> _socialFriendsBox;
 
   Future<void> init() async {
     await Hive.initFlutter();
@@ -30,6 +32,7 @@ class LocalStoreService {
     _profileCacheBox = await Hive.openBox<String>(_profileCacheBoxName);
     _alertRulesBox = await Hive.openBox<String>(_alertRulesBoxName);
     _careerCacheBox = await Hive.openBox<String>(_careerCacheBoxName);
+    _socialFriendsBox = await Hive.openBox<String>(_socialFriendsBoxName);
   }
 
   // ─── Wishlist Operations ───────────────────────────────────
@@ -409,5 +412,27 @@ class LocalStoreService {
 
   Future<void> deleteMap(String key) async {
     await _storeCacheBox.delete(key);
+  }
+
+  // ─── Social Friends Operations ─────────────────────────────
+
+  Future<List<String>> getSavedFriendsJson() async {
+    return _socialFriendsBox.values.toList();
+  }
+
+  Future<void> saveFriendJson(String puuid, String jsonStr) async {
+    await _socialFriendsBox.put(puuid, jsonStr);
+  }
+
+  Future<void> saveFriendsJsonBatch(Map<String, String> friendsMap) async {
+    await _socialFriendsBox.putAll(friendsMap);
+  }
+
+  Future<void> deleteSavedFriend(String puuid) async {
+    await _socialFriendsBox.delete(puuid);
+  }
+
+  Future<void> clearSavedFriends() async {
+    await _socialFriendsBox.clear();
   }
 }
