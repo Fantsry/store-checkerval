@@ -18,6 +18,7 @@ class LiveMatchPage extends StatefulWidget {
 class _LiveMatchPageState extends State<LiveMatchPage>
     with SingleTickerProviderStateMixin {
   late AnimationController _radarController;
+  int _mobileTab = 0; // 0 = MY TEAM, 1 = ENEMY, 2 = FULL (VS)
 
   @override
   void initState() {
@@ -40,6 +41,62 @@ class _LiveMatchPageState extends State<LiveMatchPage>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.backgroundDark,
+      appBar: AppBar(
+        backgroundColor: AppTheme.backgroundDark,
+        elevation: 0,
+        title: Row(
+          children: [
+            Text(
+              'LIVE TRACKER',
+              style: GoogleFonts.inter(
+                fontSize: 16,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 1.2,
+                color: AppTheme.textPrimary,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: AppTheme.accentMagenta.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(
+                  color: AppTheme.accentMagenta.withValues(alpha: 0.3),
+                ),
+              ),
+              child: Text(
+                'HUD',
+                style: GoogleFonts.inter(
+                  fontSize: 9,
+                  fontWeight: FontWeight.w800,
+                  color: AppTheme.accentMagenta,
+                  letterSpacing: 0.8,
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(
+              Icons.sports_esports_outlined,
+              color: AppTheme.accentMagenta,
+            ),
+            tooltip: 'Preview Demo Match (Photo)',
+            onPressed: () {
+              context.read<LiveMatchCubit>().loadDemoMatch();
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.refresh_rounded, color: AppTheme.textPrimary),
+            tooltip: 'Scan Radar Now',
+            onPressed: () {
+              context.read<LiveMatchCubit>().scanLiveMatch();
+            },
+          ),
+        ],
+      ),
       body: SafeArea(
         child: BlocBuilder<LiveMatchCubit, LiveMatchState>(
           builder: (context, state) {
@@ -62,129 +119,24 @@ class _LiveMatchPageState extends State<LiveMatchPage>
                     else if (!state.matchData.isInMatch)
                       _buildInLobbyState()
                     else ...[
-                      // ─── HUD Header ────────────────────────────
+                      // ─── HUD Top Header ────────────────────────
                       SliverToBoxAdapter(
                         child: _HudHeader(matchData: state.matchData),
                       ),
 
-                      // ─── MY TEAM Section ───────────────────────
+                      // ─── Responsive Match Layout ───────────────
                       SliverToBoxAdapter(
-                        child: Padding(
-                          padding:
-                              const EdgeInsets.fromLTRB(16, 12, 16, 6),
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 3,
-                                height: 14,
-                                decoration: BoxDecoration(
-                                  color: AppTheme.accentMagenta,
-                                  borderRadius: BorderRadius.circular(2),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                'MY TEAM',
-                                style: GoogleFonts.inter(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w800,
-                                  letterSpacing: 1.2,
-                                  color: AppTheme.accentMagenta,
-                                ),
-                              ),
-                              if (state.matchData.playerSide != null) ...[
-                                const SizedBox(width: 8),
-                                Text(
-                                  state.matchData.playerSide!,
-                                  style: GoogleFonts.inter(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w500,
-                                    color: AppTheme.textSecondary,
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
+                        child: LayoutBuilder(
+                          builder: (context, constraints) {
+                            final isWide = constraints.maxWidth >= 720;
+                            if (isWide) {
+                              return _buildWideScreenLayout(state.matchData);
+                            } else {
+                              return _buildMobileLayout(state.matchData);
+                            }
+                          },
                         ),
                       ),
-                      SliverPadding(
-                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                        sliver: SliverList(
-                          delegate: SliverChildBuilderDelegate(
-                            (context, index) => Padding(
-                              padding: const EdgeInsets.only(bottom: 6),
-                              child: LivePlayerCard(
-                                player:
-                                    state.matchData.blueTeam[index],
-                                isEnemy: false,
-                              ),
-                            ),
-                            childCount:
-                                state.matchData.blueTeam.length,
-                          ),
-                        ),
-                      ),
-
-                      // ─── ENEMY TEAM Section ────────────────────
-                      if (state.matchData.redTeam.isNotEmpty) ...[
-                        SliverToBoxAdapter(
-                          child: Padding(
-                            padding:
-                                const EdgeInsets.fromLTRB(16, 8, 16, 6),
-                            child: Row(
-                              children: [
-                                Container(
-                                  width: 3,
-                                  height: 14,
-                                  decoration: BoxDecoration(
-                                    color: AppTheme.accentPurple,
-                                    borderRadius:
-                                        BorderRadius.circular(2),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'ENEMY',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w800,
-                                    letterSpacing: 1.2,
-                                    color: AppTheme.accentPurple,
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'Defense',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w500,
-                                    color: AppTheme.textSecondary,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        SliverPadding(
-                          padding:
-                              const EdgeInsets.fromLTRB(16, 0, 16, 24),
-                          sliver: SliverList(
-                            delegate: SliverChildBuilderDelegate(
-                              (context, index) => Padding(
-                                padding:
-                                    const EdgeInsets.only(bottom: 6),
-                                child: LivePlayerCard(
-                                  player:
-                                      state.matchData.redTeam[index],
-                                  isEnemy: true,
-                                ),
-                              ),
-                              childCount:
-                                  state.matchData.redTeam.length,
-                            ),
-                          ),
-                        ),
-                      ],
                     ],
                   ],
                 ],
@@ -192,6 +144,193 @@ class _LiveMatchPageState extends State<LiveMatchPage>
             );
           },
         ),
+      ),
+    );
+  }
+
+  // ─── Wide Screen Layout (2 Columns Side-by-Side like in user photo) ─
+  Widget _buildWideScreenLayout(LiveMatchData matchData) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 6, 16, 24),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ── MY TEAM (Left Column) ──────────────────────────────────
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _TeamHeader(
+                  title: 'MY TEAM',
+                  subtitle: matchData.playerSide ?? 'Attack',
+                  color: AppTheme.accentMagenta,
+                  count: matchData.blueTeam.length,
+                ),
+                const SizedBox(height: 8),
+                ...matchData.blueTeam.map(
+                  (player) => Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: LivePlayerCard(
+                      player: player,
+                      isEnemy: false,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 16),
+
+          // ── ENEMY TEAM (Right Column, Mirrored) ───────────────────
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                _TeamHeader(
+                  title: 'ENEMY',
+                  subtitle: 'Defense',
+                  color: AppTheme.accentPurple,
+                  alignRight: true,
+                  count: matchData.redTeam.length,
+                ),
+                const SizedBox(height: 8),
+                ...matchData.redTeam.map(
+                  (player) => Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: LivePlayerCard(
+                      player: player,
+                      isEnemy: true,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ─── Mobile Portrait Layout (Segmented Switcher / Stacked) ───────
+  Widget _buildMobileLayout(LiveMatchData matchData) {
+    final hasEnemies = matchData.redTeam.isNotEmpty;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(14, 4, 14, 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Segmented Tab Switcher on mobile
+          if (hasEnemies) ...[
+            Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.all(3),
+              decoration: BoxDecoration(
+                color: const Color(0xFF161924),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.06),
+                ),
+              ),
+              child: Row(
+                children: [
+                  _TabButton(
+                    label: 'MY TEAM (${matchData.blueTeam.length})',
+                    isSelected: _mobileTab == 0,
+                    activeColor: AppTheme.accentMagenta,
+                    onTap: () => setState(() => _mobileTab = 0),
+                  ),
+                  _TabButton(
+                    label: 'ENEMY (${matchData.redTeam.length})',
+                    isSelected: _mobileTab == 1,
+                    activeColor: AppTheme.accentPurple,
+                    onTap: () => setState(() => _mobileTab = 1),
+                  ),
+                  _TabButton(
+                    label: 'VS BOTH',
+                    isSelected: _mobileTab == 2,
+                    activeColor: const Color(0xFF38BDF8),
+                    onTap: () => setState(() => _mobileTab = 2),
+                  ),
+                ],
+              ),
+            ),
+          ],
+
+          // Display selected cards
+          if (_mobileTab == 0 || !hasEnemies) ...[
+            _TeamHeader(
+              title: 'MY TEAM',
+              subtitle: matchData.playerSide ?? 'Attack',
+              color: AppTheme.accentMagenta,
+              count: matchData.blueTeam.length,
+            ),
+            const SizedBox(height: 8),
+            ...matchData.blueTeam.map(
+              (player) => Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: LivePlayerCard(
+                  player: player,
+                  isEnemy: false,
+                ),
+              ),
+            ),
+          ] else if (_mobileTab == 1) ...[
+            _TeamHeader(
+              title: 'ENEMY',
+              subtitle: 'Defense',
+              color: AppTheme.accentPurple,
+              alignRight: true,
+              count: matchData.redTeam.length,
+            ),
+            const SizedBox(height: 8),
+            ...matchData.redTeam.map(
+              (player) => Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: LivePlayerCard(
+                  player: player,
+                  isEnemy: true,
+                ),
+              ),
+            ),
+          ] else ...[
+            // FULL / BOTH (VS) View
+            _TeamHeader(
+              title: 'MY TEAM',
+              subtitle: matchData.playerSide ?? 'Attack',
+              color: AppTheme.accentMagenta,
+              count: matchData.blueTeam.length,
+            ),
+            const SizedBox(height: 8),
+            ...matchData.blueTeam.map(
+              (player) => Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: LivePlayerCard(
+                  player: player,
+                  isEnemy: false,
+                ),
+              ),
+            ),
+            const SizedBox(height: 14),
+            _TeamHeader(
+              title: 'ENEMY',
+              subtitle: 'Defense',
+              color: AppTheme.accentPurple,
+              alignRight: true,
+              count: matchData.redTeam.length,
+            ),
+            const SizedBox(height: 8),
+            ...matchData.redTeam.map(
+              (player) => Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: LivePlayerCard(
+                  player: player,
+                  isEnemy: true,
+                ),
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -311,6 +450,22 @@ class _LiveMatchPageState extends State<LiveMatchPage>
                     label: const Text('RETRY SCAN'),
                   ),
                   OutlinedButton.icon(
+                    onPressed: () {
+                      context.read<LiveMatchCubit>().loadDemoMatch();
+                    },
+                    icon: const Icon(
+                      Icons.sports_esports_outlined,
+                      color: AppTheme.accentMagenta,
+                    ),
+                    label: const Text(
+                      'PREVIEW DEMO',
+                      style: TextStyle(color: AppTheme.accentMagenta),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: AppTheme.accentMagenta),
+                    ),
+                  ),
+                  OutlinedButton.icon(
                     onPressed: () => context.pushNamed('login'),
                     icon: const Icon(Icons.login_rounded),
                     label: const Text('SIGN IN WITH RIOT'),
@@ -387,12 +542,10 @@ class _LiveMatchPageState extends State<LiveMatchPage>
                   vertical: 10,
                 ),
                 decoration: BoxDecoration(
-                  color:
-                      const Color(0xFFE5B94E).withValues(alpha: 0.1),
+                  color: const Color(0xFFE5B94E).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(6),
                   border: Border.all(
-                    color: const Color(0xFFE5B94E)
-                        .withValues(alpha: 0.3),
+                    color: const Color(0xFFE5B94E).withValues(alpha: 0.3),
                   ),
                 ),
                 child: Row(
@@ -439,7 +592,7 @@ class _LiveMatchPageState extends State<LiveMatchPage>
     return SliverFillRemaining(
       hasScrollBody: false,
       child: Padding(
-        padding: const EdgeInsets.all(32),
+        padding: const EdgeInsets.all(28),
         child: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -471,7 +624,7 @@ class _LiveMatchPageState extends State<LiveMatchPage>
               ),
               const SizedBox(height: 8),
               Text(
-                'You are currently not in Agent Select or a Live Match. Join a game in Valorant on PC, then tap below to view live player ranks and agents!',
+                'You are currently not in Agent Select or a Live Match. Join a game in Valorant on PC, or tap below to preview the live HUD overlay!',
                 textAlign: TextAlign.center,
                 style: GoogleFonts.inter(
                   fontSize: 13,
@@ -479,47 +632,42 @@ class _LiveMatchPageState extends State<LiveMatchPage>
                   height: 1.5,
                 ),
               ),
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 10,
-                ),
-                decoration: BoxDecoration(
-                  color: AppTheme.surfaceLight,
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.05),
-                  ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.info_outline_rounded,
-                      size: 16,
-                      color: AppTheme.textSecondary,
-                    ),
-                    const SizedBox(width: 8),
-                    Flexible(
-                      child: Text(
-                        'Tip: Riot servers register matches 2–5s after loading starts.',
-                        style: GoogleFonts.inter(
-                          fontSize: 11,
-                          color: AppTheme.textSecondary,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
+              // Scan Radar Button
               ElevatedButton.icon(
                 onPressed: () {
                   context.read<LiveMatchCubit>().scanLiveMatch();
                 },
                 icon: const Icon(Icons.radar_rounded),
                 label: const Text('SCAN RADAR NOW'),
+              ),
+              const SizedBox(height: 12),
+              // Demo Match Preview Button
+              OutlinedButton.icon(
+                onPressed: () {
+                  context.read<LiveMatchCubit>().loadDemoMatch();
+                },
+                icon: const Icon(
+                  Icons.sports_esports_rounded,
+                  color: AppTheme.accentMagenta,
+                ),
+                label: const Text(
+                  'PREVIEW DEMO TRACKER (PHOTO MATCH)',
+                  style: TextStyle(
+                    color: AppTheme.accentMagenta,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 12,
+                  ),
+                  side: const BorderSide(
+                    color: AppTheme.accentMagenta,
+                    width: 1.5,
+                  ),
+                ),
               ),
             ],
           ),
@@ -529,7 +677,150 @@ class _LiveMatchPageState extends State<LiveMatchPage>
   }
 }
 
-// ─── HUD Header Widget ───────────────────────────────────────────
+// ─── Team Header Widget ───────────────────────────────────────────
+
+class _TeamHeader extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final Color color;
+  final bool alignRight;
+  final int count;
+
+  const _TeamHeader({
+    required this.title,
+    required this.subtitle,
+    required this.color,
+    this.alignRight = false,
+    this.count = 5,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final titleWidget = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (!alignRight) ...[
+          Container(
+            width: 3.5,
+            height: 14,
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(width: 8),
+        ],
+        Text(
+          title,
+          style: GoogleFonts.inter(
+            fontSize: 12,
+            fontWeight: FontWeight.w900,
+            letterSpacing: 1.2,
+            color: color,
+          ),
+        ),
+        if (alignRight) ...[
+          const SizedBox(width: 8),
+          Container(
+            width: 3.5,
+            height: 14,
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+        ],
+      ],
+    );
+
+    final subtitleWidget = Text(
+      subtitle,
+      style: GoogleFonts.inter(
+        fontSize: 11,
+        fontWeight: FontWeight.w500,
+        color: AppTheme.textSecondary,
+      ),
+    );
+
+    if (alignRight) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            subtitleWidget,
+            const SizedBox(width: 8),
+            titleWidget,
+          ],
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          titleWidget,
+          const SizedBox(width: 8),
+          subtitleWidget,
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Mobile Segmented Tab Button ─────────────────────────────────
+
+class _TabButton extends StatelessWidget {
+  final String label;
+  final bool isSelected;
+  final Color activeColor;
+  final VoidCallback onTap;
+
+  const _TabButton({
+    required this.label,
+    required this.isSelected,
+    required this.activeColor,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 7),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? activeColor.withValues(alpha: 0.2)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(6),
+            border: isSelected
+                ? Border.all(
+                    color: activeColor.withValues(alpha: 0.5),
+                    width: 1,
+                  )
+                : null,
+          ),
+          child: Center(
+            child: Text(
+              label,
+              style: GoogleFonts.inter(
+                fontSize: 10.5,
+                fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                color: isSelected ? activeColor : AppTheme.textSecondary,
+                letterSpacing: 0.3,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── HUD Header Widget (Sporty Header from user photo) ────────────
 
 class _HudHeader extends StatelessWidget {
   final LiveMatchData matchData;
@@ -541,14 +832,13 @@ class _HudHeader extends StatelessWidget {
     final isPreGame = matchData.phase == LiveMatchPhase.preGame;
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Status line: ● In game  Abyss · Competitive · Attack
+          // Status line: ● In game Abyss · Competitive · Attack
           Row(
             children: [
-              // Animated green dot
               _PulsingDot(
                 color: isPreGame
                     ? const Color(0xFFE5B94E)
@@ -558,19 +848,20 @@ class _HudHeader extends StatelessWidget {
               Text(
                 isPreGame ? 'Agent Select' : 'In game',
                 style: GoogleFonts.inter(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
                   color: isPreGame
                       ? const Color(0xFFE5B94E)
                       : AppTheme.winGreen,
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   '${matchData.mapName} · ${matchData.modeName}${matchData.playerSide != null ? ' · ${matchData.playerSide}' : ''}',
                   style: GoogleFonts.inter(
-                    fontSize: 11,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
                     color: AppTheme.textSecondary,
                   ),
                   maxLines: 1,
@@ -582,7 +873,7 @@ class _HudHeader extends StatelessWidget {
 
           const SizedBox(height: 8),
 
-          // Score
+          // Score: 0 - 0
           Row(
             crossAxisAlignment: CrossAxisAlignment.baseline,
             textBaseline: TextBaseline.alphabetic,
@@ -592,7 +883,7 @@ class _HudHeader extends StatelessWidget {
                 style: AppTheme.scoreBig(color: AppTheme.textPrimary),
               ),
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 10),
                 child: Text(
                   '–',
                   style: AppTheme.scoreBig(color: AppTheme.textSecondary),
@@ -610,9 +901,9 @@ class _HudHeader extends StatelessWidget {
             'SCORE',
             style: GoogleFonts.inter(
               fontSize: 10,
-              fontWeight: FontWeight.w600,
+              fontWeight: FontWeight.w700,
               color: AppTheme.textMuted,
-              letterSpacing: 1.5,
+              letterSpacing: 2,
             ),
           ),
         ],
@@ -657,8 +948,8 @@ class _PulsingDotState extends State<_PulsingDot>
       animation: _controller,
       builder: (context, child) {
         return Container(
-          width: 8,
-          height: 8,
+          width: 8.5,
+          height: 8.5,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             color: widget.color.withValues(
@@ -666,8 +957,8 @@ class _PulsingDotState extends State<_PulsingDot>
             ),
             boxShadow: [
               BoxShadow(
-                color: widget.color.withValues(alpha: 0.3),
-                blurRadius: 4,
+                color: widget.color.withValues(alpha: 0.4),
+                blurRadius: 5,
               ),
             ],
           ),

@@ -9,7 +9,6 @@ import 'package:valorant_store_tracker/features/daily_store/presentation/bloc/st
 import 'package:valorant_store_tracker/features/daily_store/presentation/widgets/accessory_store_section.dart';
 import 'package:valorant_store_tracker/features/daily_store/presentation/widgets/bundle_card.dart';
 import 'package:valorant_store_tracker/features/daily_store/presentation/widgets/night_market_section.dart';
-import 'package:valorant_store_tracker/features/auth/presentation/cubit/auth_cubit.dart';
 import 'package:valorant_store_tracker/features/profile/presentation/cubit/profile_cubit.dart';
 import 'package:valorant_store_tracker/features/profile/presentation/cubit/profile_state.dart';
 import 'package:valorant_store_tracker/features/wishlist/presentation/cubit/wishlist_cubit.dart';

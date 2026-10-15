@@ -32,6 +32,13 @@ class LivePlayerInfo extends Equatable {
   final String? currentRankEpisodeAct; // e.g. "E26A4"
   final String? peakRankEpisodeAct; // e.g. "E25A3"
 
+  // ─── Player Card Banner (Landscape Wide Art) ───────────────────
+  final String? cardUuid;
+  final String? cardWideArt; // Wide / Landscape Player Card Banner
+  final String? cardSmallArt;
+  final String? cardLargeArt;
+  final String? cardName;
+
   const LivePlayerInfo({
     required this.puuid,
     required this.gameName,
@@ -62,6 +69,12 @@ class LivePlayerInfo extends Equatable {
     this.lastNMatchCount,
     this.currentRankEpisodeAct,
     this.peakRankEpisodeAct,
+    // Player Card Banner
+    this.cardUuid,
+    this.cardWideArt,
+    this.cardSmallArt,
+    this.cardLargeArt,
+    this.cardName,
   });
 
   String get displayName =>
@@ -71,6 +84,78 @@ class LivePlayerInfo extends Equatable {
 
   double? get recentWinRate =>
       recentTotalMatches > 0 ? (recentWins / recentTotalMatches) * 100 : null;
+
+  LivePlayerInfo copyWith({
+    String? puuid,
+    String? gameName,
+    String? tagLine,
+    String? teamId,
+    String? agentName,
+    String? agentIcon,
+    String? currentRankTierName,
+    String? rankIcon,
+    int? currentRr,
+    String? peakRankTierName,
+    String? peakRankIcon,
+    int? accountLevel,
+    bool? isSelf,
+    bool? isLocked,
+    int? recentWins,
+    int? recentLosses,
+    List<bool>? recentMatchOutcomes,
+    double? averageCombatScore,
+    double? kdRatio,
+    double? kastPercentage,
+    double? kda,
+    double? averageDamageRound,
+    double? headshotPercentage,
+    double? winPercentage,
+    int? lastNActScore,
+    int? lastNMatchCount,
+    String? currentRankEpisodeAct,
+    String? peakRankEpisodeAct,
+    String? cardUuid,
+    String? cardWideArt,
+    String? cardSmallArt,
+    String? cardLargeArt,
+    String? cardName,
+  }) {
+    return LivePlayerInfo(
+      puuid: puuid ?? this.puuid,
+      gameName: gameName ?? this.gameName,
+      tagLine: tagLine ?? this.tagLine,
+      teamId: teamId ?? this.teamId,
+      agentName: agentName ?? this.agentName,
+      agentIcon: agentIcon ?? this.agentIcon,
+      currentRankTierName: currentRankTierName ?? this.currentRankTierName,
+      rankIcon: rankIcon ?? this.rankIcon,
+      currentRr: currentRr ?? this.currentRr,
+      peakRankTierName: peakRankTierName ?? this.peakRankTierName,
+      peakRankIcon: peakRankIcon ?? this.peakRankIcon,
+      accountLevel: accountLevel ?? this.accountLevel,
+      isSelf: isSelf ?? this.isSelf,
+      isLocked: isLocked ?? this.isLocked,
+      recentWins: recentWins ?? this.recentWins,
+      recentLosses: recentLosses ?? this.recentLosses,
+      recentMatchOutcomes: recentMatchOutcomes ?? this.recentMatchOutcomes,
+      averageCombatScore: averageCombatScore ?? this.averageCombatScore,
+      kdRatio: kdRatio ?? this.kdRatio,
+      kastPercentage: kastPercentage ?? this.kastPercentage,
+      kda: kda ?? this.kda,
+      averageDamageRound: averageDamageRound ?? this.averageDamageRound,
+      headshotPercentage: headshotPercentage ?? this.headshotPercentage,
+      winPercentage: winPercentage ?? this.winPercentage,
+      lastNActScore: lastNActScore ?? this.lastNActScore,
+      lastNMatchCount: lastNMatchCount ?? this.lastNMatchCount,
+      currentRankEpisodeAct: currentRankEpisodeAct ?? this.currentRankEpisodeAct,
+      peakRankEpisodeAct: peakRankEpisodeAct ?? this.peakRankEpisodeAct,
+      cardUuid: cardUuid ?? this.cardUuid,
+      cardWideArt: cardWideArt ?? this.cardWideArt,
+      cardSmallArt: cardSmallArt ?? this.cardSmallArt,
+      cardLargeArt: cardLargeArt ?? this.cardLargeArt,
+      cardName: cardName ?? this.cardName,
+    );
+  }
 
   Map<String, dynamic> toJson() => {
         'puuid': puuid,
@@ -101,6 +186,11 @@ class LivePlayerInfo extends Equatable {
         'lastNMatchCount': lastNMatchCount,
         'currentRankEpisodeAct': currentRankEpisodeAct,
         'peakRankEpisodeAct': peakRankEpisodeAct,
+        'cardUuid': cardUuid,
+        'cardWideArt': cardWideArt,
+        'cardSmallArt': cardSmallArt,
+        'cardLargeArt': cardLargeArt,
+        'cardName': cardName,
       };
 
   factory LivePlayerInfo.fromJson(Map<String, dynamic> json) => LivePlayerInfo(
@@ -137,6 +227,11 @@ class LivePlayerInfo extends Equatable {
         lastNMatchCount: json['lastNMatchCount'] as int?,
         currentRankEpisodeAct: json['currentRankEpisodeAct'] as String?,
         peakRankEpisodeAct: json['peakRankEpisodeAct'] as String?,
+        cardUuid: json['cardUuid'] as String?,
+        cardWideArt: json['cardWideArt'] as String?,
+        cardSmallArt: json['cardSmallArt'] as String?,
+        cardLargeArt: json['cardLargeArt'] as String?,
+        cardName: json['cardName'] as String?,
       );
 
   @override
@@ -169,5 +264,10 @@ class LivePlayerInfo extends Equatable {
         lastNMatchCount,
         currentRankEpisodeAct,
         peakRankEpisodeAct,
+        cardUuid,
+        cardWideArt,
+        cardSmallArt,
+        cardLargeArt,
+        cardName,
       ];
 }

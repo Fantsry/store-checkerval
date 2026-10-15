@@ -107,5 +107,35 @@ void main() {
 
       await cubit.scanLiveMatch();
     });
+
+    test('loadDemoMatch emits LiveMatchLoaded with 10 players and landscape card art', () {
+      final sample = LiveMatchData.createSampleTrackerMatch();
+      expect(sample.blueTeam, hasLength(5));
+      expect(sample.redTeam, hasLength(5));
+      expect(sample.mapName, equals('Abyss'));
+      expect(sample.modeName, equals('Competitive'));
+
+      // Check Desolate#2009 has cardWideArt
+      final desolate = sample.blueTeam.first;
+      expect(desolate.gameName, equals('Desolate'));
+      expect(desolate.tagLine, equals('2009'));
+      expect(desolate.isSelf, isTrue);
+      expect(desolate.cardWideArt, isNotNull);
+      expect(desolate.cardWideArt, contains('wideart.png'));
+      expect(desolate.averageCombatScore, equals(198));
+
+      // Check Vyse on red team
+      final vyse = sample.redTeam.first;
+      expect(vyse.gameName, equals('Vyse'));
+      expect(vyse.averageCombatScore, equals(204));
+      expect(vyse.averageDamageRound, equals(150));
+
+      cubit.loadDemoMatch();
+      expect(cubit.state, isA<LiveMatchLoaded>());
+      final loaded = cubit.state as LiveMatchLoaded;
+      expect(loaded.matchData.blueTeam, hasLength(5));
+      expect(loaded.matchData.redTeam, hasLength(5));
+    });
   });
 }
+

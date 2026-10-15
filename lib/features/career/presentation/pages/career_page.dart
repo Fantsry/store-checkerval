@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:valorant_store_tracker/app/di.dart';
 import 'package:valorant_store_tracker/features/auth/domain/repositories/auth_repository.dart';
-import 'package:valorant_store_tracker/features/auth/presentation/cubit/auth_cubit.dart';
 import 'package:valorant_store_tracker/features/career/domain/entities/career_overview.dart';
 import 'package:valorant_store_tracker/features/career/domain/entities/match_summary.dart';
 import 'package:valorant_store_tracker/features/career/presentation/cubit/career_cubit.dart';
@@ -483,14 +482,11 @@ class _CareerPageState extends State<CareerPage> {
                 ? () async {
                     final reauthResult =
                         await getIt<AuthRepository>().silentReauth();
+                    if (!mounted) return;
                     if (reauthResult.isSuccess) {
-                      if (context.mounted) {
-                        context.read<CareerCubit>().refresh();
-                      }
+                      context.read<CareerCubit>().refresh();
                     } else {
-                      if (context.mounted) {
-                        context.push('/login');
-                      }
+                      context.push('/login');
                     }
                   }
                 : () => context.read<CareerCubit>().refresh(),

@@ -346,6 +346,20 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
         final wl = _calculateRecentWinLoss(compUpdates);
         final extendedStats = _calculateExtendedStats(compUpdates, mmrData);
 
+        final playerIdentity = p['PlayerIdentity'] as Map?;
+        final cardId = (playerIdentity?['PlayerCardID'] ?? '').toString();
+        final accountLevel =
+            (playerIdentity?['AccountLevel'] as num?)?.toInt() ?? 1;
+        final cardWideArt = cardId.isNotEmpty
+            ? 'https://media.valorant-api.com/playercards/$cardId/wideart.png'
+            : null;
+        final cardSmallArt = cardId.isNotEmpty
+            ? 'https://media.valorant-api.com/playercards/$cardId/smallart.png'
+            : null;
+        final cardLargeArt = cardId.isNotEmpty
+            ? 'https://media.valorant-api.com/playercards/$cardId/largeart.png'
+            : null;
+
         final isSelf = sub == selfPuuid;
         final player = LivePlayerInfo(
           puuid: sub,
@@ -359,6 +373,11 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
           currentRr: currentRr,
           peakRankTierName: peakRank,
           peakRankIcon: peakRankIcon,
+          accountLevel: accountLevel,
+          cardUuid: cardId.isNotEmpty ? cardId : null,
+          cardWideArt: cardWideArt,
+          cardSmallArt: cardSmallArt,
+          cardLargeArt: cardLargeArt,
           isSelf: isSelf,
           isLocked: true,
           recentWins: wl.wins,
@@ -530,6 +549,20 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
         final wl = _calculateRecentWinLoss(compUpdates);
         final extendedStats = _calculateExtendedStats(compUpdates, mmrData);
 
+        final playerIdentity = p['PlayerIdentity'] as Map?;
+        final cardId = (playerIdentity?['PlayerCardID'] ?? '').toString();
+        final accountLevel =
+            (playerIdentity?['AccountLevel'] as num?)?.toInt() ?? 1;
+        final cardWideArt = cardId.isNotEmpty
+            ? 'https://media.valorant-api.com/playercards/$cardId/wideart.png'
+            : null;
+        final cardSmallArt = cardId.isNotEmpty
+            ? 'https://media.valorant-api.com/playercards/$cardId/smallart.png'
+            : null;
+        final cardLargeArt = cardId.isNotEmpty
+            ? 'https://media.valorant-api.com/playercards/$cardId/largeart.png'
+            : null;
+
         allyTeam.add(
           LivePlayerInfo(
             puuid: sub,
@@ -543,6 +576,11 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
             currentRr: currentRr,
             peakRankTierName: peakRank,
             peakRankIcon: peakRankIcon,
+            accountLevel: accountLevel,
+            cardUuid: cardId.isNotEmpty ? cardId : null,
+            cardWideArt: cardWideArt,
+            cardSmallArt: cardSmallArt,
+            cardLargeArt: cardLargeArt,
             isSelf: sub == selfPuuid,
             isLocked: charState == 'locked',
             recentWins: wl.wins,
@@ -556,8 +594,8 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
             averageDamageRound: extendedStats.adr,
             headshotPercentage: extendedStats.hs,
             winPercentage: wl.wins + wl.losses > 0
-                ? (wl.wins / (wl.wins + wl.losses)) * 100
-                : null,
+              ? (wl.wins / (wl.wins + wl.losses)) * 100
+              : null,
             lastNMatchCount: compUpdates.isNotEmpty ? compUpdates.length : null,
             lastNActScore: extendedStats.actScore,
             currentRankEpisodeAct: extendedStats.currentEpisodeAct,

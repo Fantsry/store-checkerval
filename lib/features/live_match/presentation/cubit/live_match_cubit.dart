@@ -35,6 +35,11 @@ class LiveMatchCubit extends Cubit<LiveMatchState> {
     );
   }
 
+  void loadDemoMatch() {
+    _transitionPollTimer?.cancel();
+    emit(LiveMatchLoaded(matchData: LiveMatchData.createSampleTrackerMatch()));
+  }
+
   void _scheduleTransitionPoll() {
     _transitionPollTimer?.cancel();
     _transitionPollTimer = Timer(const Duration(seconds: 3), () {
