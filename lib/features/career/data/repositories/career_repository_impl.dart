@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:dio/dio.dart';
 import 'package:valorant_store_tracker/core/error/failures.dart';
 import 'package:valorant_store_tracker/core/error/result.dart';
 import 'package:valorant_store_tracker/core/storage/local_store_service.dart';
@@ -377,13 +378,26 @@ class CareerRepositoryImpl implements CareerRepository {
 
       return Result.success(careerOverview);
     } catch (e) {
+      final isAuth = (e is DioException && e.response?.statusCode == 401) ||
+          e.toString().contains('401') ||
+          e.toString().toLowerCase().contains('unauthorized');
+
       // If network fails, check if we have cached data to fall back on
       final cachedJson = await _localStore.getCachedCareerJson(puuid);
-      if (cachedJson != null && cachedJson.isNotEmpty) {
+      if (cachedJson != null && cachedJson.isNotEmpty && !isAuth) {
         try {
           final map = jsonDecode(cachedJson) as Map<String, dynamic>;
           return Result.success(CareerOverview.fromJson(map));
         } catch (_) {}
+      }
+
+      if (isAuth) {
+        return const Result.failure(
+          AuthFailure(
+            message: 'Riot session expired after Act update. Please sign in again.',
+            statusCode: 401,
+          ),
+        );
       }
 
       return Result.failure(

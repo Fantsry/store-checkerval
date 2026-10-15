@@ -9,6 +9,7 @@ import 'package:valorant_store_tracker/features/daily_store/presentation/bloc/st
 import 'package:valorant_store_tracker/features/daily_store/presentation/widgets/accessory_store_section.dart';
 import 'package:valorant_store_tracker/features/daily_store/presentation/widgets/bundle_card.dart';
 import 'package:valorant_store_tracker/features/daily_store/presentation/widgets/night_market_section.dart';
+import 'package:valorant_store_tracker/features/auth/presentation/cubit/auth_cubit.dart';
 import 'package:valorant_store_tracker/features/profile/presentation/cubit/profile_cubit.dart';
 import 'package:valorant_store_tracker/features/profile/presentation/cubit/profile_state.dart';
 import 'package:valorant_store_tracker/features/wishlist/presentation/cubit/wishlist_cubit.dart';
@@ -19,6 +20,8 @@ import 'package:valorant_store_tracker/ui/theme/app_spacing.dart';
 import 'package:valorant_store_tracker/ui/theme/app_text_styles.dart';
 import 'package:valorant_store_tracker/ui/widgets/ascend_card.dart';
 import 'package:valorant_store_tracker/ui/widgets/countdown_timer_widget.dart';
+import 'package:valorant_store_tracker/app/di.dart';
+import 'package:valorant_store_tracker/features/auth/domain/repositories/auth_repository.dart';
 import 'package:valorant_store_tracker/ui/widgets/error_state_view.dart';
 import 'package:valorant_store_tracker/ui/widgets/section_header.dart';
 import 'package:valorant_store_tracker/ui/widgets/shimmer_loading.dart';
@@ -117,9 +120,31 @@ class _StorePageState extends State<StorePage> {
               }
 
               if (state is StoreError) {
+                final isAuthError = state.message.toLowerCase().contains('session') ||
+                    state.message.toLowerCase().contains('unauthorized') ||
+                    state.message.toLowerCase().contains('sign in') ||
+                    state.message.toLowerCase().contains('login') ||
+                    state.message.toLowerCase().contains('re-authenticate');
+
                 return ErrorStateView(
-                  message: state.message,
+                  message: isAuthError
+                      ? 'Sesi login Riot Anda memerlukan pembaruan. Ketuk untuk menyinkronkan rotasi Store.'
+                      : state.message,
                   onRetry: () => _fetchStoreData(forceRefresh: true),
+                  actionLabel: isAuthError ? 'PERBARUI SESI' : null,
+                  onAction: isAuthError
+                      ? () async {
+                          final reauthResult =
+                              await getIt<AuthRepository>().silentReauth();
+                          if (reauthResult.isSuccess) {
+                            _fetchStoreData(forceRefresh: true);
+                          } else {
+                            if (context.mounted) {
+                              context.push('/login');
+                            }
+                          }
+                        }
+                      : null,
                 );
               }
 

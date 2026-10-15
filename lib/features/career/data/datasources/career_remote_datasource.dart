@@ -111,6 +111,7 @@ class CareerRemoteDataSourceImpl implements CareerRemoteDataSource {
         }
       } on DioException catch (e) {
         if (e.response?.statusCode == 404) continue;
+        if (e.response?.statusCode == 401) rethrow;
       } catch (_) {
         // Try next shard
       }
@@ -205,6 +206,7 @@ class CareerRemoteDataSourceImpl implements CareerRemoteDataSource {
         }
       } on DioException catch (e) {
         if (e.response?.statusCode == 404) continue;
+        if (e.response?.statusCode == 401) rethrow;
       } catch (_) {
         // Try next shard
       }
@@ -247,6 +249,7 @@ class CareerRemoteDataSourceImpl implements CareerRemoteDataSource {
         }
       } on DioException catch (e) {
         if (e.response?.statusCode == 404) continue;
+        if (e.response?.statusCode == 401) rethrow;
       } catch (_) {
         // Try next shard
       }

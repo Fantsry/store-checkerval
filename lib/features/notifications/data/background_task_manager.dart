@@ -126,8 +126,15 @@ class BackgroundTaskManager {
       } catch (_) {}
     }
 
-    final clientVersion = await secureStorage.getClientVersion() ??
-        'release-09.08-shipping-9-2917531';
+    var clientVersion = await secureStorage.getClientVersion();
+    if (clientVersion == null || clientVersion.isEmpty) {
+      try {
+        clientVersion = await authRemote.getClientVersion();
+        await secureStorage.setClientVersion(clientVersion);
+      } catch (_) {
+        clientVersion = 'release-13.08-shipping-14-5627607';
+      }
+    }
 
     // Setup dio with Riot headers
     final riotDio = Dio(

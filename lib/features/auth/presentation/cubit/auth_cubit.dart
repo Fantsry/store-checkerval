@@ -18,15 +18,15 @@ class AuthCubit extends Cubit<AuthState> {
     if (cached != null) {
       // Emit authenticated with cached data first for instant UI
       emit(AuthAuthenticated(cached));
-      // Then verify / refresh silently
+      // Proactively refresh client version in background
+      _authRepository.getClientVersion().ignore();
+      // Silently refresh tokens in the background to roll cookie expiry window
       final refreshResult = await _authRepository.silentReauth();
       refreshResult.when(
         success: (session) => emit(AuthAuthenticated(session)),
-        failure: (failure) {
-          // If silent reauth fails due to invalid session, unauthenticate
-          if (failure.statusCode == 401) {
-            emit(AuthUnauthenticated(message: failure.message));
-          }
+        failure: (_) {
+          // Keep cached session authenticated — never kick user to login screen
+          // on background refresh drops, offline state, or transient server errors.
         },
       );
     } else {

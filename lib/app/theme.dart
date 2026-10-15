@@ -1,4 +1,4 @@
-/// Ascend Companion Theme Bridge
+/// Dark Esports HUD Theme Bridge
 /// Re-exports modern design tokens and provides backward compatibility.
 export 'package:valorant_store_tracker/ui/theme/app_colors.dart';
 export 'package:valorant_store_tracker/ui/theme/app_text_styles.dart';
@@ -14,7 +14,7 @@ import 'package:valorant_store_tracker/ui/theme/app_theme.dart';
 class AppTheme {
   AppTheme._();
 
-  // ─── Ascend Esports Colors ─────────────────────────────────
+  // ─── Esports Colors ─────────────────────────────────────────
   static const Color accentMagenta = AppColors.red;
   static const Color accentPurple = AppColors.purple;
   static const Color winGreen = AppColors.winGreen;
@@ -97,7 +97,7 @@ class AppTheme {
         letterSpacing: 0.8,
       );
 
-  static ThemeData get darkTheme => AscendTheme.darkTheme;
+  static ThemeData get darkTheme => DarkTheme.darkTheme;
 
   static Color getTierColor(String? tier) => AppColors.getTierColor(tier);
 

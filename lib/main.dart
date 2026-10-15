@@ -4,6 +4,7 @@ import 'package:valorant_store_tracker/app/app.dart';
 import 'package:valorant_store_tracker/app/di.dart';
 import 'package:valorant_store_tracker/app/router.dart';
 import 'package:valorant_store_tracker/core/utils/timezone_helper.dart';
+import 'package:valorant_store_tracker/features/auth/domain/repositories/auth_repository.dart';
 import 'package:valorant_store_tracker/features/notifications/data/background_task_manager.dart';
 import 'package:valorant_store_tracker/features/notifications/data/notification_service.dart';
 
@@ -29,6 +30,9 @@ Future<void> main() async {
   // Initialize core services
   await TimezoneHelper.initialize();
   await setupDI();
+
+  // Proactively refresh Riot client version in background to stay compatible with new game updates/acts
+  getIt<AuthRepository>().getClientVersion().ignore();
 
   // Initialize Notifications with deep-link navigation
   final notificationService = getIt<NotificationService>();

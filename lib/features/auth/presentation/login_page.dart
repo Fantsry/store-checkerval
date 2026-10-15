@@ -52,6 +52,12 @@ class _LoginPageState extends State<LoginPage> {
           final cookiesAuth = await cookieManager.getCookies(
             url: WebUri('https://auth.riotgames.com'),
           );
+          final cookiesAuthDirect = await cookieManager.getCookies(
+            url: WebUri('https://auth.riotgames.com/authorize'),
+          );
+          final cookiesAuthenticate = await cookieManager.getCookies(
+            url: WebUri('https://authenticate.riotgames.com'),
+          );
           final cookiesRiot = await cookieManager.getCookies(
             url: WebUri('https://riotgames.com'),
           );
@@ -60,7 +66,13 @@ class _LoginPageState extends State<LoginPage> {
           );
 
           final cookieMap = <String, String>{};
-          for (final c in [...cookiesAuth, ...cookiesRiot, ...cookiesPv]) {
+          for (final c in [
+            ...cookiesAuth,
+            ...cookiesAuthDirect,
+            ...cookiesAuthenticate,
+            ...cookiesRiot,
+            ...cookiesPv,
+          ]) {
             cookieMap[c.name] = c.value;
           }
           cookieJar = cookieMap.entries

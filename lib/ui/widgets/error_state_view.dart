@@ -8,12 +8,16 @@ class ErrorStateView extends StatelessWidget {
   final String message;
   final VoidCallback? onRetry;
   final String? title;
+  final String? actionLabel;
+  final VoidCallback? onAction;
 
   const ErrorStateView({
     super.key,
     required this.message,
     this.onRetry,
     this.title,
+    this.actionLabel,
+    this.onAction,
   });
 
   @override
@@ -50,20 +54,43 @@ class ErrorStateView extends StatelessWidget {
               style: AppTextStyles.bodyMedium(color: AppColors.textSecondary),
               textAlign: TextAlign.center,
             ),
-            if (onRetry != null) ...[
+            if (onRetry != null || onAction != null) ...[
               const SizedBox(height: AppSpacing.xl),
-              ElevatedButton.icon(
-                onPressed: onRetry,
-                icon: const Icon(Icons.refresh_rounded, size: 18),
-                label: Text(
-                  'RETRY',
-                  style: AppTextStyles.statValue(color: Colors.white, fontSize: 14),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.red,
-                  shape: RoundedRectangleBorder(borderRadius: AppRadius.roundedMd),
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                ),
+              Wrap(
+                spacing: AppSpacing.md,
+                runSpacing: AppSpacing.md,
+                alignment: WrapAlignment.center,
+                children: [
+                  if (onRetry != null)
+                    ElevatedButton.icon(
+                      onPressed: onRetry,
+                      icon: const Icon(Icons.refresh_rounded, size: 18),
+                      label: Text(
+                        'RETRY',
+                        style: AppTextStyles.statValue(color: Colors.white, fontSize: 14),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.red,
+                        shape: RoundedRectangleBorder(borderRadius: AppRadius.roundedMd),
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      ),
+                    ),
+                  if (onAction != null && actionLabel != null)
+                    ElevatedButton.icon(
+                      onPressed: onAction,
+                      icon: const Icon(Icons.login_rounded, size: 18, color: Colors.black),
+                      label: Text(
+                        actionLabel!,
+                        style: AppTextStyles.statValue(color: Colors.black, fontSize: 14),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.cyan,
+                        foregroundColor: Colors.black,
+                        shape: RoundedRectangleBorder(borderRadius: AppRadius.roundedMd),
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      ),
+                    ),
+                ],
               ),
             ],
           ],

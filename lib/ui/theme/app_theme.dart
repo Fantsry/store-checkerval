@@ -3,8 +3,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'app_colors.dart';
 import 'app_radius.dart';
 
-class AscendTheme {
-  AscendTheme._();
+class DarkTheme {
+  DarkTheme._();
 
   static ThemeData get darkTheme {
     return ThemeData(
@@ -172,3 +172,6 @@ class AscendTheme {
     );
   }
 }
+
+/// Backward compatibility alias
+typedef AscendTheme = DarkTheme;

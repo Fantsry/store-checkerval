@@ -17,7 +17,7 @@ class LiveMatchData extends Equatable {
   final List<LivePlayerInfo> blueTeam;
   final List<LivePlayerInfo> redTeam;
 
-  // ─── Ascend Companion HUD fields ─────────────────────────────
+  // ─── Live Match HUD fields ────────────────────────────────────
   final String? playerSide; // "Attack" / "Defense" (nullable)
   final int blueScore; // Ally team score
   final int redScore; // Enemy team score

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-/// Ascend Companion Design System – Color Palette
-/// Clean, high-contrast dark theme inspired by Valorant & Ascend Companion.
+/// Esports HUD Design System – Color Palette
+/// Clean, high-contrast dark theme inspired by Valorant broadcasts.
 class AppColors {
   AppColors._();
 

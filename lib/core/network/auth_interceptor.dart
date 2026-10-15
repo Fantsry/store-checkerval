@@ -42,8 +42,7 @@ class AuthInterceptor extends Interceptor {
       }
     }
 
-    final clientVersion = await _storage.getClientVersion() ??
-        'release-13.05-shipping-11-5350494';
+    final clientVersion = await _resolveClientVersion();
 
     // Riot PDP and auth endpoints require RiotClient user-agent and client platform
     options.headers['User-Agent'] = _userAgent;
@@ -81,8 +80,7 @@ class AuthInterceptor extends Interceptor {
         try {
           final newAccessToken = await _storage.getAccessToken();
           final newEntitlementsToken = await _storage.getEntitlementsToken();
-          final clientVersion = await _storage.getClientVersion() ??
-              'release-13.05-shipping-11-5350494';
+          final clientVersion = await _resolveClientVersion();
 
           final options = err.requestOptions;
           if (newAccessToken != null && newAccessToken.isNotEmpty) {
@@ -104,6 +102,27 @@ class AuthInterceptor extends Interceptor {
         }
       }
     }
+
+    // Handle 400 Bad Request client version mismatch (e.g. after Act update) by auto-refreshing client version
+    final isVersionMismatch = statusCode == 400 && !_isRiotAuthClaimError(err.response?.data);
+    if (isVersionMismatch &&
+        err.requestOptions.extra['versionRetried'] != true &&
+        !err.requestOptions.uri.host.contains('valorant-api.com')) {
+      err.requestOptions.extra['versionRetried'] = true;
+      try {
+        final newVersion = await _resolveClientVersion(forceRefresh: true);
+        final options = err.requestOptions;
+        options.headers['X-Riot-ClientVersion'] = newVersion;
+        final retryDio = Dio();
+        final response = await retryDio.fetch(options);
+        return handler.resolve(response);
+      } catch (retryErr) {
+        if (retryErr is DioException) {
+          return handler.next(retryErr);
+        }
+      }
+    }
+
     handler.next(err);
   }
 
@@ -138,7 +157,19 @@ class AuthInterceptor extends Interceptor {
     _refreshCompleter = completer;
 
     try {
-      final cookieJar = await _storage.getCookieJar();
+      var cookieJar = await _storage.getCookieJar();
+      final savedSsid = await _storage.getSsidCookie();
+      if ((cookieJar == null || cookieJar.isEmpty) &&
+          savedSsid != null &&
+          savedSsid.isNotEmpty) {
+        cookieJar = 'ssid=$savedSsid';
+      } else if (cookieJar != null &&
+          savedSsid != null &&
+          savedSsid.isNotEmpty &&
+          !cookieJar.contains('ssid=')) {
+        cookieJar = 'ssid=$savedSsid; $cookieJar';
+      }
+
       if (cookieJar == null || cookieJar.isEmpty) {
         completer.complete(false);
         return false;
@@ -224,6 +255,11 @@ class AuthInterceptor extends Interceptor {
           }
           if (updatedCookies.isNotEmpty) {
             await _storage.setCookieJar(updatedCookies);
+            final ssidMatch =
+                RegExp(r'(?:^|;\s*)ssid=([^;]+)').firstMatch(updatedCookies);
+            if (ssidMatch != null) {
+              await _storage.setSsidCookie(ssidMatch.group(1)!);
+            }
           }
 
           completer.complete(true);
@@ -283,8 +319,89 @@ class AuthInterceptor extends Interceptor {
     return cookieMap.entries.map((e) => '${e.key}=${e.value}').join('; ');
   }
 
+  static const String defaultClientVersion =
+      'release-13.08-shipping-14-5627607';
+
+  static String? _cachedClientVersion;
+  static DateTime? _cachedClientVersionTime;
+
+  /// Resolves the current Riot Client Version dynamically from cache, storage, or valorant-api.com
+  Future<String> _resolveClientVersion({bool forceRefresh = false}) async {
+    final now = DateTime.now();
+
+    // 1. Fast path: In-memory cache valid for 6 hours
+    if (!forceRefresh &&
+        _cachedClientVersion != null &&
+        _cachedClientVersionTime != null &&
+        now.difference(_cachedClientVersionTime!) < const Duration(hours: 6)) {
+      return _cachedClientVersion!;
+    }
+
+    // 2. Storage cache check
+    if (!forceRefresh) {
+      try {
+        final stored = await _storage.getClientVersion();
+        if (stored != null && stored.isNotEmpty) {
+          String? tsStr;
+          try {
+            tsStr = await _storage.getClientVersionTimestamp();
+          } catch (_) {}
+          if (tsStr != null) {
+            final ts = DateTime.tryParse(tsStr);
+            if (ts != null && now.difference(ts) < const Duration(hours: 12)) {
+              _cachedClientVersion = stored;
+              _cachedClientVersionTime = ts;
+              return stored;
+            }
+          } else {
+            // When stored without timestamp (e.g. in tests or initial setup), accept stored value
+            _cachedClientVersion = stored;
+            _cachedClientVersionTime = now;
+            return stored;
+          }
+        }
+      } catch (_) {}
+    }
+
+    // 3. Fetch fresh client version from valorant-api.com
+    try {
+      final isolatedDio = Dio(
+        BaseOptions(
+          connectTimeout: const Duration(seconds: 4),
+          receiveTimeout: const Duration(seconds: 4),
+        ),
+      );
+      final response = await isolatedDio.get(ApiConstants.valorantApiVersion);
+      final data = response.data;
+      if (data is Map && data['data'] != null) {
+        final ver = data['data']['riotClientVersion'] as String?;
+        if (ver != null && ver.isNotEmpty) {
+          _cachedClientVersion = ver;
+          _cachedClientVersionTime = now;
+          await _storage.setClientVersion(ver);
+          await _storage.setClientVersionTimestamp(now.toIso8601String());
+          return ver;
+        }
+      }
+    } catch (_) {}
+
+    // 4. Fallback to existing storage or default
+    try {
+      final fallback = await _storage.getClientVersion();
+      if (fallback != null && fallback.isNotEmpty) {
+        _cachedClientVersion = fallback;
+        _cachedClientVersionTime = now;
+        return fallback;
+      }
+    } catch (_) {}
+
+    _cachedClientVersion = defaultClientVersion;
+    _cachedClientVersionTime = now;
+    return defaultClientVersion;
+  }
+
   static const String _userAgent =
-      'RiotClient/43.0.1.4195386.4190634 rso-auth (Windows; 10;;Enterprise; x64)';
+      'RiotClient/111.0.0.3261.5663 rso-auth (Windows; 10;;Enterprise; x64)';
 
   /// Base64-encoded client platform header required by Riot API.
   static const String _clientPlatform =

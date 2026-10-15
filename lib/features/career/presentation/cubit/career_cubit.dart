@@ -30,12 +30,14 @@ class CareerCubit extends Cubit<CareerState> {
         emit(CareerLoaded(
           overview: value,
           selectedQueueFilter: currentFilter,
+          syncError: null,
         ));
       case Error(:final failure):
         if (currentOverview != null) {
           emit(CareerLoaded(
             overview: currentOverview,
             selectedQueueFilter: currentFilter,
+            syncError: failure.message,
           ));
         } else {
           emit(CareerError(failure.message, cachedOverview: null));

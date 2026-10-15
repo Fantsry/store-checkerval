@@ -1,4 +1,4 @@
-/// Ascend Companion GoRouter configuration
+/// StoreCheckerVal GoRouter configuration
 ///
 /// 5-Tab Shell:
 /// - /home        → Dashboard (Player card, store preview, recent match, live radar)

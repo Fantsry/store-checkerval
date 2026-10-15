@@ -19,7 +19,7 @@ class LivePlayerInfo extends Equatable {
   final int recentLosses;
   final List<bool> recentMatchOutcomes; // true = win, false = loss (up to 10)
 
-  // ─── Extended Stats (Ascend Companion) ────────────────────────
+  // ─── Extended Live Stats ──────────────────────────────────────
   final double? averageCombatScore; // ACS
   final double? kdRatio; // K/D
   final double? kastPercentage; // KAST%

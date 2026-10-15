@@ -172,6 +172,11 @@ class AuthRepositoryImpl implements AuthRepository {
       await _storage.setShard(shard);
       await _storage.setRegion(region);
       await _storage.setCookieJar(cookieJar);
+      // Persist dedicated SSID cookie for resilient long-term rolling sessions
+      final ssidMatch = RegExp(r'(?:^|;\s*)ssid=([^;]+)').firstMatch(cookieJar);
+      if (ssidMatch != null) {
+        await _storage.setSsidCookie(ssidMatch.group(1)!);
+      }
       if (gameName != null && gameName.isNotEmpty) {
         await _storage.setGameName(gameName);
       }
@@ -210,7 +215,19 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Future<Result<AuthSession>> silentReauth() async {
     try {
-      final cookieJar = await _storage.getCookieJar();
+      var cookieJar = await _storage.getCookieJar();
+      final savedSsid = await _storage.getSsidCookie();
+      if ((cookieJar == null || cookieJar.isEmpty) &&
+          savedSsid != null &&
+          savedSsid.isNotEmpty) {
+        cookieJar = 'ssid=$savedSsid';
+      } else if (cookieJar != null &&
+          savedSsid != null &&
+          savedSsid.isNotEmpty &&
+          !cookieJar.contains('ssid=')) {
+        cookieJar = 'ssid=$savedSsid; $cookieJar';
+      }
+
       if (cookieJar == null || cookieJar.isEmpty) {
         return const Result.failure(
           AuthFailure(message: 'No saved session cookie for reauth'),
@@ -327,7 +344,7 @@ class AuthRepositoryImpl implements AuthRepository {
       if (fallback != null) {
         return Result.success(fallback);
       }
-      return const Result.success('release-13.05-shipping-11-5350494');
+      return const Result.success('release-13.08-shipping-14-5627607');
     }
   }
 }

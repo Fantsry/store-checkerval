@@ -3,8 +3,8 @@ import '../theme/app_colors.dart';
 import '../theme/app_radius.dart';
 import '../theme/app_spacing.dart';
 
-/// Ascend-styled surface card with subtle border, optional glow, and smooth press feedback.
-class AscendCard extends StatelessWidget {
+/// Esports HUD surface card with subtle border, optional glow, and smooth press feedback.
+class HudCard extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry? padding;
   final EdgeInsetsGeometry? margin;
@@ -17,7 +17,7 @@ class AscendCard extends StatelessWidget {
   final bool hasGlow;
   final Color? glowColor;
 
-  const AscendCard({
+  const HudCard({
     super.key,
     required this.child,
     this.padding = const EdgeInsets.all(AppSpacing.lg),
@@ -84,3 +84,6 @@ class AscendCard extends StatelessWidget {
     return content;
   }
 }
+
+/// Backward compatibility alias
+typedef AscendCard = HudCard;

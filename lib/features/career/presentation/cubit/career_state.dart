@@ -25,10 +25,12 @@ class CareerLoading extends CareerState {
 class CareerLoaded extends CareerState {
   final CareerOverview overview;
   final String selectedQueueFilter;
+  final String? syncError;
 
   const CareerLoaded({
     required this.overview,
     this.selectedQueueFilter = 'all',
+    this.syncError,
   });
 
   List<MatchSummary> get filteredMatches {
@@ -56,15 +58,18 @@ class CareerLoaded extends CareerState {
   CareerLoaded copyWith({
     CareerOverview? overview,
     String? selectedQueueFilter,
+    String? syncError,
+    bool clearSyncError = false,
   }) {
     return CareerLoaded(
       overview: overview ?? this.overview,
       selectedQueueFilter: selectedQueueFilter ?? this.selectedQueueFilter,
+      syncError: clearSyncError ? null : (syncError ?? this.syncError),
     );
   }
 
   @override
-  List<Object?> get props => [overview, selectedQueueFilter];
+  List<Object?> get props => [overview, selectedQueueFilter, syncError];
 }
 
 class CareerError extends CareerState {

@@ -5,7 +5,7 @@ import 'package:valorant_store_tracker/app/theme.dart';
 import 'package:valorant_store_tracker/features/live_match/domain/entities/live_player_info.dart';
 import 'package:valorant_store_tracker/features/live_match/presentation/widgets/gem_rank_icon.dart';
 
-/// Ascend Companion style player card for live match.
+/// Esports HUD style player card for live match.
 /// Features: left accent bar, agent avatar, name/tag, W/L squares,
 /// gem rank icons (CURRENT + PEAK), stat row (ACT, WIN, K/D, KAST, KDA, ACS, HS%, ADR).
 class LivePlayerCard extends StatefulWidget {

@@ -56,6 +56,60 @@ void main() {
     );
 
     blocTest<AuthCubit, AuthState>(
+      'emits [AuthLoading, AuthAuthenticated] and stays authenticated when background silentReauth fails',
+      build: () {
+        when(() => mockAuthRepository.getCachedSession())
+            .thenAnswer((_) async => tSession);
+        when(() => mockAuthRepository.getClientVersion())
+            .thenAnswer((_) async => const Result.success('13.08'));
+        when(() => mockAuthRepository.silentReauth()).thenAnswer((_) async =>
+            const Result.failure(ServerFailure(message: 'Network offline')));
+        return authCubit;
+      },
+      act: (cubit) => cubit.checkAuthStatus(),
+      expect: () => [
+        const AuthLoading(message: 'Checking session...'),
+        const AuthAuthenticated(tSession),
+      ],
+    );
+
+    blocTest<AuthCubit, AuthState>(
+      'emits updated AuthAuthenticated when background silentReauth succeeds',
+      build: () {
+        const refreshedSession = AuthSession(
+          accessToken: 'new_access',
+          idToken: 'new_id',
+          entitlementsToken: 'new_ent',
+          puuid: 'puuid_123',
+          shard: 'ap',
+          region: 'ap',
+          cookieJar: 'ssid=new_test',
+        );
+        when(() => mockAuthRepository.getCachedSession())
+            .thenAnswer((_) async => tSession);
+        when(() => mockAuthRepository.getClientVersion())
+            .thenAnswer((_) async => const Result.success('13.08'));
+        when(() => mockAuthRepository.silentReauth())
+            .thenAnswer((_) async => const Result.success(refreshedSession));
+        return authCubit;
+      },
+      act: (cubit) => cubit.checkAuthStatus(),
+      expect: () => [
+        const AuthLoading(message: 'Checking session...'),
+        const AuthAuthenticated(tSession),
+        const AuthAuthenticated(AuthSession(
+          accessToken: 'new_access',
+          idToken: 'new_id',
+          entitlementsToken: 'new_ent',
+          puuid: 'puuid_123',
+          shard: 'ap',
+          region: 'ap',
+          cookieJar: 'ssid=new_test',
+        )),
+      ],
+    );
+
+    blocTest<AuthCubit, AuthState>(
       'emits [AuthLoading, AuthAuthenticated] when loginWithTokens succeeds',
       build: () {
         when(() => mockAuthRepository.loginWithTokens(

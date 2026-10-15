@@ -735,7 +735,7 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
     return (wins: wins, losses: losses, outcomes: outcomes);
   }
 
-  /// Calculate extended stats for Ascend Companion player card.
+  /// Calculate extended stats for live player card.
   /// Data derivable from competitive updates: WIN%, K/D proxy.
   /// ACS, ADR, HS%, KAST, KDA are not available from competitive updates
   /// alone, so they remain null unless we can extract them.

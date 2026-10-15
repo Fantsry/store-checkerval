@@ -24,7 +24,7 @@ class ShellPage extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppColors.background,
       body: child,
-      bottomNavigationBar: _AscendBottomNav(
+      bottomNavigationBar: _EsportsBottomNav(
         currentIndex: _calculateSelectedIndex(context),
         onTap: (index) => _onItemTapped(index, context),
       ),
@@ -76,11 +76,11 @@ class ShellPage extends StatelessWidget {
   }
 }
 
-class _AscendBottomNav extends StatelessWidget {
+class _EsportsBottomNav extends StatelessWidget {
   final int currentIndex;
   final ValueChanged<int> onTap;
 
-  const _AscendBottomNav({
+  const _EsportsBottomNav({
     required this.currentIndex,
     required this.onTap,
   });

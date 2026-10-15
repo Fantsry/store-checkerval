@@ -36,7 +36,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   AuthRemoteDataSourceImpl({required Dio dio}) : _dio = dio;
 
   static const String _userAgent =
-      'RiotClient/43.0.1.4195386.4190634 rso-auth (Windows; 10;;Enterprise; x64)';
+      'RiotClient/111.0.0.3261.5663 rso-auth (Windows; 10;;Enterprise; x64)';
 
   String _extractCookies(Headers headers, [String? existingCookies]) {
     final setCookies = headers['set-cookie'] ?? [];
@@ -553,9 +553,18 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         }
       }
 
-      throw const AuthException(message: 'Silent re-authentication failed');
+      throw const AuthException(
+        message: 'Silent re-authentication failed: session cookies expired or invalid',
+        statusCode: 401,
+      );
     } on DioException catch (e) {
-      throw AuthException(
+      if (e.response?.statusCode == 401 || e.response?.statusCode == 403) {
+        throw AuthException(
+          message: 'Silent re-authentication unauthorized: cookies expired',
+          statusCode: e.response!.statusCode,
+        );
+      }
+      throw ServerException(
         message: e.message ?? 'Silent re-auth network error',
         statusCode: e.response?.statusCode,
       );
@@ -573,9 +582,9 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
           return version;
         }
       }
-      return 'release-13.05-shipping-11-5350494';
+      return 'release-13.08-shipping-14-5627607';
     } catch (_) {
-      return 'release-13.05-shipping-11-5350494';
+      return 'release-13.08-shipping-14-5627607';
     }
   }
 }

@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:valorant_store_tracker/app/di.dart';
+import 'package:valorant_store_tracker/features/auth/domain/repositories/auth_repository.dart';
+import 'package:valorant_store_tracker/features/auth/presentation/cubit/auth_cubit.dart';
 import 'package:valorant_store_tracker/features/career/domain/entities/career_overview.dart';
 import 'package:valorant_store_tracker/features/career/domain/entities/match_summary.dart';
 import 'package:valorant_store_tracker/features/career/presentation/cubit/career_cubit.dart';
@@ -84,9 +87,32 @@ class _CareerPageState extends State<CareerPage> {
               }
 
               if (state is CareerError && state.cachedOverview == null) {
+                final isAuthError = state.message.toLowerCase().contains('session') ||
+                    state.message.toLowerCase().contains('unauthorized') ||
+                    state.message.toLowerCase().contains('sign in') ||
+                    state.message.toLowerCase().contains('login') ||
+                    state.message.toLowerCase().contains('re-authenticate');
                 return ErrorStateView(
-                  message: state.message,
+                  message: isAuthError
+                      ? 'Sesi login Riot Anda memerlukan pembaruan. Ketuk untuk menyinkronkan riwayat pertandingan.'
+                      : state.message,
                   onRetry: () => context.read<CareerCubit>().refresh(),
+                  actionLabel: isAuthError ? 'PERBARUI SESI' : null,
+                  onAction: isAuthError
+                      ? () async {
+                          final reauthResult =
+                              await getIt<AuthRepository>().silentReauth();
+                          if (reauthResult.isSuccess) {
+                            if (context.mounted) {
+                              context.read<CareerCubit>().refresh();
+                            }
+                          } else {
+                            if (context.mounted) {
+                              context.push('/login');
+                            }
+                          }
+                        }
+                      : null,
                 );
               }
 
@@ -109,6 +135,10 @@ class _CareerPageState extends State<CareerPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    if (state is CareerLoaded && state.syncError != null) ...[
+                      _buildSyncErrorBanner(state.syncError!),
+                      const SizedBox(height: AppSpacing.md),
+                    ],
                     _buildRankAndPeakCard(overview),
                     const SizedBox(height: AppSpacing.lg),
                     _buildPerformanceStatsGrid(overview),
@@ -414,6 +444,66 @@ class _CareerPageState extends State<CareerPage> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildSyncErrorBanner(String error) {
+    final isAuth = error.toLowerCase().contains('session') ||
+        error.toLowerCase().contains('unauthorized') ||
+        error.toLowerCase().contains('sign in') ||
+        error.toLowerCase().contains('login') ||
+        error.toLowerCase().contains('re-authenticate');
+
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.sm,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: AppRadius.roundedMd,
+        border: Border.all(color: AppColors.lossRed.withValues(alpha: 0.6)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.warning_amber_rounded, color: AppColors.lossRed, size: 20),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Text(
+              isAuth
+                  ? 'Sesi Riot memerlukan pembaruan. Pertandingan terbaru belum tersinkron.'
+                  : 'Gagal memperbarui match terbaru: $error',
+              style: AppTextStyles.caption(color: AppColors.textSecondary),
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          TextButton(
+            onPressed: isAuth
+                ? () async {
+                    final reauthResult =
+                        await getIt<AuthRepository>().silentReauth();
+                    if (reauthResult.isSuccess) {
+                      if (context.mounted) {
+                        context.read<CareerCubit>().refresh();
+                      }
+                    } else {
+                      if (context.mounted) {
+                        context.push('/login');
+                      }
+                    }
+                  }
+                : () => context.read<CareerCubit>().refresh(),
+            child: Text(
+              isAuth ? 'PERBARUI' : 'SYNC',
+              style: const TextStyle(
+                color: AppColors.cyan,
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

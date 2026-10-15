@@ -5,7 +5,7 @@ import 'package:valorant_store_tracker/app/theme.dart';
 import 'package:valorant_store_tracker/features/career/domain/entities/career_overview.dart';
 import 'package:valorant_store_tracker/features/career/domain/entities/match_summary.dart';
 
-/// Ascend Companion-style performance overview card showing:
+/// Esports HUD-style performance overview card showing:
 /// - Recent Form: last 5 match W/L indicator squares
 /// - Win/Loss Streak
 /// - Top 3 Agents (icon + win rate + K/D)
