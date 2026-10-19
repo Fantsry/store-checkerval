@@ -183,29 +183,7 @@ class BattlepassRepositoryImpl implements BattlepassRepository {
         }
       }
 
-      // 1. Try matching ActiveSpecialContract from Riot response
-      if (activeSpecialContract.isNotEmpty &&
-          seasonContracts.containsKey(activeSpecialContract)) {
-        bpContractMeta = seasonContracts[activeSpecialContract];
-      }
-
-      // 2. Try matching from player's contracts in contractsData
-      final playerContracts = (contractsData['Contracts'] as List<dynamic>? ?? [])
-          .whereType<Map<String, dynamic>>()
-          .toList();
-
-      if (bpContractMeta == null) {
-        for (final pc in playerContracts.reversed) {
-          final defId =
-              (pc['ContractDefinitionID'] ?? '').toString().toLowerCase();
-          if (seasonContracts.containsKey(defId)) {
-            bpContractMeta = seasonContracts[defId];
-            break;
-          }
-        }
-      }
-
-      // 3. Try matching current Act season by active UTC dates
+      // 1. Try matching current Act season by active UTC dates
       if (bpContractMeta == null && seasonsMetadata.isNotEmpty) {
         final now = DateTime.now().toUtc();
         String? activeSeasonUuid;
@@ -239,6 +217,29 @@ class BattlepassRepositoryImpl implements BattlepassRepository {
         }
       }
 
+      // 2. Try matching ActiveSpecialContract from Riot response
+      if (bpContractMeta == null &&
+          activeSpecialContract.isNotEmpty &&
+          seasonContracts.containsKey(activeSpecialContract)) {
+        bpContractMeta = seasonContracts[activeSpecialContract];
+      }
+
+      // 3. Try matching from player's contracts in contractsData
+      final playerContracts = (contractsData['Contracts'] as List<dynamic>? ?? [])
+          .whereType<Map<String, dynamic>>()
+          .toList();
+
+      if (bpContractMeta == null) {
+        for (final pc in playerContracts.reversed) {
+          final defId =
+              (pc['ContractDefinitionID'] ?? '').toString().toLowerCase();
+          if (seasonContracts.containsKey(defId)) {
+            bpContractMeta = seasonContracts[defId];
+            break;
+          }
+        }
+      }
+
       // 4. Fallback: pick the latest Season contract chronologically
       if (bpContractMeta == null && orderedSeasonContracts.isNotEmpty) {
         bpContractMeta = orderedSeasonContracts.last;
@@ -268,16 +269,51 @@ class BattlepassRepositoryImpl implements BattlepassRepository {
 
       // Extract chapter levels & XP requirements
       final List<Map<String, dynamic>> allLevels = [];
+      final List<Map<String, dynamic>> rawUpcomingRewards = [];
       final content = bpContractMeta?['content'] as Map<String, dynamic>?;
       final chapters = (content?['chapters'] as List<dynamic>? ?? [])
           .whereType<Map<String, dynamic>>()
           .toList();
 
+      int tierCounter = 0;
       for (final ch in chapters) {
         final levels = (ch['levels'] as List<dynamic>? ?? [])
             .whereType<Map<String, dynamic>>()
             .toList();
+        final freeRewards = (ch['freeRewards'] as List<dynamic>? ?? [])
+            .whereType<Map<String, dynamic>>()
+            .toList();
+
         allLevels.addAll(levels);
+
+        for (final lvl in levels) {
+          tierCounter++;
+          if (tierCounter > currentTier && rawUpcomingRewards.length < 15) {
+            final reward = lvl['reward'] as Map<String, dynamic>?;
+            if (reward != null) {
+              rawUpcomingRewards.add({
+                'tier': tierCounter,
+                'uuid': (reward['uuid'] ?? '').toString(),
+                'type': (reward['type'] ?? 'Item').toString(),
+                'isFree': false,
+              });
+            }
+          }
+        }
+
+        // Add milestone free rewards for this chapter
+        if (tierCounter >= currentTier && freeRewards.isNotEmpty) {
+          for (final fr in freeRewards) {
+            if (rawUpcomingRewards.length < 15) {
+              rawUpcomingRewards.add({
+                'tier': tierCounter,
+                'uuid': (fr['uuid'] ?? '').toString(),
+                'type': (fr['type'] ?? 'Item').toString(),
+                'isFree': true,
+              });
+            }
+          }
+        }
       }
 
       final int maxTier = allLevels.isNotEmpty ? allLevels.length : 55;
@@ -293,24 +329,6 @@ class BattlepassRepositoryImpl implements BattlepassRepository {
         } else if (targetTierIndex + 1 < allLevels.length) {
           tierXpRequired =
               allLevels[targetTierIndex + 1]['xp'] as int? ?? 2000;
-        }
-      }
-
-      // Collect raw upcoming rewards (next 5 tiers)
-      final List<Map<String, dynamic>> rawUpcomingRewards = [];
-      int tierCounter = 0;
-      for (final lvl in allLevels) {
-        tierCounter++;
-        if (tierCounter > currentTier && rawUpcomingRewards.length < 5) {
-          final reward = lvl['reward'] as Map<String, dynamic>?;
-          if (reward != null) {
-            rawUpcomingRewards.add({
-              'tier': tierCounter,
-              'uuid': (reward['uuid'] ?? '').toString(),
-              'type': (reward['type'] ?? 'Item').toString(),
-              'isFree': lvl['isFree'] as bool? ?? false,
-            });
-          }
         }
       }
 
@@ -346,6 +364,45 @@ class BattlepassRepositoryImpl implements BattlepassRepository {
 
       final List<BattlepassRewardItem> rewards =
           await Future.wait(rewardFutures);
+
+      // If user has no active missions reported, populate active missions from valorant-api
+      if (dailyMissions.isEmpty && missionsMetadata.isNotEmpty) {
+        for (final entry in missionsMetadata.entries) {
+          final mType = (entry.value['type'] ?? '').toString().toLowerCase();
+          final mTitle = entry.value['title'] ?? '';
+          if (mType.contains('daily') || mType.contains('checkpoint') || mType.contains('npe')) {
+            dailyMissions.add(MissionItem(
+              uuid: entry.key,
+              title: mTitle,
+              type: MissionType.daily,
+              currentProgress: 0,
+              progressToComplete: entry.value['progressToComplete'] as int? ?? 1,
+              xpReward: entry.value['xpGrant'] as int? ?? 2000,
+              isCompleted: false,
+            ));
+            if (dailyMissions.length >= 3) break;
+          }
+        }
+      }
+
+      if (weeklyMissions.isEmpty && missionsMetadata.isNotEmpty) {
+        for (final entry in missionsMetadata.entries) {
+          final mType = (entry.value['type'] ?? '').toString().toLowerCase();
+          final mTitle = entry.value['title'] ?? '';
+          if (mType.contains('weekly')) {
+            weeklyMissions.add(MissionItem(
+              uuid: entry.key,
+              title: mTitle,
+              type: MissionType.weekly,
+              currentProgress: 0,
+              progressToComplete: entry.value['progressToComplete'] as int? ?? 100,
+              xpReward: entry.value['xpGrant'] as int? ?? 23800,
+              isCompleted: false,
+            ));
+            if (weeklyMissions.length >= 3) break;
+          }
+        }
+      }
 
       final overview = BattlepassOverview(
         battlepassName: bpName,

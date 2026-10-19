@@ -78,8 +78,8 @@ class SocialRepositoryImpl implements SocialRepository {
         try {
           final map = jsonDecode(raw) as Map<String, dynamic>;
           final friend = FriendEntity.fromJson(map);
-          // If user is authenticated, purge mock/dummy seed friends automatically
-          if (selfPuuid != null && selfPuuid.isNotEmpty && friend.puuid.startsWith('mock-')) {
+          // Purge mock/dummy seed friends automatically
+          if (friend.puuid.startsWith('mock-') || friend.puuid.startsWith('player-')) {
             await _localStore.deleteSavedFriend(friend.puuid);
             continue;
           }
@@ -170,9 +170,10 @@ class SocialRepositoryImpl implements SocialRepository {
     required Map<String, Map<String, dynamic>> agentsMeta,
     required Map<int, Map<String, dynamic>> tiersMeta,
   }) async {
-    // If it's a mock/seed friend, preserve its rich demo activity
-    if (friend.puuid.startsWith('mock-')) {
-      return friend.copyWith(lastUpdated: DateTime.now());
+    // Purge any legacy mock friend on refresh
+    if (friend.puuid.startsWith('mock-') || friend.puuid.startsWith('player-')) {
+      await _localStore.deleteSavedFriend(friend.puuid);
+      return friend;
     }
 
     try {
@@ -438,25 +439,31 @@ class SocialRepositoryImpl implements SocialRepository {
         }
       }
 
-      // If PUUID not found in local match history, generate tracked entity
-      final dummyPuuid = 'player-${name.toLowerCase()}-${tag.toLowerCase()}';
-      final cardDetails = await _profileDataSource.fetchPlayerCardDetails('9fb348bc-41a0-91ad-8a3e-818035c4e561');
+      // Search Riot remote chat roster if user is authenticated
+      final accessToken = await _storage.getAccessToken();
+      if (accessToken != null && accessToken.isNotEmpty) {
+        try {
+          final roster = await _chatDataSource.fetchRemoteRoster(accessToken: accessToken);
+          for (final item in roster) {
+            final rName = item.name.toLowerCase().trim();
+            final rTag = (item.tag ?? '').toLowerCase().trim();
+            if (rName == name.toLowerCase() && (tag.isEmpty || rTag == tag.toLowerCase())) {
+              return await addFriend(
+                puuid: item.puuid,
+                gameName: item.name,
+                tagLine: item.tag,
+              );
+            }
+          }
+        } catch (_) {}
+      }
 
-      final friend = FriendEntity(
-        puuid: dummyPuuid,
-        gameName: name,
-        tagLine: tag,
-        accountLevel: 1,
-        cardWideArt: cardDetails?['wideArt'] ?? 'https://media.valorant-api.com/playercards/9fb348bc-41a0-91ad-8a3e-818035c4e561/wideart.png',
-        cardSmallArt: cardDetails?['smallArt'] ?? 'https://media.valorant-api.com/playercards/9fb348bc-41a0-91ad-8a3e-818035c4e561/smallart.png',
-        cardName: 'Valorant Standard',
-        rankName: 'Unranked',
-        status: FriendLiveStatus.inLobby,
-        lastUpdated: DateTime.now(),
+      return Result.failure(
+        ServerFailure(
+          message:
+              'Pemain "$trimmed" tidak ditemukan di riwayat pertandingan atau daftar teman Riot Anda. Pastikan Riot ID sudah benar (format: Name#Tag).',
+        ),
       );
-
-      await _localStore.saveFriendJson(dummyPuuid, jsonEncode(friend.toJson()));
-      return Result.success(friend);
     } catch (e) {
       return Result.failure(ServerFailure(message: 'Gagal menambahkan teman: $e'));
     }
@@ -815,7 +822,7 @@ class SocialRepositoryImpl implements SocialRepository {
         try {
           final map = jsonDecode(raw) as Map<String, dynamic>;
           final puuid = map['puuid']?.toString() ?? '';
-          if (puuid.startsWith('mock-')) {
+          if (puuid.startsWith('mock-') || puuid.startsWith('player-')) {
             await _localStore.deleteSavedFriend(puuid);
           }
         } catch (_) {}
@@ -829,157 +836,15 @@ class SocialRepositoryImpl implements SocialRepository {
   @override
   Future<Result<List<FriendEntity>>> loadDemoSquad() async {
     try {
-      final seeded = _getSeedFriends();
-      for (final f in seeded) {
-        await _localStore.saveFriendJson(f.puuid, jsonEncode(f.toJson()));
+      await clearMockFriends();
+      // Import real teammates from match history instead of fake mock players
+      final importResult = await importRecentTeammates();
+      if (importResult.isSuccess && importResult.valueOrNull != null && importResult.valueOrNull!.isNotEmpty) {
+        return importResult;
       }
-      return Result.success(seeded);
+      return await getFriends(forceRefresh: true);
     } catch (e) {
-      return Result.failure(ServerFailure(message: 'Gagal memuat demo squad: $e'));
+      return Result.failure(ServerFailure(message: 'Gagal memuat rekan tim: $e'));
     }
-  }
-
-  /// High-fidelity default squadmates with real Valorant card banners and live match states
-  List<FriendEntity> _getSeedFriends() {
-    return [
-      FriendEntity(
-        puuid: 'mock-tenz-0001',
-        gameName: 'TenZ',
-        tagLine: 'SEN',
-        accountLevel: 412,
-        cardUuid: '3329ec45-42c2-8eb4-013b-808605559c78',
-        cardName: 'Champions 2024 Card',
-        cardWideArt: 'https://media.valorant-api.com/playercards/3329ec45-42c2-8eb4-013b-808605559c78/wideart.png',
-        cardSmallArt: 'https://media.valorant-api.com/playercards/3329ec45-42c2-8eb4-013b-808605559c78/smallart.png',
-        cardLargeArt: 'https://media.valorant-api.com/playercards/3329ec45-42c2-8eb4-013b-808605559c78/largeart.png',
-        rankTier: 26,
-        rankName: 'Immortal 3',
-        rankIcon: 'https://media.valorant-api.com/competitivetiers/03621f52-342b-cf4e-4f86-9350a49c6d04/26/largeicon.png',
-        rankedRating: 342,
-        isFavorite: true,
-        status: FriendLiveStatus.inGame,
-        liveActivity: FriendLiveActivity(
-          matchId: 'live-match-mock-1',
-          mapName: 'Ascent',
-          modeName: 'Competitive',
-          agentName: 'Jett',
-          agentIcon: 'https://media.valorant-api.com/agents/add6443a-41bd-e414-f6ad-e58d267f4e95/displayicon.png',
-          scoreAlly: 9,
-          scoreEnemy: 6,
-          roundHistory: const [
-            true, true, false, true, true, false,
-            false, true, true, false, true, true,
-            false, false, true,
-          ],
-          lastRoundOutcome: 'ALLY_WON',
-          lastRoundUpdateTime: DateTime.now().subtract(const Duration(seconds: 25)),
-          gameStartTime: DateTime.now().subtract(const Duration(minutes: 18, seconds: 40)),
-          partySize: 2,
-          maxPartySize: 5,
-          partyState: 'IN_MATCH',
-        ),
-        lastUpdated: DateTime.now(),
-      ),
-      FriendEntity(
-        puuid: 'mock-f0rsaken-prx',
-        gameName: 'f0rsakeN',
-        tagLine: 'PRX',
-        accountLevel: 365,
-        cardUuid: '716a5a04-45e0-b6f7-b895-ab9f9024a1b0',
-        cardName: 'Prime//2.0 Card',
-        cardWideArt: 'https://media.valorant-api.com/playercards/716a5a04-45e0-b6f7-b895-ab9f9024a1b0/wideart.png',
-        cardSmallArt: 'https://media.valorant-api.com/playercards/716a5a04-45e0-b6f7-b895-ab9f9024a1b0/smallart.png',
-        cardLargeArt: 'https://media.valorant-api.com/playercards/716a5a04-45e0-b6f7-b895-ab9f9024a1b0/largeart.png',
-        rankTier: 27,
-        rankName: 'Radiant',
-        rankIcon: 'https://media.valorant-api.com/competitivetiers/03621f52-342b-cf4e-4f86-9350a49c6d04/27/largeicon.png',
-        rankedRating: 580,
-        isFavorite: true,
-        status: FriendLiveStatus.inGame,
-        liveActivity: FriendLiveActivity(
-          matchId: 'live-match-mock-2',
-          mapName: 'Sunset',
-          modeName: 'Swiftplay',
-          agentName: 'Yoru',
-          agentIcon: 'https://media.valorant-api.com/agents/7f94d92c-4234-0a36-9646-3a87eb8b5c89/displayicon.png',
-          scoreAlly: 3,
-          scoreEnemy: 2,
-          roundHistory: const [
-            true, false, true, false, true,
-          ],
-          lastRoundOutcome: 'ALLY_WON',
-          lastRoundUpdateTime: DateTime.now().subtract(const Duration(seconds: 40)),
-          gameStartTime: DateTime.now().subtract(const Duration(minutes: 6, seconds: 15)),
-          partySize: 5,
-          maxPartySize: 5,
-          partyState: 'IN_MATCH',
-        ),
-        lastUpdated: DateTime.now(),
-      ),
-      FriendEntity(
-        puuid: 'mock-boaster-fnc',
-        gameName: 'Boaster',
-        tagLine: 'FNC',
-        accountLevel: 288,
-        cardUuid: 'e45903e0-47bf-e737-f13d-5bb8e3768222',
-        cardName: 'Glitchpop Card',
-        cardWideArt: 'https://media.valorant-api.com/playercards/e45903e0-47bf-e737-f13d-5bb8e3768222/wideart.png',
-        cardSmallArt: 'https://media.valorant-api.com/playercards/e45903e0-47bf-e737-f13d-5bb8e3768222/smallart.png',
-        cardLargeArt: 'https://media.valorant-api.com/playercards/e45903e0-47bf-e737-f13d-5bb8e3768222/largeart.png',
-        rankTier: 24,
-        rankName: 'Immortal 1',
-        rankIcon: 'https://media.valorant-api.com/competitivetiers/03621f52-342b-cf4e-4f86-9350a49c6d04/24/largeicon.png',
-        rankedRating: 48,
-        status: FriendLiveStatus.inAgentSelect,
-        liveActivity: FriendLiveActivity(
-          matchId: 'pre-game-mock-1',
-          mapName: 'Haven',
-          modeName: 'Competitive',
-          agentName: 'Selecting Omen...',
-          gameStartTime: DateTime.now().subtract(const Duration(seconds: 45)),
-          partyState: 'AGENT_SELECT',
-        ),
-        lastUpdated: DateTime.now(),
-      ),
-      FriendEntity(
-        puuid: 'mock-chronicle-fnc',
-        gameName: 'Chronicle',
-        tagLine: 'FNC',
-        accountLevel: 310,
-        cardUuid: '1f1fc842-4217-105c-5cf1-02a83969be84',
-        cardName: 'Reaver EP5 Card',
-        cardWideArt: 'https://media.valorant-api.com/playercards/1f1fc842-4217-105c-5cf1-02a83969be84/wideart.png',
-        cardSmallArt: 'https://media.valorant-api.com/playercards/1f1fc842-4217-105c-5cf1-02a83969be84/smallart.png',
-        cardLargeArt: 'https://media.valorant-api.com/playercards/1f1fc842-4217-105c-5cf1-02a83969be84/largeart.png',
-        rankTier: 25,
-        rankName: 'Immortal 2',
-        rankIcon: 'https://media.valorant-api.com/competitivetiers/03621f52-342b-cf4e-4f86-9350a49c6d04/25/largeicon.png',
-        rankedRating: 110,
-        status: FriendLiveStatus.inLobby,
-        liveActivity: const FriendLiveActivity(
-          partyState: 'OPEN',
-          partySize: 2,
-          maxPartySize: 5,
-        ),
-        lastUpdated: DateTime.now(),
-      ),
-      FriendEntity(
-        puuid: 'mock-derke-tl',
-        gameName: 'Derke',
-        tagLine: 'TL',
-        accountLevel: 380,
-        cardUuid: '3d386348-4e1b-b413-585a-0d944e8a38ee',
-        cardName: 'Oni Card',
-        cardWideArt: 'https://media.valorant-api.com/playercards/3d386348-4e1b-b413-585a-0d944e8a38ee/wideart.png',
-        cardSmallArt: 'https://media.valorant-api.com/playercards/3d386348-4e1b-b413-585a-0d944e8a38ee/smallart.png',
-        cardLargeArt: 'https://media.valorant-api.com/playercards/3d386348-4e1b-b413-585a-0d944e8a38ee/largeart.png',
-        rankTier: 26,
-        rankName: 'Immortal 3',
-        rankIcon: 'https://media.valorant-api.com/competitivetiers/03621f52-342b-cf4e-4f86-9350a49c6d04/26/largeicon.png',
-        rankedRating: 290,
-        status: FriendLiveStatus.offline,
-        lastUpdated: DateTime.now().subtract(const Duration(hours: 3)),
-      ),
-    ];
   }
 }

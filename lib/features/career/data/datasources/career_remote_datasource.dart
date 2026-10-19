@@ -167,7 +167,7 @@ class CareerRemoteDataSourceImpl implements CareerRemoteDataSource {
     required String shard,
     required String puuid,
     int startIndex = 0,
-    int endIndex = 15,
+    int endIndex = 20,
   }) async {
     final cleanPuuid = puuid.trim();
     if (cleanPuuid.isEmpty) return [];
@@ -198,8 +198,11 @@ class CareerRemoteDataSourceImpl implements CareerRemoteDataSource {
           } catch (_) {}
         }
 
-        if (body is Map && body['Matches'] is List) {
-          return (body['Matches'] as List)
+        final matchesList = body is Map
+            ? (body['Matches'] ?? body['matches'])
+            : (body is List ? body : null);
+        if (matchesList is List) {
+          return matchesList
               .whereType<Map>()
               .map((item) => Map<String, dynamic>.from(item))
               .toList();

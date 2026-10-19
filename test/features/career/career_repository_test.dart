@@ -504,6 +504,103 @@ void main() {
       verifyNever(() => mockRemote.fetchMatchDetails(shard: any(named: 'shard'), matchId: 'cached-match-999'));
     });
 
+    test('correctly calculates rankRatingEarned when RankedRatingEarned is null in Riot response', () async {
+      when(() => mockSecureStorage.getPuuid()).thenAnswer((_) async => tPuuid);
+      when(() => mockSecureStorage.getShard()).thenAnswer((_) async => tShard);
+      when(() => mockLocalStore.getCachedCareerJson(tPuuid)).thenAnswer((_) async => null);
+      when(() => mockLocalStore.saveCachedCareerJson(tPuuid, any())).thenAnswer((_) async => {});
+
+      when(() => mockRemote.fetchMatchHistory(
+            shard: tShard,
+            puuid: tPuuid,
+            startIndex: any(named: 'startIndex'),
+            endIndex: any(named: 'endIndex'),
+          )).thenAnswer((_) async => [
+            {'MatchID': 'match-calculated-rr-1'},
+          ]);
+
+      // RankedRatingEarned is null, but before/after are present (e.g. Promotion from tier 14 to 15)
+      // tier 14 to 15 (+1 tier = +100) + (12 - 88 = -76) => +24 RR earned!
+      when(() => mockRemote.fetchCompetitiveUpdates(
+            shard: tShard,
+            puuid: tPuuid,
+            startIndex: any(named: 'startIndex'),
+            endIndex: any(named: 'endIndex'),
+          )).thenAnswer((_) async => [
+            {
+              'MatchID': '{match-calculated-rr-1}',
+              'TierBeforeUpdate': 14,
+              'TierAfterUpdate': 15,
+              'RankedRatingBeforeUpdate': 88,
+              'RankedRatingAfterUpdate': 12,
+              'RankedRatingEarned': null,
+            }
+          ]);
+
+      when(() => mockRemote.fetchPlayerMmr(shard: tShard, puuid: tPuuid))
+          .thenAnswer((_) async => {
+                'LatestCompetitiveUpdate': {
+                  'TierAfterUpdate': 15,
+                  'RankedRatingAfterUpdate': 12,
+                },
+                'QueueSkills': {
+                  'competitive': {
+                    'SeasonalInfoBySeasonID': {
+                      'old-season': {
+                        'CompetitiveTier': 10,
+                        'RankedRating': 0,
+                      }
+                    }
+                  }
+                }
+              });
+
+      when(() => mockRemote.fetchMapsMetadata()).thenAnswer((_) async => {
+            '/game/maps/ascent/ascent': {'displayName': 'Ascent'}
+          });
+      when(() => mockRemote.fetchAgentsMetadata()).thenAnswer((_) async => {
+            'agent-jett': {'displayName': 'Jett'}
+          });
+      when(() => mockRemote.fetchCompetitiveTiersMetadata()).thenAnswer((_) async => {
+            14: {'tierName': 'Gold 3'},
+            15: {'tierName': 'Platinum 1'},
+          });
+
+      when(() => mockRemote.fetchMatchDetails(shard: tShard, matchId: 'match-calculated-rr-1'))
+          .thenAnswer((_) async => {
+                'matchInfo': {
+                  'matchId': 'match-calculated-rr-1',
+                  'mapId': '/game/maps/ascent/ascent',
+                  'queueID': 'competitive',
+                  'gameLengthMillis': 1500000,
+                  'gameStartMillis': 1700000000000,
+                },
+                'players': [
+                  {
+                    'subject': tPuuid,
+                    'teamId': 'Blue',
+                    'characterId': 'agent-jett',
+                    'stats': {'score': 3000, 'kills': 15, 'deaths': 10, 'assists': 3, 'roundsPlayed': 20},
+                    'competitiveTier': 14,
+                  }
+                ],
+                'teams': [
+                  {'teamId': 'Blue', 'won': true, 'roundsWon': 13},
+                  {'teamId': 'Red', 'won': false, 'roundsWon': 7},
+                ],
+                'roundResults': [],
+              });
+
+      final result = await repository.getCareerOverview(forceRefresh: true);
+
+      expect(result.isSuccess, true);
+      final overview = result.valueOrNull!;
+      expect(overview.currentTier, 15);
+      expect(overview.currentRankRating, 12);
+      expect(overview.matches.first.rankRatingEarned, 24);
+      expect(overview.matches.first.competitiveTier, 15);
+    });
+
     test('returns failure when no puuid session exists', () async {
       when(() => mockSecureStorage.getPuuid()).thenAnswer((_) async => null);
       when(() => mockSecureStorage.getAccessToken()).thenAnswer((_) async => null);

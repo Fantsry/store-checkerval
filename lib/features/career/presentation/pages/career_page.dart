@@ -376,24 +376,32 @@ class _CareerPageState extends State<CareerPage> {
                           size: 15,
                         ),
                         const SizedBox(width: 3),
-                        if (match.rankRatingEarned != null)
-                          Text(
-                            match.rankRatingEarned! > 0
-                                ? '+${match.rankRatingEarned} RR'
-                                : '${match.rankRatingEarned} RR',
+                        Flexible(
+                          child: Text(
+                            match.rankRatingEarned != null
+                                ? (match.rankRatingEarned! > 0
+                                    ? '+${match.rankRatingEarned} RR'
+                                    : (match.rankRatingEarned! == 0
+                                        ? '+0 RR'
+                                        : '${match.rankRatingEarned} RR'))
+                                : (match.rankName ?? ''),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                             style: AppTextStyles.caption(
-                              color: match.rankRatingEarned! > 0
-                                  ? AppColors.winGreen
-                                  : AppColors.lossRed,
-                            ).copyWith(fontWeight: FontWeight.w700),
-                          )
-                        else if (match.rankName != null)
-                          Text(
-                            match.rankName!,
-                            style: AppTextStyles.caption(
-                              color: AppColors.textSecondary,
-                            ).copyWith(fontWeight: FontWeight.w600),
+                              color: match.rankRatingEarned != null
+                                  ? (match.rankRatingEarned! > 0
+                                      ? AppColors.winGreen
+                                      : (match.rankRatingEarned! == 0
+                                          ? AppColors.drawAmber
+                                          : AppColors.lossRed))
+                                  : AppColors.textSecondary,
+                            ).copyWith(
+                              fontWeight: match.rankRatingEarned != null
+                                  ? FontWeight.w700
+                                  : FontWeight.w600,
+                            ),
                           ),
+                        ),
                       ],
                     ],
                   ),

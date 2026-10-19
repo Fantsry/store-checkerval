@@ -165,16 +165,24 @@ class _SocialPageState extends State<SocialPage>
             icon: const Icon(Icons.more_vert_rounded, color: AppColors.textSecondary),
             color: AppColors.card,
             onSelected: (value) async {
-              if (value == 'clear_mock') {
-                await context.read<SocialCubit>().clearMockFriends();
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Data teman dummy berhasil dibersihkan!'),
-                      backgroundColor: AppColors.cardElevated,
-                      behavior: SnackBarBehavior.floating,
-                    ),
-                  );
+              if (value == 'sync_riot') {
+                _spinController.repeat();
+                try {
+                  await context.read<SocialCubit>().syncRiotFriends(clearMocks: true);
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Daftar teman Riot berhasil disinkronkan!'),
+                        backgroundColor: AppColors.cardElevated,
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  }
+                } finally {
+                  if (mounted) {
+                    _spinController.stop();
+                    _spinController.reset();
+                  }
                 }
               } else if (value == 'import_teammates') {
                 final count = await context.read<SocialCubit>().importRecentTeammates();
@@ -187,18 +195,16 @@ class _SocialPageState extends State<SocialPage>
                     ),
                   );
                 }
-              } else if (value == 'demo_squad') {
-                await context.read<SocialCubit>().loadDemoSquad();
               }
             },
             itemBuilder: (context) => [
               const PopupMenuItem(
-                value: 'clear_mock',
+                value: 'sync_riot',
                 child: Row(
                   children: [
-                    Icon(Icons.cleaning_services_rounded, color: AppColors.lossRed, size: 18),
+                    Icon(Icons.sync_rounded, color: AppColors.cyan, size: 18),
                     SizedBox(width: 8),
-                    Text('Bersihkan Data Dummy'),
+                    Text('Sinkronkan Teman Riot (XMPP)'),
                   ],
                 ),
               ),
@@ -206,19 +212,9 @@ class _SocialPageState extends State<SocialPage>
                 value: 'import_teammates',
                 child: Row(
                   children: [
-                    Icon(Icons.history_rounded, color: AppColors.cyan, size: 18),
+                    Icon(Icons.history_rounded, color: AppColors.textPrimary, size: 18),
                     SizedBox(width: 8),
                     Text('Impor Rekan Tim Match'),
-                  ],
-                ),
-              ),
-              const PopupMenuItem(
-                value: 'demo_squad',
-                child: Row(
-                  children: [
-                    Icon(Icons.sports_esports_outlined, color: AppColors.textSecondary, size: 18),
-                    SizedBox(width: 8),
-                    Text('Muat Demo Squad'),
                   ],
                 ),
               ),
@@ -705,14 +701,6 @@ class _SocialPageState extends State<SocialPage>
               label: const Text(
                 'Impor Rekan Tim dari Match History',
                 style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
-              ),
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            TextButton(
-              onPressed: () => context.read<SocialCubit>().loadDemoSquad(),
-              child: const Text(
-                'Lihat Tampilan Contoh (Demo Squad)',
-                style: TextStyle(color: AppColors.textMuted, fontSize: 11),
               ),
             ),
           ],

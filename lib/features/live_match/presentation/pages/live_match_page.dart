@@ -79,16 +79,6 @@ class _LiveMatchPageState extends State<LiveMatchPage>
         ),
         actions: [
           IconButton(
-            icon: const Icon(
-              Icons.sports_esports_outlined,
-              color: AppTheme.accentMagenta,
-            ),
-            tooltip: 'Preview Demo Match (Photo)',
-            onPressed: () {
-              context.read<LiveMatchCubit>().loadDemoMatch();
-            },
-          ),
-          IconButton(
             icon: const Icon(Icons.refresh_rounded, color: AppTheme.textPrimary),
             tooltip: 'Scan Radar Now',
             onPressed: () {
@@ -450,22 +440,6 @@ class _LiveMatchPageState extends State<LiveMatchPage>
                     label: const Text('RETRY SCAN'),
                   ),
                   OutlinedButton.icon(
-                    onPressed: () {
-                      context.read<LiveMatchCubit>().loadDemoMatch();
-                    },
-                    icon: const Icon(
-                      Icons.sports_esports_outlined,
-                      color: AppTheme.accentMagenta,
-                    ),
-                    label: const Text(
-                      'PREVIEW DEMO',
-                      style: TextStyle(color: AppTheme.accentMagenta),
-                    ),
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: AppTheme.accentMagenta),
-                    ),
-                  ),
-                  OutlinedButton.icon(
                     onPressed: () => context.pushNamed('login'),
                     icon: const Icon(Icons.login_rounded),
                     label: const Text('SIGN IN WITH RIOT'),
@@ -640,34 +614,6 @@ class _LiveMatchPageState extends State<LiveMatchPage>
                 },
                 icon: const Icon(Icons.radar_rounded),
                 label: const Text('SCAN RADAR NOW'),
-              ),
-              const SizedBox(height: 12),
-              // Demo Match Preview Button
-              OutlinedButton.icon(
-                onPressed: () {
-                  context.read<LiveMatchCubit>().loadDemoMatch();
-                },
-                icon: const Icon(
-                  Icons.sports_esports_rounded,
-                  color: AppTheme.accentMagenta,
-                ),
-                label: const Text(
-                  'PREVIEW DEMO TRACKER (PHOTO MATCH)',
-                  style: TextStyle(
-                    color: AppTheme.accentMagenta,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 12,
-                  ),
-                  side: const BorderSide(
-                    color: AppTheme.accentMagenta,
-                    width: 1.5,
-                  ),
-                ),
               ),
             ],
           ),
