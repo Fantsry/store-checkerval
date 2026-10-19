@@ -67,6 +67,23 @@ class SocialRepositoryImpl implements SocialRepository {
     return 'Standard';
   }
 
+  static String _cleanMapName(String path) {
+    final lower = path.toLowerCase();
+    if (lower.contains('duality')) return 'Bind';
+    if (lower.contains('bonsai')) return 'Split';
+    if (lower.contains('ascent')) return 'Ascent';
+    if (lower.contains('triad')) return 'Haven';
+    if (lower.contains('foxtrot')) return 'Breeze';
+    if (lower.contains('canyon')) return 'Fracture';
+    if (lower.contains('pitt')) return 'Pearl';
+    if (lower.contains('jam')) return 'Lotus';
+    if (lower.contains('jules')) return 'Sunset';
+    if (lower.contains('corrode') || lower.contains('infinity')) return 'Corrode';
+    if (lower.contains('hurm')) return 'Team Deathmatch';
+    final parts = path.split('/');
+    return parts.isNotEmpty ? parts.last : 'Valorant';
+  }
+
   @override
   Future<Result<List<FriendEntity>>> getFriends({bool forceRefresh = false}) async {
     try {
@@ -113,6 +130,8 @@ class SocialRepositoryImpl implements SocialRepository {
     try {
       final shard = await _storage.getShard() ?? 'ap';
       final region = await _storage.getRegion() ?? shard;
+      final accessToken = await _storage.getAccessToken();
+      final entitlementToken = await _storage.getEntitlementsToken();
 
       final rawList = await _localStore.getSavedFriendsJson();
       final List<FriendEntity> friends = [];
@@ -139,7 +158,81 @@ class SocialRepositoryImpl implements SocialRepository {
       final agentsMeta = metaResults[1] as Map<String, Map<String, dynamic>>;
       final tiersMeta = metaResults[2] as Map<int, Map<String, dynamic>>;
 
-      // Refresh each friend in parallel (capped concurrency if needed)
+      // 1. Try real-time XMPP presence fetch from Riot chat service
+      if (accessToken != null && accessToken.isNotEmpty) {
+        try {
+          final socialData = await _chatDataSource.fetchRemoteSocialData(
+            accessToken: accessToken,
+            entitlementToken: entitlementToken,
+          );
+
+          if (socialData.presences.isNotEmpty) {
+            final List<FriendEntity> updatedList = [];
+            for (final friend in friends) {
+              final p = socialData.presences[friend.puuid];
+              if (p != null) {
+                FriendLiveStatus status;
+                FriendLiveActivity? activity = friend.liveActivity;
+
+                if (p.isInGame) {
+                  status = FriendLiveStatus.inGame;
+                  final mapName = mapsMeta[p.matchMap?.toLowerCase()]?['displayName'] ??
+                      _cleanMapName(p.matchMap ?? '');
+                  final modeName = _cleanModeName(p.queueId ?? '');
+                  activity = FriendLiveActivity(
+                    mapName: mapName,
+                    modeName: modeName,
+                    scoreAlly: p.scoreAlly ?? activity?.scoreAlly,
+                    scoreEnemy: p.scoreEnemy ?? activity?.scoreEnemy,
+                    partySize: p.partySize ?? activity?.partySize,
+                    maxPartySize: p.maxPartySize ?? activity?.maxPartySize,
+                    gameStartTime: activity?.gameStartTime ?? DateTime.now(),
+                  );
+                } else if (p.isInPreGame) {
+                  status = FriendLiveStatus.inAgentSelect;
+                } else if (p.isAway) {
+                  status = FriendLiveStatus.away;
+                } else if (p.isOnline) {
+                  status = FriendLiveStatus.inLobby;
+                } else {
+                  status = FriendLiveStatus.offline;
+                }
+
+                int? rankTier = friend.rankTier;
+                String? rankName = friend.rankName;
+                String? rankIcon = friend.rankIcon;
+                if (p.competitiveTier != null && p.competitiveTier! > 0) {
+                  rankTier = p.competitiveTier;
+                  if (tiersMeta.containsKey(rankTier)) {
+                    rankName = tiersMeta[rankTier]?['tierName'];
+                    rankIcon = tiersMeta[rankTier]?['largeIcon'] ?? tiersMeta[rankTier]?['smallIcon'];
+                  }
+                }
+
+                final updated = friend.copyWith(
+                  status: status,
+                  clientActivity: p.clientActivity,
+                  isMobile: p.isMobile,
+                  liveActivity: activity,
+                  rankTier: rankTier,
+                  rankName: rankName,
+                  rankIcon: rankIcon,
+                  lastChatMessage: socialData.recentMessages[friend.puuid]?.body ?? friend.lastChatMessage,
+                  lastChatTimestamp: socialData.recentMessages[friend.puuid]?.timestamp ?? friend.lastChatTimestamp,
+                  lastUpdated: DateTime.now(),
+                );
+                await _localStore.saveFriendJson(updated.puuid, jsonEncode(updated.toJson()));
+                updatedList.add(updated);
+              } else {
+                updatedList.add(friend);
+              }
+            }
+            return Result.success(updatedList);
+          }
+        } catch (_) {}
+      }
+
+      // 2. Fallback: refresh each friend individually
       final updatedFriends = await Future.wait(
         friends.map((friend) => _refreshSingleFriend(
               friend: friend,
@@ -669,16 +762,22 @@ class SocialRepositoryImpl implements SocialRepository {
       final selfPuuid = await _storage.getPuuid() ?? '';
       final shard = await _storage.getShard() ?? 'ap';
 
+      final entitlementToken = await _storage.getEntitlementsToken();
+
       if (clearMocks) {
         await clearMockFriends();
       }
 
       final List<FriendEntity> realFriends = [];
 
-      // ─── Method 1: Riot XMPP Remote Chat Service (Real Friends Roster) ───────
+      // ─── Method 1: Riot XMPP Remote Chat Service (Real Friends & Presences) ───
       if (accessToken != null && accessToken.isNotEmpty) {
         try {
-          final roster = await _chatDataSource.fetchRemoteRoster(accessToken: accessToken);
+          final socialData = await _chatDataSource.fetchRemoteSocialData(
+            accessToken: accessToken,
+            entitlementToken: entitlementToken,
+          );
+          final roster = socialData.roster;
           if (roster.isNotEmpty) {
             final List<String> puuidsToResolve = [];
             final Map<String, RiotFriendRosterItem> rosterMap = {};
@@ -706,13 +805,18 @@ class SocialRepositoryImpl implements SocialRepository {
               }
             } catch (_) {}
 
-            final tiersMeta = await _careerDataSource
-                .fetchCompetitiveTiersMetadata()
-                .catchError((_) => <int, Map<String, dynamic>>{});
+            final metaResults = await Future.wait([
+              _careerDataSource.fetchMapsMetadata().catchError((_) => <String, Map<String, dynamic>>{}),
+              _careerDataSource.fetchAgentsMetadata().catchError((_) => <String, Map<String, dynamic>>{}),
+              _careerDataSource.fetchCompetitiveTiersMetadata().catchError((_) => <int, Map<String, dynamic>>{}),
+            ]);
+            final mapsMeta = metaResults[0] as Map<String, Map<String, dynamic>>;
+            final tiersMeta = metaResults[2] as Map<int, Map<String, dynamic>>;
 
             for (final puuid in puuidsToResolve) {
               final rosterItem = rosterMap[puuid];
               final nameInfo = resolvedNames[puuid];
+              final presence = socialData.presences[puuid];
 
               var gameName = nameInfo?['gameName'] ?? '';
               var tagLine = nameInfo?['tagLine'] ?? '';
@@ -725,41 +829,83 @@ class SocialRepositoryImpl implements SocialRepository {
                 gameName = puuid.length > 8 ? puuid.substring(0, 8) : 'Friend';
               }
 
+              // Determine status and live activity from real-time presence
+              FriendLiveStatus status = FriendLiveStatus.offline;
+              FriendLiveActivity? liveActivity;
+              String clientActivity = 'Offline';
+              bool isMobile = false;
+
+              if (presence != null) {
+                clientActivity = presence.clientActivity;
+                isMobile = presence.isMobile;
+
+                if (presence.isInGame) {
+                  status = FriendLiveStatus.inGame;
+                  final mapName = mapsMeta[presence.matchMap?.toLowerCase()]?['displayName'] ??
+                      _cleanMapName(presence.matchMap ?? '');
+                  final modeName = _cleanModeName(presence.queueId ?? '');
+                  liveActivity = FriendLiveActivity(
+                    mapName: mapName,
+                    modeName: modeName,
+                    scoreAlly: presence.scoreAlly,
+                    scoreEnemy: presence.scoreEnemy,
+                    partySize: presence.partySize,
+                    maxPartySize: presence.maxPartySize,
+                    gameStartTime: DateTime.now(),
+                  );
+                } else if (presence.isInPreGame) {
+                  status = FriendLiveStatus.inAgentSelect;
+                } else if (presence.isAway) {
+                  status = FriendLiveStatus.away;
+                } else if (presence.isOnline) {
+                  status = FriendLiveStatus.inLobby;
+                } else {
+                  status = FriendLiveStatus.offline;
+                }
+              }
+
               // Fetch Equipped Card Banner & Account Level
               Map<String, dynamic>? cardData;
-              int accountLevel = 1;
-              String? cardUuid;
+              int accountLevel = presence?.accountLevel ?? 1;
+              String? cardUuid = presence?.playerCardId;
               try {
-                final idRes = await _profileDataSource.fetchPlayerIdentity(shard: shard, puuid: puuid);
-                final idMap = idRes['identity'] as Map<String, dynamic>? ?? {};
-                cardUuid = (idMap['PlayerCardID'] ?? idMap['playerCardId'])?.toString();
-                final lvl = idMap['AccountLevel'] ?? idMap['accountLevel'];
-                if (lvl is num) accountLevel = lvl.toInt();
+                if (cardUuid == null || cardUuid.isEmpty) {
+                  final idRes = await _profileDataSource.fetchPlayerIdentity(shard: shard, puuid: puuid);
+                  final idMap = idRes['identity'] as Map<String, dynamic>? ?? {};
+                  cardUuid = (idMap['PlayerCardID'] ?? idMap['playerCardId'])?.toString();
+                  final lvl = idMap['AccountLevel'] ?? idMap['accountLevel'];
+                  if (lvl is num) accountLevel = lvl.toInt();
+                }
                 if (cardUuid != null && cardUuid.isNotEmpty && cardUuid != '00000000-0000-0000-0000-000000000000') {
                   cardData = await _profileDataSource.fetchPlayerCardDetails(cardUuid);
                 }
               } catch (_) {}
 
-              // Fetch MMR & Rank
-              int? rankTier;
+              // Rank & MMR
+              int? rankTier = presence?.competitiveTier;
               String? rankName;
               String? rankIcon;
               int rr = 0;
-              try {
-                final mmr = await _liveDataSource.fetchPlayerMmr(shard: shard, puuid: puuid);
-                if (mmr != null && mmr['QueueSkills'] is Map) {
-                  final qs = Map<String, dynamic>.from(mmr['QueueSkills'] as Map);
-                  final comp = qs['competitive'] as Map?;
-                  if (comp != null) {
-                    rankTier = (comp['Tier'] as num?)?.toInt();
-                    rr = (comp['RankedRating'] as num?)?.toInt() ?? 0;
-                    if (rankTier != null && tiersMeta.containsKey(rankTier)) {
-                      rankName = tiersMeta[rankTier]?['tierName'];
-                      rankIcon = tiersMeta[rankTier]?['largeIcon'] ?? tiersMeta[rankTier]?['smallIcon'];
+              if (rankTier != null && rankTier > 0 && tiersMeta.containsKey(rankTier)) {
+                rankName = tiersMeta[rankTier]?['tierName'];
+                rankIcon = tiersMeta[rankTier]?['largeIcon'] ?? tiersMeta[rankTier]?['smallIcon'];
+              } else {
+                try {
+                  final mmr = await _liveDataSource.fetchPlayerMmr(shard: shard, puuid: puuid);
+                  if (mmr != null && mmr['QueueSkills'] is Map) {
+                    final qs = Map<String, dynamic>.from(mmr['QueueSkills'] as Map);
+                    final comp = qs['competitive'] as Map?;
+                    if (comp != null) {
+                      rankTier = (comp['Tier'] as num?)?.toInt();
+                      rr = (comp['RankedRating'] as num?)?.toInt() ?? 0;
+                      if (rankTier != null && tiersMeta.containsKey(rankTier)) {
+                        rankName = tiersMeta[rankTier]?['tierName'];
+                        rankIcon = tiersMeta[rankTier]?['largeIcon'] ?? tiersMeta[rankTier]?['smallIcon'];
+                      }
                     }
                   }
-                }
-              } catch (_) {}
+                } catch (_) {}
+              }
 
               final friend = FriendEntity(
                 puuid: puuid,
@@ -781,7 +927,12 @@ class SocialRepositoryImpl implements SocialRepository {
                 rankName: rankName ?? 'Unranked',
                 rankIcon: rankIcon,
                 rankedRating: rr,
-                status: FriendLiveStatus.inLobby,
+                status: status,
+                liveActivity: liveActivity,
+                clientActivity: clientActivity,
+                isMobile: isMobile,
+                lastChatMessage: socialData.recentMessages[puuid]?.body,
+                lastChatTimestamp: socialData.recentMessages[puuid]?.timestamp,
                 lastUpdated: DateTime.now(),
               );
 

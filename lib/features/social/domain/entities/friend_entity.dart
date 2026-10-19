@@ -4,7 +4,8 @@ import 'package:equatable/equatable.dart';
 enum FriendLiveStatus {
   inGame, // Actively in a match (CoreGame)
   inAgentSelect, // In Agent Select lobby (PreGame)
-  inLobby, // In Menu / Party / Ready to play
+  inLobby, // In Menu / Party / Online in client
+  away, // Away / Mobile / Idle
   offline, // Offline / Not in client
 }
 
@@ -191,6 +192,10 @@ class FriendEntity extends Equatable {
   final bool isFavorite;
   final FriendLiveStatus status;
   final FriendLiveActivity? liveActivity;
+  final String? clientActivity; // e.g. "In Riot Client", "Away", "Competitive · Bind · 2-0"
+  final bool isMobile; // Displays phone icon if mobile / away
+  final String? lastChatMessage; // e.g. "aman aja"
+  final DateTime? lastChatTimestamp; // e.g. Oct 14, 2026
   final DateTime lastUpdated;
 
   const FriendEntity({
@@ -210,6 +215,10 @@ class FriendEntity extends Equatable {
     this.isFavorite = false,
     this.status = FriendLiveStatus.offline,
     this.liveActivity,
+    this.clientActivity,
+    this.isMobile = false,
+    this.lastChatMessage,
+    this.lastChatTimestamp,
     required this.lastUpdated,
   });
 
@@ -219,6 +228,12 @@ class FriendEntity extends Equatable {
   bool get isPlaying =>
       status == FriendLiveStatus.inGame ||
       status == FriendLiveStatus.inAgentSelect;
+
+  bool get isOnline =>
+      status == FriendLiveStatus.inGame ||
+      status == FriendLiveStatus.inAgentSelect ||
+      status == FriendLiveStatus.inLobby ||
+      status == FriendLiveStatus.away;
 
   FriendEntity copyWith({
     String? puuid,
@@ -237,6 +252,10 @@ class FriendEntity extends Equatable {
     bool? isFavorite,
     FriendLiveStatus? status,
     FriendLiveActivity? liveActivity,
+    String? clientActivity,
+    bool? isMobile,
+    String? lastChatMessage,
+    DateTime? lastChatTimestamp,
     DateTime? lastUpdated,
   }) {
     return FriendEntity(
@@ -256,6 +275,10 @@ class FriendEntity extends Equatable {
       isFavorite: isFavorite ?? this.isFavorite,
       status: status ?? this.status,
       liveActivity: liveActivity ?? this.liveActivity,
+      clientActivity: clientActivity ?? this.clientActivity,
+      isMobile: isMobile ?? this.isMobile,
+      lastChatMessage: lastChatMessage ?? this.lastChatMessage,
+      lastChatTimestamp: lastChatTimestamp ?? this.lastChatTimestamp,
       lastUpdated: lastUpdated ?? this.lastUpdated,
     );
   }
@@ -277,6 +300,10 @@ class FriendEntity extends Equatable {
         'isFavorite': isFavorite,
         'status': status.name,
         'liveActivity': liveActivity?.toJson(),
+        'clientActivity': clientActivity,
+        'isMobile': isMobile,
+        'lastChatMessage': lastChatMessage,
+        'lastChatTimestamp': lastChatTimestamp?.toIso8601String(),
         'lastUpdated': lastUpdated.toIso8601String(),
       };
 
@@ -304,6 +331,12 @@ class FriendEntity extends Equatable {
           ? FriendLiveActivity.fromJson(
               Map<String, dynamic>.from(json['liveActivity'] as Map))
           : null,
+      clientActivity: json['clientActivity'] as String?,
+      isMobile: json['isMobile'] as bool? ?? false,
+      lastChatMessage: json['lastChatMessage'] as String?,
+      lastChatTimestamp: json['lastChatTimestamp'] != null
+          ? DateTime.tryParse(json['lastChatTimestamp'] as String)
+          : null,
       lastUpdated: json['lastUpdated'] != null
           ? DateTime.tryParse(json['lastUpdated'] as String) ?? DateTime.now()
           : DateTime.now(),
@@ -328,6 +361,10 @@ class FriendEntity extends Equatable {
         isFavorite,
         status,
         liveActivity,
+        clientActivity,
+        isMobile,
+        lastChatMessage,
+        lastChatTimestamp,
         lastUpdated,
       ];
 }

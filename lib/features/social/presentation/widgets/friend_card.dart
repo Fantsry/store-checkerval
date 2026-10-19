@@ -176,6 +176,8 @@ class _FriendCardState extends State<FriendCard>
         return AppColors.drawAmber;
       case FriendLiveStatus.inLobby:
         return AppColors.winGreen;
+      case FriendLiveStatus.away:
+        return const Color(0xFFEAB308);
       case FriendLiveStatus.offline:
         return AppColors.textMuted;
     }
@@ -996,6 +998,49 @@ class _FriendCardState extends State<FriendCard>
                 Text(
                   'Party ${activity!.partySize}/${activity.maxPartySize ?? 5}',
                   style: AppTextStyles.badge(color: AppColors.textSecondary),
+                ),
+            ],
+          ),
+        );
+
+      case FriendLiveStatus.away:
+        return Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.sm + 2,
+            vertical: AppSpacing.xs + 2,
+          ),
+          decoration: BoxDecoration(
+            color: const Color(0xFFEAB308).withValues(alpha: 0.1),
+            borderRadius: AppRadius.roundedSm,
+            border: Border.all(
+              color: const Color(0xFFEAB308).withValues(alpha: 0.3),
+              width: 1,
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 8,
+                height: 8,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Color(0xFFEAB308),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Text(
+                  widget.friend.clientActivity ?? 'AWAY',
+                  style: AppTextStyles.badge(color: const Color(0xFFEAB308)).copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              if (widget.friend.isMobile)
+                const Icon(
+                  Icons.phone_android_rounded,
+                  size: 14,
+                  color: Color(0xFFEAB308),
                 ),
             ],
           ),

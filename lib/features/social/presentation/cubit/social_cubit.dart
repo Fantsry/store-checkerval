@@ -289,4 +289,19 @@ class SocialCubit extends Cubit<SocialState> {
       failure: (_) {},
     );
   }
+
+  void saveUpdatedFriend(FriendEntity updated) {
+    final list = List<FriendEntity>.from(_currentFriends ?? []);
+    final idx = list.indexWhere((f) => f.puuid == updated.puuid);
+    if (idx != -1) {
+      list[idx] = updated;
+    } else {
+      list.insert(0, updated);
+    }
+    if (state is SocialLoaded) {
+      emit((state as SocialLoaded).copyWith(friends: list));
+    } else {
+      emit(SocialLoaded(friends: list));
+    }
+  }
 }

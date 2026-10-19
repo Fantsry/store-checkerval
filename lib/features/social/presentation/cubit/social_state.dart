@@ -50,10 +50,28 @@ class SocialLoaded extends SocialState {
       .length;
 
   int get inLobbyCount =>
-      friends.where((f) => f.status == FriendLiveStatus.inLobby).length;
+      friends.where((f) => f.status == FriendLiveStatus.inLobby || f.status == FriendLiveStatus.away).length;
+
+  int get awayCount =>
+      friends.where((f) => f.status == FriendLiveStatus.away).length;
 
   int get offlineCount =>
       friends.where((f) => f.status == FriendLiveStatus.offline).length;
+
+  int get chatCount =>
+      friends.where((f) => f.lastChatMessage != null && f.lastChatMessage!.isNotEmpty).length;
+
+  List<FriendEntity> get inGameFriends =>
+      filteredFriends.where((f) => f.isPlaying).toList();
+
+  List<FriendEntity> get chatFriends =>
+      filteredFriends.where((f) => f.lastChatMessage != null && f.lastChatMessage!.isNotEmpty).toList();
+
+  List<FriendEntity> get onlineFriends =>
+      filteredFriends.where((f) => f.status == FriendLiveStatus.inLobby || f.status == FriendLiveStatus.away).toList();
+
+  List<FriendEntity> get offlineFriends =>
+      filteredFriends.where((f) => f.status == FriendLiveStatus.offline).toList();
 
   List<FriendEntity> get filteredFriends {
     var list = friends;
@@ -65,7 +83,7 @@ class SocialLoaded extends SocialState {
         break;
       case FriendFilter.inLobby:
         list = list
-            .where((f) => f.status == FriendLiveStatus.inLobby)
+            .where((f) => f.status == FriendLiveStatus.inLobby || f.status == FriendLiveStatus.away)
             .toList();
         break;
       case FriendFilter.offline:
@@ -83,6 +101,8 @@ class SocialLoaded extends SocialState {
       list = list.where((f) {
         return f.gameName.toLowerCase().contains(q) ||
             f.tagLine.toLowerCase().contains(q) ||
+            (f.clientActivity?.toLowerCase().contains(q) ?? false) ||
+            (f.lastChatMessage?.toLowerCase().contains(q) ?? false) ||
             (f.liveActivity?.mapName?.toLowerCase().contains(q) ?? false) ||
             (f.liveActivity?.modeName?.toLowerCase().contains(q) ?? false) ||
             (f.liveActivity?.agentName?.toLowerCase().contains(q) ?? false) ||
@@ -90,7 +110,7 @@ class SocialLoaded extends SocialState {
       }).toList();
     }
 
-    // Sort: Favorites first, then Playing (inGame > inAgentSelect), then inLobby, then offline
+    // Sort: Favorites first, then Playing (inGame > inAgentSelect), then inLobby, then away, then offline
     final sorted = List<FriendEntity>.from(list);
     sorted.sort((a, b) {
       // 1. Favorites always at top
@@ -127,8 +147,10 @@ class SocialLoaded extends SocialState {
         return 1;
       case FriendLiveStatus.inLobby:
         return 2;
-      case FriendLiveStatus.offline:
+      case FriendLiveStatus.away:
         return 3;
+      case FriendLiveStatus.offline:
+        return 4;
     }
   }
 

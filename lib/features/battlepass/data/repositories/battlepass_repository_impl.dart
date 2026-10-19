@@ -184,7 +184,7 @@ class BattlepassRepositoryImpl implements BattlepassRepository {
       }
 
       // 1. Try matching current Act season by active UTC dates
-      if (bpContractMeta == null && seasonsMetadata.isNotEmpty) {
+      if (seasonsMetadata.isNotEmpty) {
         final now = DateTime.now().toUtc();
         String? activeSeasonUuid;
         for (final s in seasonsMetadata) {
