@@ -247,6 +247,10 @@ class CareerRepositoryImpl implements CareerRepository {
         }
       }
 
+      if (rawHistory.isNotEmpty && matches.isEmpty) {
+        throw Exception('Failed to load match details for recent matches');
+      }
+
       // RR is scoped to the active act. Never use `QueueSkills.competitive.Tier`
       // or a `LatestCompetitiveUpdate` from a previous act as the current rank.
       final ranked = CompetitiveRankHelper.resolveCurrentRank(

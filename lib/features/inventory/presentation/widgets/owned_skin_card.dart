@@ -219,7 +219,7 @@ class OwnedSkinCard extends StatelessWidget {
                   )
                 else
                   Text(
-                    skin.cost > 0 ? '${skin.cost} VP' : 'FREE',
+                    skin.cost > 0 ? '${skin.cost} VP' : '-- VP',
                     style: GoogleFonts.rajdhani(
                       fontSize: 13,
                       fontWeight: FontWeight.w800,

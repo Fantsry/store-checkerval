@@ -22,4 +22,6 @@ class BattlepassCubit extends Cubit<BattlepassState> {
       failure: (failure) => emit(BattlepassError(message: failure.message)),
     );
   }
+
+  void reset() => emit(const BattlepassInitial());
 }

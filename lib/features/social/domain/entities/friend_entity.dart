@@ -196,6 +196,7 @@ class FriendEntity extends Equatable {
   final bool isMobile; // Displays phone icon if mobile / away
   final String? lastChatMessage; // e.g. "aman aja"
   final DateTime? lastChatTimestamp; // e.g. Oct 14, 2026
+  final String? xmppJid; // Full XMPP JID used for direct messages.
   final DateTime lastUpdated;
 
   const FriendEntity({
@@ -219,6 +220,7 @@ class FriendEntity extends Equatable {
     this.isMobile = false,
     this.lastChatMessage,
     this.lastChatTimestamp,
+    this.xmppJid,
     required this.lastUpdated,
   });
 
@@ -256,6 +258,7 @@ class FriendEntity extends Equatable {
     bool? isMobile,
     String? lastChatMessage,
     DateTime? lastChatTimestamp,
+    String? xmppJid,
     DateTime? lastUpdated,
   }) {
     return FriendEntity(
@@ -279,6 +282,7 @@ class FriendEntity extends Equatable {
       isMobile: isMobile ?? this.isMobile,
       lastChatMessage: lastChatMessage ?? this.lastChatMessage,
       lastChatTimestamp: lastChatTimestamp ?? this.lastChatTimestamp,
+      xmppJid: xmppJid ?? this.xmppJid,
       lastUpdated: lastUpdated ?? this.lastUpdated,
     );
   }
@@ -304,6 +308,7 @@ class FriendEntity extends Equatable {
         'isMobile': isMobile,
         'lastChatMessage': lastChatMessage,
         'lastChatTimestamp': lastChatTimestamp?.toIso8601String(),
+        'xmppJid': xmppJid,
         'lastUpdated': lastUpdated.toIso8601String(),
       };
 
@@ -337,6 +342,7 @@ class FriendEntity extends Equatable {
       lastChatTimestamp: json['lastChatTimestamp'] != null
           ? DateTime.tryParse(json['lastChatTimestamp'] as String)
           : null,
+      xmppJid: json['xmppJid'] as String?,
       lastUpdated: json['lastUpdated'] != null
           ? DateTime.tryParse(json['lastUpdated'] as String) ?? DateTime.now()
           : DateTime.now(),
@@ -365,6 +371,7 @@ class FriendEntity extends Equatable {
         isMobile,
         lastChatMessage,
         lastChatTimestamp,
+        xmppJid,
         lastUpdated,
       ];
 }

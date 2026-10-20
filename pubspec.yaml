@@ -45,9 +45,6 @@ dependencies:
   # Routing
   go_router: ^15.1.2
 
-  # Biometric
-  local_auth: ^2.3.0
-
   # Data Models
   json_annotation: ^4.9.0
 

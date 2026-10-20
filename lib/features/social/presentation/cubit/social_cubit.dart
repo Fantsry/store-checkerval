@@ -1,5 +1,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:valorant_store_tracker/core/error/result.dart';
 import 'package:valorant_store_tracker/features/career/domain/entities/match_summary.dart';
+import 'package:valorant_store_tracker/features/social/domain/entities/chat_message.dart';
 import 'package:valorant_store_tracker/features/social/domain/entities/friend_entity.dart';
 import 'package:valorant_store_tracker/features/social/domain/repositories/social_repository.dart';
 import 'package:valorant_store_tracker/features/social/presentation/cubit/social_state.dart';
@@ -298,6 +300,44 @@ class SocialCubit extends Cubit<SocialState> {
       failure: (_) {},
     );
   }
+
+  Future<Result<List<ChatMessageEntity>>> getChatMessages(String puuid) {
+    return _socialRepository.getChatMessages(puuid);
+  }
+
+  Future<Result<ChatMessageEntity>> sendChatMessage({
+    required String puuid,
+    required String body,
+  }) async {
+    final result = await _socialRepository.sendChatMessage(
+      puuid: puuid,
+      body: body,
+    );
+
+    result.when(
+      success: (message) {
+        final list = List<FriendEntity>.from(_currentFriends ?? []);
+        final idx = list.indexWhere((f) => f.puuid == puuid);
+        if (idx != -1) {
+          list[idx] = list[idx].copyWith(
+            lastChatMessage: message.body,
+            lastChatTimestamp: message.timestamp,
+            lastUpdated: DateTime.now(),
+          );
+          if (state is SocialLoaded) {
+            emit((state as SocialLoaded).copyWith(friends: list));
+          } else {
+            emit(SocialLoaded(friends: list));
+          }
+        }
+      },
+      failure: (_) {},
+    );
+
+    return result;
+  }
+
+  void reset() => emit(const SocialInitial());
 
   void saveUpdatedFriend(FriendEntity updated) {
     final list = List<FriendEntity>.from(_currentFriends ?? []);

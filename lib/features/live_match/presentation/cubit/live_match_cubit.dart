@@ -47,6 +47,11 @@ class LiveMatchCubit extends Cubit<LiveMatchState> {
     });
   }
 
+  void reset() {
+    _transitionPollTimer?.cancel();
+    emit(const LiveMatchInitial());
+  }
+
   @override
   Future<void> close() {
     _transitionPollTimer?.cancel();

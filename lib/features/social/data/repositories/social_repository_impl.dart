@@ -10,6 +10,7 @@ import 'package:valorant_store_tracker/features/career/domain/repositories/caree
 import 'package:valorant_store_tracker/features/live_match/data/datasources/live_match_remote_datasource.dart';
 import 'package:valorant_store_tracker/features/profile/data/datasources/profile_remote_datasource.dart';
 import 'package:valorant_store_tracker/features/social/data/datasources/riot_chat_remote_datasource.dart';
+import 'package:valorant_store_tracker/features/social/domain/entities/chat_message.dart';
 import 'package:valorant_store_tracker/features/social/domain/entities/friend_entity.dart';
 import 'package:valorant_store_tracker/features/social/domain/repositories/social_repository.dart';
 
@@ -357,6 +358,7 @@ class SocialRepositoryImpl implements SocialRepository {
   Future<Result<void>> removeFriend(String puuid) async {
     try {
       await _localStore.deleteSavedFriend(puuid);
+      await _localStore.clearChatMessages(puuid);
       return const Result.success(null);
     } catch (e) {
       return Result.failure(
@@ -607,6 +609,22 @@ class SocialRepositoryImpl implements SocialRepository {
             accessToken: accessToken,
             entitlementToken: entitlementToken,
           );
+          for (final incoming in socialData.messages) {
+            if (incoming.senderPuuid == selfPuuid) continue;
+            try {
+              await _localStore.saveChatMessage(
+                incoming.senderPuuid,
+                ChatMessageEntity(
+                  id: incoming.id,
+                  body: incoming.body,
+                  timestamp: incoming.timestamp,
+                  isMine: false,
+                  status: ChatMessageStatus.sent,
+                ),
+              );
+            } catch (_) {}
+          }
+
           final roster = socialData.roster;
           if (roster.isNotEmpty) {
             final List<String> puuidsToResolve = [];
@@ -769,6 +787,23 @@ class SocialRepositoryImpl implements SocialRepository {
               }
               if (isPlacement) rankName = 'Placement';
 
+              var lastChatMessage =
+                  socialData.recentMessages[puuid]?.body;
+              var lastChatTimestamp =
+                  socialData.recentMessages[puuid]?.timestamp;
+              try {
+                final localHistory =
+                    await _localStore.getChatMessages(puuid);
+                if (localHistory.isNotEmpty) {
+                  final latest = localHistory.last;
+                  if (lastChatTimestamp == null ||
+                      !latest.timestamp.isBefore(lastChatTimestamp)) {
+                    lastChatMessage = latest.body;
+                    lastChatTimestamp = latest.timestamp;
+                  }
+                }
+              } catch (_) {}
+
               final friend = FriendEntity(
                 puuid: puuid,
                 gameName: gameName,
@@ -795,8 +830,9 @@ class SocialRepositoryImpl implements SocialRepository {
                 liveActivity: liveActivity,
                 clientActivity: clientActivity,
                 isMobile: isMobile,
-                lastChatMessage: socialData.recentMessages[puuid]?.body,
-                lastChatTimestamp: socialData.recentMessages[puuid]?.timestamp,
+                lastChatMessage: lastChatMessage,
+                lastChatTimestamp: lastChatTimestamp,
+                xmppJid: rosterItem?.jid,
                 lastUpdated: DateTime.now(),
               );
 
@@ -854,6 +890,109 @@ class SocialRepositoryImpl implements SocialRepository {
     } catch (e) {
       return Result.failure(
         ServerFailure(message: 'Gagal membersihkan data dummy: $e'),
+      );
+    }
+  }
+
+  @override
+  Future<Result<List<ChatMessageEntity>>> getChatMessages(
+    String puuid,
+  ) async {
+    try {
+      final messages = await _localStore.getChatMessages(puuid);
+      return Result.success(messages);
+    } catch (e) {
+      return Result.failure(
+        CacheFailure(message: 'Gagal memuat riwayat chat: $e'),
+      );
+    }
+  }
+
+  @override
+  Future<Result<ChatMessageEntity>> sendChatMessage({
+    required String puuid,
+    required String body,
+  }) async {
+    final trimmed = body.trim();
+    if (trimmed.isEmpty) {
+      return const Result.failure(
+        ServerFailure(message: 'Pesan tidak boleh kosong'),
+      );
+    }
+    if (trimmed.length > 500) {
+      return const Result.failure(
+        ServerFailure(message: 'Pesan maksimal 500 karakter'),
+      );
+    }
+
+    try {
+      final accessToken = await _storage.getAccessToken();
+      if (accessToken == null || accessToken.isEmpty) {
+        return const Result.failure(
+          AuthFailure(message: 'Sesi berakhir, silakan login ulang'),
+        );
+      }
+      final entitlementToken = await _storage.getEntitlementsToken();
+
+      FriendEntity? friend;
+      final rawFriend = await _localStore.getSavedFriendJson(puuid);
+      if (rawFriend != null && rawFriend.isNotEmpty) {
+        try {
+          friend = FriendEntity.fromJson(
+            jsonDecode(rawFriend) as Map<String, dynamic>,
+          );
+        } catch (_) {}
+      }
+
+      final rosterJid = friend?.xmppJid?.trim() ?? '';
+      final recipientJid =
+          rosterJid.isNotEmpty ? rosterJid : '$puuid@pvp.net';
+
+      final sendResult = await _chatDataSource.sendChatMessage(
+        accessToken: accessToken,
+        entitlementToken: entitlementToken,
+        recipientJid: recipientJid,
+        body: trimmed,
+      );
+
+      if (!sendResult.isSuccess) {
+        return Result.failure(
+          ServerFailure(
+            message: sendResult.error ?? 'Gagal mengirim pesan',
+          ),
+        );
+      }
+
+      final timestamp = DateTime.now();
+      final message = ChatMessageEntity(
+        id: sendResult.messageId ??
+            'local-${timestamp.microsecondsSinceEpoch}',
+        body: trimmed,
+        timestamp: timestamp,
+        isMine: true,
+        status: ChatMessageStatus.sent,
+      );
+
+      try {
+        await _localStore.saveChatMessage(puuid, message);
+        if (friend != null) {
+          await _localStore.saveFriendJson(
+            puuid,
+            jsonEncode(
+              friend.copyWith(
+                lastChatMessage: trimmed,
+                lastChatTimestamp: timestamp,
+                lastUpdated: timestamp,
+              ).toJson(),
+            ),
+          );
+        }
+      } catch (_) {}
+
+      return Result.success(message);
+    } catch (e) {
+      return Result.failure(
+        ServerFailure(message: 'Gagal mengirim pesan: $e'),
       );
     }
   }

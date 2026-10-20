@@ -243,17 +243,30 @@ class BackgroundTaskManager {
     final wishlist = await localStore.getWishlist();
     final alertRules = await localStore.getAlertRules();
 
-    final notificationService = NotificationService();
-    await notificationService.init();
-    await notificationService.evaluateStoreOffers(
-      store: dailyStore,
-      wishlist: wishlist,
-      alertRules: alertRules,
-      localStore: localStore,
-      deduplicate: deduplicate,
-    );
+    final notificationsEnabled =
+        await secureStorage.areNotificationsEnabled();
+    if (notificationsEnabled) {
+      final notificationService = NotificationService();
+      await notificationService.init();
+      await notificationService.evaluateStoreOffers(
+        store: dailyStore,
+        wishlist: wishlist,
+        alertRules: alertRules,
+        localStore: localStore,
+        deduplicate: deduplicate,
+        notificationsEnabled: notificationsEnabled,
+      );
+    }
 
     return true;
+  }
+
+  static Future<bool> _areNotificationsEnabled() async {
+    try {
+      return await SecureStorageService().areNotificationsEnabled();
+    } catch (_) {
+      return false;
+    }
   }
 
   static Future<void> initialize() async {
@@ -271,6 +284,7 @@ class BackgroundTaskManager {
   /// Adds a 1-minute buffer (07:01 WIB) to ensure Riot's storefront rotation is live.
   static Future<void> scheduleNextResetCheck() async {
     if (kIsWeb) return;
+    if (!await _areNotificationsEnabled()) return;
     try {
       final timeUntilReset = TimezoneHelper.timeUntilReset;
       // 1 minute buffer after 00:00 UTC
@@ -298,6 +312,7 @@ class BackgroundTaskManager {
   /// Runs without battery-low constraint so it triggers even on lower battery.
   static Future<void> registerPeriodicStoreCheck() async {
     if (kIsWeb) return;
+    if (!await _areNotificationsEnabled()) return;
     try {
       await Workmanager().registerPeriodicTask(
         dailyStoreCheckTaskKey,

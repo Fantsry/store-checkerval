@@ -102,5 +102,13 @@ void main() {
         ),
       ],
     );
+
+    test('reset clears the previous account state', () {
+      storeCubit.emit(StoreLoaded(store: tStore, wallet: tWallet));
+
+      storeCubit.reset();
+
+      expect(storeCubit.state, isA<StoreInitial>());
+    });
   });
 }

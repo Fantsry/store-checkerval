@@ -52,6 +52,8 @@ class ProfileCubit extends Cubit<ProfileState> {
     emit(const ProfileUnauthenticated());
   }
 
+  void reset() => emit(const ProfileInitial());
+
   void updateWithWallet({
     required int vp,
     required int rp,

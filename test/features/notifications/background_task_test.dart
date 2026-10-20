@@ -137,6 +137,7 @@ void main() {
         alertRules: const [],
         localStore: mockLocalStore,
         deduplicate: true,
+        notificationsEnabled: true,
       );
 
       verifyNever(() => mockLocalStore.setLastNotifiedStoreDate(any()));
@@ -173,6 +174,7 @@ void main() {
         alertRules: alertRules,
         localStore: mockLocalStore,
         deduplicate: true,
+        notificationsEnabled: true,
       );
 
       final todayKey = DateTime.now().toUtc().toIso8601String().substring(0, 10);
@@ -180,6 +182,43 @@ void main() {
       expect(notificationService.wishlistMatchesNotified.length, 1);
       expect(notificationService.wishlistMatchesNotified.first, ['Prime Vandal']);
       expect(notificationService.customAlertsNotified.length, 1);
+    });
+
+    test('skips all notifications when notifications are disabled', () async {
+      when(() => mockLocalStore.getLastNotifiedStoreDate())
+          .thenAnswer((_) async => null);
+
+      final wishlist = [
+        WishlistItem(
+          uuid: 'vandal-prime-uuid',
+          displayName: 'Prime Vandal',
+          cost: 1775,
+          addedAt: DateTime.now(),
+        ),
+      ];
+
+      final alertRules = [
+        const StoreAlertRule(
+          id: 'melee_alert',
+          weapon: 'Melee',
+          tiers: [],
+          isEnabled: true,
+          customName: 'Melee Alert',
+        ),
+      ];
+
+      await notificationService.evaluateStoreOffers(
+        store: tStore,
+        wishlist: wishlist,
+        alertRules: alertRules,
+        localStore: mockLocalStore,
+        deduplicate: true,
+        notificationsEnabled: false,
+      );
+
+      expect(notificationService.wishlistMatchesNotified, isEmpty);
+      expect(notificationService.customAlertsNotified, isEmpty);
+      verifyNever(() => mockLocalStore.setLastNotifiedStoreDate(any()));
     });
   });
 }

@@ -2,6 +2,7 @@ import 'package:bloc_test/bloc_test.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:valorant_store_tracker/core/error/result.dart';
+import 'package:valorant_store_tracker/features/social/domain/entities/chat_message.dart';
 import 'package:valorant_store_tracker/features/social/domain/entities/friend_entity.dart';
 import 'package:valorant_store_tracker/features/social/domain/repositories/social_repository.dart';
 import 'package:valorant_store_tracker/features/social/presentation/cubit/social_cubit.dart';
@@ -225,6 +226,64 @@ void main() {
       final state = cubit.state as SocialLoaded;
       expect(state.friends, equals(testFriends));
       verify(() => mockRepository.syncRiotFriends(clearMocks: true)).called(1);
+    });
+
+    test('sendChatMessage updates the friend preview on success', () async {
+      when(
+        () => mockRepository.getFriends(forceRefresh: false),
+      ).thenAnswer((_) async => Result.success(testFriends));
+      await cubit.loadFriends();
+
+      final sentMessage = ChatMessageEntity(
+        id: 'm1',
+        body: 'halo',
+        timestamp: DateTime(2026, 10, 20, 8),
+        isMine: true,
+        status: ChatMessageStatus.sent,
+      );
+      when(
+        () => mockRepository.sendChatMessage(puuid: 'p1', body: 'halo'),
+      ).thenAnswer((_) async => Result.success(sentMessage));
+
+      final result = await cubit.sendChatMessage(
+        puuid: 'p1',
+        body: 'halo',
+      );
+
+      expect(result.isSuccess, isTrue);
+      final state = cubit.state as SocialLoaded;
+      final friend = state.friends.firstWhere((f) => f.puuid == 'p1');
+      expect(friend.lastChatMessage, 'halo');
+      expect(friend.lastChatTimestamp, sentMessage.timestamp);
+    });
+
+    test('getChatMessages forwards to the repository', () async {
+      final messages = [
+        ChatMessageEntity(
+          id: 'm1',
+          body: 'pagi',
+          timestamp: DateTime(2026, 10, 20, 8),
+          isMine: false,
+        ),
+      ];
+      when(() => mockRepository.getChatMessages('p1'))
+          .thenAnswer((_) async => Result.success(messages));
+
+      final result = await cubit.getChatMessages('p1');
+
+      expect(result.valueOrNull, messages);
+      verify(() => mockRepository.getChatMessages('p1')).called(1);
+    });
+
+    test('reset clears the previous account state', () async {
+      when(
+        () => mockRepository.getFriends(forceRefresh: false),
+      ).thenAnswer((_) async => Result.success(testFriends));
+      await cubit.loadFriends();
+
+      cubit.reset();
+
+      expect(cubit.state, isA<SocialInitial>());
     });
 
     test('clearMockFriends calls repository and reloads friends', () async {

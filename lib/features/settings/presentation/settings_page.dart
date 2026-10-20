@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:local_auth/local_auth.dart';
 import 'package:valorant_store_tracker/app/di.dart';
 import 'package:valorant_store_tracker/core/storage/local_store_service.dart';
 import 'package:valorant_store_tracker/core/storage/secure_storage_service.dart';
@@ -35,8 +34,6 @@ class SettingsPage extends StatefulWidget {
 
 class _SettingsPageState extends State<SettingsPage> {
   bool _notificationsEnabled = true;
-  bool _biometricEnabled = false;
-  final LocalAuthentication _localAuth = LocalAuthentication();
 
   @override
   void initState() {
@@ -46,47 +43,9 @@ class _SettingsPageState extends State<SettingsPage> {
 
   Future<void> _loadSettings() async {
     final storage = getIt<SecureStorageService>();
-    final bio = await storage.isBiometricEnabled();
     final notifications = await storage.areNotificationsEnabled();
     if (mounted) {
-      setState(() {
-        _biometricEnabled = bio;
-        _notificationsEnabled = notifications;
-      });
-    }
-  }
-
-  Future<void> _toggleBiometric(bool value) async {
-    if (value) {
-      try {
-        final canAuth = await _localAuth.canCheckBiometrics;
-        if (!canAuth) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Biometrics not available on this device')),
-            );
-          }
-          return;
-        }
-
-        final authenticated = await _localAuth.authenticate(
-          localizedReason: 'Authenticate to enable Biometric Lock',
-        );
-
-        if (authenticated) {
-          await getIt<SecureStorageService>().setBiometricEnabled(true);
-          setState(() => _biometricEnabled = true);
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Biometric authentication failed: $e')),
-          );
-        }
-      }
-    } else {
-      await getIt<SecureStorageService>().setBiometricEnabled(false);
-      setState(() => _biometricEnabled = false);
+      setState(() => _notificationsEnabled = notifications);
     }
   }
 
@@ -286,17 +245,6 @@ class _SettingsPageState extends State<SettingsPage> {
                   value: _notificationsEnabled,
                   onChanged: _toggleNotifications,
                   activeColor: AppColors.red,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.xs),
-              _buildSettingTile(
-                icon: Icons.fingerprint_rounded,
-                title: 'Biometric App Lock',
-                subtitle: 'Require Face ID / Fingerprint on launch',
-                trailing: Switch(
-                  value: _biometricEnabled,
-                  onChanged: _toggleBiometric,
-                  activeColor: AppColors.cyan,
                 ),
               ),
               const SizedBox(height: AppSpacing.xs),

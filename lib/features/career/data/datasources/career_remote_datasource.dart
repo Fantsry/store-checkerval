@@ -82,6 +82,7 @@ class CareerRemoteDataSourceImpl implements CareerRemoteDataSource {
 
     final normalized = _normalizeShard(shard);
     final shardsToTry = {normalized, 'ap', 'eu', 'na', 'kr'}.toList();
+    var reachedRiot = false;
 
     for (final s in shardsToTry) {
       try {
@@ -107,6 +108,7 @@ class CareerRemoteDataSourceImpl implements CareerRemoteDataSource {
         }
 
         if (body is Map && body['History'] is List) {
+          reachedRiot = true;
           return (body['History'] as List)
               .whereType<Map>()
               .map((item) => Map<String, dynamic>.from(item))
@@ -120,6 +122,9 @@ class CareerRemoteDataSourceImpl implements CareerRemoteDataSource {
       }
     }
 
+    if (!reachedRiot) {
+      throw Exception('Failed to fetch match history from Riot');
+    }
     return [];
   }
 

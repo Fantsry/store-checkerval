@@ -1,3 +1,4 @@
+import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:get_it/get_it.dart';
 import 'package:valorant_store_tracker/core/network/auth_interceptor.dart';
 import 'package:valorant_store_tracker/core/network/dio_client.dart';
@@ -111,7 +112,13 @@ Future<void> setupDI() async {
       remoteDataSource: getIt<AuthRemoteDataSource>(),
       storage: getIt<SecureStorageService>(),
       localStore: getIt<LocalStoreService>(),
-      onLogout: BackgroundTaskManager.cancelStoreCheck,
+      onLogout: () async {
+        await BackgroundTaskManager.cancelStoreCheck();
+        try {
+          await CookieManager.instance().deleteAllCookies();
+          await InAppWebViewController.clearAllCache();
+        } catch (_) {}
+      },
     ),
   );
 
@@ -206,6 +213,7 @@ Future<void> setupDI() async {
       storeRepository: getIt<StoreRepository>(),
       notificationService: getIt<NotificationService>(),
       localStore: getIt<LocalStoreService>(),
+      secureStorage: getIt<SecureStorageService>(),
     ),
   );
 

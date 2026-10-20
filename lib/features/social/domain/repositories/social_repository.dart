@@ -1,5 +1,6 @@
 import 'package:valorant_store_tracker/core/error/result.dart';
 import 'package:valorant_store_tracker/features/career/domain/entities/match_summary.dart';
+import 'package:valorant_store_tracker/features/social/domain/entities/chat_message.dart';
 import 'package:valorant_store_tracker/features/social/domain/entities/friend_entity.dart';
 
 abstract class SocialRepository {
@@ -43,4 +44,13 @@ abstract class SocialRepository {
 
   /// Remove all mock/dummy seeded friends from local storage.
   Future<Result<void>> clearMockFriends();
+
+  /// Load locally persisted direct-message history for a friend.
+  Future<Result<List<ChatMessageEntity>>> getChatMessages(String puuid);
+
+  /// Send a direct XMPP message and persist it locally.
+  Future<Result<ChatMessageEntity>> sendChatMessage({
+    required String puuid,
+    required String body,
+  });
 }

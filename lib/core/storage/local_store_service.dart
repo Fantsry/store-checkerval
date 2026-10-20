@@ -5,6 +5,7 @@ import 'package:valorant_store_tracker/features/daily_store/domain/entities/dail
 import 'package:valorant_store_tracker/features/daily_store/domain/entities/skin_item.dart';
 import 'package:valorant_store_tracker/features/notifications/domain/entities/store_alert_rule.dart';
 import 'package:valorant_store_tracker/features/profile/domain/entities/user_profile.dart';
+import 'package:valorant_store_tracker/features/social/domain/entities/chat_message.dart';
 import 'package:valorant_store_tracker/features/wishlist/domain/entities/wishlist_item.dart';
 
 class LocalStoreService {
@@ -15,6 +16,7 @@ class LocalStoreService {
   static const String _alertRulesBoxName = 'alert_rules_box';
   static const String _careerCacheBoxName = 'career_cache_box';
   static const String _socialFriendsBoxName = 'social_friends_box';
+  static const String _socialChatsBoxName = 'social_chats_box';
 
   late Box<String> _wishlistBox;
   late Box<String> _skinsCacheBox;
@@ -23,6 +25,7 @@ class LocalStoreService {
   late Box<String> _alertRulesBox;
   late Box<String> _careerCacheBox;
   late Box<String> _socialFriendsBox;
+  late Box<String> _socialChatsBox;
 
   Future<void> init() async {
     await Hive.initFlutter();
@@ -33,6 +36,7 @@ class LocalStoreService {
     _alertRulesBox = await Hive.openBox<String>(_alertRulesBoxName);
     _careerCacheBox = await Hive.openBox<String>(_careerCacheBoxName);
     _socialFriendsBox = await Hive.openBox<String>(_socialFriendsBoxName);
+    _socialChatsBox = await Hive.openBox<String>(_socialChatsBoxName);
   }
 
   // ─── Wishlist Operations ───────────────────────────────────
@@ -433,6 +437,10 @@ class LocalStoreService {
     return _socialFriendsBox.values.toList();
   }
 
+  Future<String?> getSavedFriendJson(String puuid) async {
+    return _socialFriendsBox.get(puuid);
+  }
+
   Future<void> saveFriendJson(String puuid, String jsonStr) async {
     await _socialFriendsBox.put(puuid, jsonStr);
   }
@@ -449,6 +457,37 @@ class LocalStoreService {
     await _socialFriendsBox.clear();
   }
 
+  // ─── Social Chat History ───────────────────────────────────
+
+  Future<List<ChatMessageEntity>> getChatMessages(String puuid) async {
+    final raw = _socialChatsBox.get(puuid);
+    if (raw == null || raw.isEmpty) return const [];
+
+    try {
+      final decoded = jsonDecode(raw) as List<dynamic>;
+      return decoded
+          .whereType<Map<String, dynamic>>()
+          .map(ChatMessageEntity.fromJson)
+          .toList()
+        ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  Future<void> saveChatMessage(String puuid, ChatMessageEntity message) async {
+    final history = await getChatMessages(puuid);
+    final merged = mergeChatMessages(history, message);
+    await _socialChatsBox.put(
+      puuid,
+      jsonEncode(merged.map((entry) => entry.toJson()).toList()),
+    );
+  }
+
+  Future<void> clearChatMessages(String puuid) async {
+    await _socialChatsBox.delete(puuid);
+  }
+
   // ─── Account-scoped Cleanup ────────────────────────────────
 
   /// Clears every cache that belongs to the signed-in Riot account.
@@ -459,6 +498,7 @@ class LocalStoreService {
       _profileCacheBox.clear(),
       _careerCacheBox.clear(),
       _socialFriendsBox.clear(),
+      _socialChatsBox.clear(),
     ]);
   }
 }

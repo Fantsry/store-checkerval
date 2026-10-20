@@ -32,8 +32,35 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
 
+      - name: Configure release signing
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          set -euo pipefail
+          for name in ANDROID_KEYSTORE_BASE64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_PASSWORD ANDROID_KEY_ALIAS; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::Missing GitHub secret $name"
+              exit 1
+            fi
+          done
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/release-keystore.jks
+          {
+            printf 'storePassword=%s\n' "$ANDROID_KEYSTORE_PASSWORD"
+            printf 'keyPassword=%s\n' "$ANDROID_KEY_PASSWORD"
+            printf 'keyAlias=%s\n' "$ANDROID_KEY_ALIAS"
+            printf 'storeFile=release-keystore.jks\n'
+          } > android/key.properties
+          chmod 600 android/key.properties android/release-keystore.jks
+
       - name: Build APK (Release)
         run: flutter build apk --release --android-skip-build-dependency-validation
+
+      - name: Remove release signing files
+        if: always()
+        run: rm -f android/key.properties android/release-keystore.jks
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4

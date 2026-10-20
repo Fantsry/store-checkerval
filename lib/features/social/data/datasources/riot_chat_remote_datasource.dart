@@ -7,12 +7,14 @@ import 'package:dio/dio.dart';
 /// Friend item parsed from Riot's remote XMPP roster service.
 class RiotFriendRosterItem {
   final String puuid;
+  final String jid;
   final String name; // GameName or GameName#Tag
   final String? tag;
   final String subscription;
 
   const RiotFriendRosterItem({
     required this.puuid,
+    this.jid = '',
     required this.name,
     this.tag,
     this.subscription = 'both',
@@ -68,11 +70,13 @@ class RiotPresenceData {
 
 /// Simple chat message model parsed from XMPP message stanzas.
 class RiotChatMessage {
+  final String id;
   final String senderPuuid;
   final String body;
   final DateTime timestamp;
 
   const RiotChatMessage({
+    this.id = '',
     required this.senderPuuid,
     required this.body,
     required this.timestamp,
@@ -84,12 +88,44 @@ class RiotSocialSyncData {
   final List<RiotFriendRosterItem> roster;
   final Map<String, RiotPresenceData> presences; // Key: PUUID
   final Map<String, RiotChatMessage> recentMessages; // Key: PUUID
+  final List<RiotChatMessage> messages;
+  final String? sentMessageId;
+  final String? sendError;
 
   const RiotSocialSyncData({
     this.roster = const [],
     this.presences = const {},
     this.recentMessages = const {},
+    this.messages = const [],
+    this.sentMessageId,
+    this.sendError,
   });
+}
+
+class RiotChatSendResult {
+  final bool isSuccess;
+  final String? messageId;
+  final String? error;
+  final List<RiotChatMessage> messages;
+
+  const RiotChatSendResult({
+    required this.isSuccess,
+    this.messageId,
+    this.error,
+    this.messages = const [],
+  });
+
+  const RiotChatSendResult.success({
+    required String messageId,
+    List<RiotChatMessage> messages = const [],
+  }) : this(
+          isSuccess: true,
+          messageId: messageId,
+          messages: messages,
+        );
+
+  const RiotChatSendResult.failure(String error)
+      : this(isSuccess: false, error: error);
 }
 
 /// Remote data source connecting to Riot Games' real-time chat & presence
@@ -256,6 +292,205 @@ class RiotChatRemoteDataSource {
     return {'host': host, 'domain': domain};
   }
 
+  Future<RiotChatSendResult> sendChatMessage({
+    required String accessToken,
+    String? entitlementToken,
+    required String recipientJid,
+    required String body,
+  }) async {
+    final pasInfo = await fetchPasToken(accessToken: accessToken);
+    if (pasInfo == null) {
+      return const RiotChatSendResult.failure(
+        'Gagal mendapatkan token chat Riot',
+      );
+    }
+
+    final pasToken = pasInfo['pasToken']!;
+    final affinity = pasInfo['affinity']!;
+    final routing = await fetchChatRouting(
+      accessToken: accessToken,
+      affinity: affinity,
+      entitlementToken: entitlementToken,
+    );
+
+    final host = routing['host']!;
+    final domain = routing['domain']!;
+    final randomHex =
+        Random().nextInt(0xFFFFFF).toRadixString(16).padLeft(6, '0');
+    final messageId =
+        'msg-${DateTime.now().microsecondsSinceEpoch}-$randomHex';
+
+    SecureSocket? socket;
+    try {
+      socket = await SecureSocket.connect(
+        host,
+        5223,
+        timeout: const Duration(seconds: 7),
+      );
+
+      final completer = Completer<RiotChatSendResult>();
+      int step = 0;
+      bool messageSent = false;
+      Timer? successTimer;
+
+      void finish(RiotChatSendResult result) {
+        if (!completer.isCompleted) {
+          successTimer?.cancel();
+          completer.complete(result);
+        }
+      }
+
+      final timeoutTimer = Timer(
+        const Duration(seconds: 8),
+        () => finish(
+          const RiotChatSendResult.failure(
+            'Waktu koneksi chat habis sebelum pesan terkirim',
+          ),
+        ),
+      );
+
+      socket.listen(
+        (data) {
+          final chunk = utf8.decode(data, allowMalformed: true);
+          final lower = chunk.toLowerCase();
+
+          if (messageSent &&
+              (lower.contains('type="error"') ||
+                  lower.contains("type='error'"))) {
+            finish(
+              const RiotChatSendResult.failure(
+                'Server Riot menolak pesan',
+              ),
+            );
+            return;
+          }
+
+          if (step == 0 &&
+              (chunk.contains('<stream:features') ||
+                  chunk.contains('X-Riot-RSO-PAS'))) {
+            step = 1;
+            socket!.write(
+              '<auth mechanism="X-Riot-RSO-PAS" '
+              'xmlns="urn:ietf:params:xml:ns:xmpp-sasl">'
+              '<rso_token>$accessToken</rso_token>'
+              '<pas_token>$pasToken</pas_token>'
+              '</auth>',
+            );
+          } else if (step == 1 && chunk.contains('<success')) {
+            step = 2;
+            socket!.write(
+              '<?xml version="1.0" encoding="UTF-8"?>'
+              '<stream:stream to="$domain" xml:lang="en" version="1.0" '
+              'xmlns="jabber:client" '
+              'xmlns:stream="http://etherx.jabber.org/streams">',
+            );
+          } else if (step == 2 &&
+              (chunk.contains('<stream:features') ||
+                  chunk.contains('<bind'))) {
+            step = 3;
+            socket!.write(
+              '<iq id="_xmpp_bind1" type="set">'
+              '<bind xmlns="urn:ietf:params:xml:ns:xmpp-bind">'
+              '<puuid-mode enabled="true"/>'
+              '<resource>RC-$randomHex</resource>'
+              '</bind>'
+              '</iq>',
+            );
+          } else if (step == 3 && chunk.contains('_xmpp_bind1')) {
+            step = 4;
+            socket!.write(
+              '<iq id="_xmpp_session1" type="set">'
+              '<session xmlns="urn:ietf:params:xml:ns:xmpp-session"/>'
+              '</iq>',
+            );
+          } else if (step == 4 && chunk.contains('_xmpp_session1')) {
+            step = 5;
+
+            if (entitlementToken != null && entitlementToken.isNotEmpty) {
+              socket!.write(
+                '<iq id="xmpp_entitlements_0" type="set">'
+                '<entitlements xmlns="urn:riotgames:entitlements">'
+                '<token xmlns="">$entitlementToken</token>'
+                '</entitlements>'
+                '</iq>',
+              );
+            }
+
+            socket!.write(
+              buildChatMessageStanza(
+                id: messageId,
+                toJid: recipientJid,
+                body: body,
+              ),
+            );
+            messageSent = true;
+
+            successTimer = Timer(
+              const Duration(milliseconds: 1200),
+              () => finish(
+                RiotChatSendResult.success(
+                  messageId: messageId,
+                  messages: const [],
+                ),
+              ),
+            );
+          }
+        },
+        onError: (Object _) {
+          if (messageSent) {
+            finish(
+              RiotChatSendResult.success(
+                messageId: messageId,
+                messages: const [],
+              ),
+            );
+          } else {
+            finish(
+              const RiotChatSendResult.failure(
+                'Koneksi chat terputus sebelum pesan terkirim',
+              ),
+            );
+          }
+        },
+        onDone: () {
+          if (messageSent && !completer.isCompleted) {
+            finish(
+              RiotChatSendResult.success(
+                messageId: messageId,
+                messages: const [],
+              ),
+            );
+          } else if (!messageSent && !completer.isCompleted) {
+            finish(
+              const RiotChatSendResult.failure(
+                'Koneksi chat ditutup sebelum pesan terkirim',
+              ),
+            );
+          }
+        },
+      );
+
+      socket.write(
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        '<stream:stream to="$domain" xml:lang="en" version="1.0" '
+        'xmlns="jabber:client" '
+        'xmlns:stream="http://etherx.jabber.org/streams">',
+      );
+
+      final result = await completer.future;
+      timeoutTimer.cancel();
+      return result;
+    } catch (e) {
+      return RiotChatSendResult.failure(
+        'Gagal mengirim pesan chat: $e',
+      );
+    } finally {
+      try {
+        socket?.destroy();
+      } catch (_) {}
+    }
+  }
+
   /// Step 3: Connect to Riot XMPP over TLS, perform SASL auth, request roster,
   /// publish presence, and collect live friend presences and chats.
   Future<RiotSocialSyncData> fetchRemoteSocialData({
@@ -292,6 +527,7 @@ class RiotChatRemoteDataSource {
       final List<RiotFriendRosterItem> rosterList = [];
       final Map<String, RiotPresenceData> presencesMap = {};
       final Map<String, RiotChatMessage> messagesMap = {};
+      final List<RiotChatMessage> messagesList = [];
 
       Timer? collectionTimer;
 
@@ -302,6 +538,7 @@ class RiotChatRemoteDataSource {
             roster: rosterList,
             presences: presencesMap,
             recentMessages: messagesMap,
+            messages: messagesList,
           ));
         }
       }
@@ -400,6 +637,7 @@ class RiotChatRemoteDataSource {
               rosterList: rosterList,
               presencesMap: presencesMap,
               messagesMap: messagesMap,
+              messagesList: messagesList,
             );
           }
         },
@@ -434,53 +672,12 @@ class RiotChatRemoteDataSource {
     required List<RiotFriendRosterItem> rosterList,
     required Map<String, RiotPresenceData> presencesMap,
     required Map<String, RiotChatMessage> messagesMap,
+    required List<RiotChatMessage> messagesList,
   }) {
     // 1. Parse Roster Items from <item ...>...</item> or self-closing <item .../>
-    final itemPattern = RegExp(r'<item\b([^>]*?)>(?:([\s\S]*?)<\/item>)?|<item\b([^>]*?)\/>', caseSensitive: false);
-
-    for (final match in itemPattern.allMatches(chunk)) {
-      final attrs = match.group(1) ?? match.group(3) ?? '';
-      final inner = match.group(2) ?? '';
-
-      // Extract JID -> PUUID
-      final jidMatch = RegExp(r'jid=["\x27]([^@"\x27]+)@', caseSensitive: false).firstMatch(attrs);
-      final rawPuuid = jidMatch?.group(1)?.trim() ?? '';
-      if (rawPuuid.isEmpty || rawPuuid == 'null') continue;
-
-      // Extract subscription
-      final subMatch = RegExp(r'subscription=["\x27]([^"\x27]*)["\x27]', caseSensitive: false).firstMatch(attrs);
-      final subscription = subMatch?.group(1) ?? 'both';
-      if (subscription == 'remove') continue;
-
-      // Extract name & tagline from <id name="..." tagline="..."/> child or attrs
-      String name = '';
-      String? tag;
-
-      final idTagMatch = RegExp(r'<id\b[^>]*name=["\x27]([^"\x27]*)["\x27](?:[^>]*tagline=["\x27]([^"\x27]*)["\x27])?', caseSensitive: false).firstMatch(inner);
-      if (idTagMatch != null) {
-        name = idTagMatch.group(1)?.trim() ?? '';
-        tag = idTagMatch.group(2)?.trim();
-      }
-
-      if (name.isEmpty) {
-        final nameAttrMatch = RegExp(r'name=["\x27]([^"\x27]*)["\x27]', caseSensitive: false).firstMatch(attrs);
-        final rawName = nameAttrMatch?.group(1)?.trim() ?? '';
-        if (rawName.contains('#')) {
-          final parts = rawName.split('#');
-          name = parts[0].trim();
-          tag = parts.length > 1 ? parts[1].trim() : null;
-        } else {
-          name = rawName;
-        }
-      }
-
-      if (!rosterList.any((f) => f.puuid == rawPuuid)) {
-        rosterList.add(RiotFriendRosterItem(
-          puuid: rawPuuid,
-          name: name,
-          tag: tag,
-          subscription: subscription,
-        ));
+    for (final item in parseRosterItems(chunk)) {
+      if (!rosterList.any((f) => f.puuid == item.puuid)) {
+        rosterList.add(item);
       }
     }
 
@@ -619,23 +816,160 @@ class RiotChatRemoteDataSource {
     }
 
     // 3. Parse Chat Messages
-    final messageRegex = RegExp(
-      r'<message\b[^>]*from=["\x27]([^@"\x27]+)@[^/"\x27]+[^>]*>([\s\S]*?)<\/message>',
-      caseSensitive: false,
-    );
-    for (final match in messageRegex.allMatches(chunk)) {
-      final senderPuuid = match.group(1)?.trim() ?? '';
-      final body = match.group(2) ?? '';
-      final textMatch = RegExp(r'<body>([\s\S]*?)<\/body>', caseSensitive: false).firstMatch(body);
-      final text = textMatch?.group(1)?.trim();
-      if (senderPuuid.isNotEmpty && text != null && text.isNotEmpty) {
-        messagesMap[senderPuuid] = RiotChatMessage(
-          senderPuuid: senderPuuid,
-          body: text,
-          timestamp: DateTime.now(),
-        );
+    for (final message in parseChatMessages(chunk)) {
+      messagesList.add(message);
+      final existing = messagesMap[message.senderPuuid];
+      if (existing == null || message.timestamp.isAfter(existing.timestamp)) {
+        messagesMap[message.senderPuuid] = message;
       }
     }
+  }
+
+  static List<RiotFriendRosterItem> parseRosterItems(String chunk) {
+    final items = <RiotFriendRosterItem>[];
+    final itemPattern = RegExp(
+      r'<item\b([^>]*?)>(?:([\s\S]*?)<\/item>)?|<item\b([^>]*?)\/>',
+      caseSensitive: false,
+    );
+
+    for (final match in itemPattern.allMatches(chunk)) {
+      final attrs = match.group(1) ?? match.group(3) ?? '';
+      final inner = match.group(2) ?? '';
+
+      final jid = _readAttribute(attrs, 'jid') ?? '';
+      final atIndex = jid.indexOf('@');
+      final rawPuuid =
+          atIndex > 0 ? jid.substring(0, atIndex).trim() : '';
+      if (rawPuuid.isEmpty || rawPuuid == 'null') continue;
+
+      final subscription = _readAttribute(attrs, 'subscription') ?? 'both';
+      if (subscription == 'remove') continue;
+
+      String name = '';
+      String? tag;
+
+      final idTagMatch = RegExp(
+        r'<id\b[^>]*name=["\x27]([^"\x27]*)["\x27](?:[^>]*tagline=["\x27]([^"\x27]*)["\x27])?',
+        caseSensitive: false,
+      ).firstMatch(inner);
+      if (idTagMatch != null) {
+        name = idTagMatch.group(1)?.trim() ?? '';
+        tag = idTagMatch.group(2)?.trim();
+      }
+
+      if (name.isEmpty) {
+        final rawName = _readAttribute(attrs, 'name') ?? '';
+        if (rawName.contains('#')) {
+          final parts = rawName.split('#');
+          name = parts[0].trim();
+          tag = parts.length > 1 ? parts[1].trim() : null;
+        } else {
+          name = rawName;
+        }
+      }
+
+      items.add(RiotFriendRosterItem(
+        puuid: rawPuuid,
+        jid: jid,
+        name: name,
+        tag: tag,
+        subscription: subscription,
+      ));
+    }
+
+    return items;
+  }
+
+  static String buildChatMessageStanza({
+    required String id,
+    required String toJid,
+    required String body,
+  }) {
+    return '<message id="${_escapeXml(id)}" to="${_escapeXml(toJid)}" type="chat">'
+        '<body>${_escapeXml(body)}</body>'
+        '</message>';
+  }
+
+  static List<RiotChatMessage> parseChatMessages(String chunk) {
+    final messages = <RiotChatMessage>[];
+    final messageRegex = RegExp(
+      r'<message\b([^>]*)>([\s\S]*?)<\/message>',
+      caseSensitive: false,
+    );
+
+    for (final match in messageRegex.allMatches(chunk)) {
+      final attrs = match.group(1) ?? '';
+      final inner = match.group(2) ?? '';
+      final type = _readAttribute(attrs, 'type')?.toLowerCase() ?? 'chat';
+      if (type == 'groupchat' || type == 'error') continue;
+
+      final from = _readAttribute(attrs, 'from') ?? '';
+      final senderPuuid = from.split('@').first.trim();
+      if (senderPuuid.isEmpty || !from.contains('@')) continue;
+
+      final bodyMatch = RegExp(
+        r'<body\b[^>]*>([\s\S]*?)<\/body>',
+        caseSensitive: false,
+      ).firstMatch(inner);
+      final text = _unescapeXml(bodyMatch?.group(1)?.trim() ?? '');
+      if (text.isEmpty) continue;
+
+      final timestamp =
+          _parseTimestamp(_readAttribute(attrs, 'stamp')) ??
+          _parseTimestamp(_readAttribute(inner, 'stamp')) ??
+          DateTime.now();
+      final id = _readAttribute(attrs, 'id') ??
+          'srv_${senderPuuid}_${timestamp.microsecondsSinceEpoch}';
+
+      messages.add(RiotChatMessage(
+        id: id,
+        senderPuuid: senderPuuid,
+        body: text,
+        timestamp: timestamp,
+      ));
+    }
+
+    return messages;
+  }
+
+  static String? _readAttribute(String source, String name) {
+    final match = RegExp(
+      '\\b${RegExp.escape(name)}\\s*=\\s*["\']([^"\']*)["\']',
+      caseSensitive: false,
+    ).firstMatch(source);
+    return match?.group(1)?.trim();
+  }
+
+  static DateTime? _parseTimestamp(String? raw) {
+    if (raw == null || raw.isEmpty) return null;
+    return DateTime.tryParse(raw)?.toLocal();
+  }
+
+  static String _escapeXml(String value) {
+    return value
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&apos;');
+  }
+
+  static String _unescapeXml(String value) {
+    var result = value
+        .replaceAll('&quot;', '"')
+        .replaceAll('&apos;', "'")
+        .replaceAll('&lt;', '<')
+        .replaceAll('&gt;', '>')
+        .replaceAll('&amp;', '&');
+    result = result.replaceAllMapped(
+      RegExp(r'&#x([0-9a-fA-F]+);'),
+      (match) => String.fromCharCode(int.parse(match.group(1)!, radix: 16)),
+    );
+    result = result.replaceAllMapped(
+      RegExp(r'&#(\d+);'),
+      (match) => String.fromCharCode(int.parse(match.group(1)!)),
+    );
+    return result;
   }
 
 

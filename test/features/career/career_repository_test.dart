@@ -448,6 +448,43 @@ void main() {
       expect(overview.matches.first.rankRatingEarned, 18);
     });
 
+    test('does not cache an empty overview when match details fail to load',
+        () async {
+      when(() => mockSecureStorage.getPuuid()).thenAnswer((_) async => tPuuid);
+      when(() => mockLocalStore.getCachedCareerJson(tPuuid))
+          .thenAnswer((_) async => null);
+
+      when(() => mockRemote.fetchMatchHistory(
+            shard: tShard,
+            puuid: tPuuid,
+            startIndex: any(named: 'startIndex'),
+            endIndex: any(named: 'endIndex'),
+          )).thenAnswer((_) async => [
+            {'MatchID': 'broken-match'},
+          ]);
+      when(() => mockRemote.fetchCompetitiveUpdates(
+            shard: tShard,
+            puuid: tPuuid,
+            startIndex: any(named: 'startIndex'),
+            endIndex: any(named: 'endIndex'),
+          )).thenAnswer((_) async => []);
+      when(() => mockRemote.fetchPlayerMmr(shard: tShard, puuid: tPuuid))
+          .thenAnswer((_) async => null);
+      when(() => mockRemote.fetchMapsMetadata()).thenAnswer((_) async => {});
+      when(() => mockRemote.fetchAgentsMetadata()).thenAnswer((_) async => {});
+      when(() => mockRemote.fetchCompetitiveTiersMetadata())
+          .thenAnswer((_) async => {});
+      when(() => mockRemote.fetchMatchDetails(
+            shard: tShard,
+            matchId: 'broken-match',
+          )).thenThrow(Exception('match details unavailable'));
+
+      final result = await repository.getCareerOverview(forceRefresh: true);
+
+      expect(result.isFailure, isTrue);
+      verifyNever(() => mockLocalStore.saveCachedCareerJson(any(), any()));
+    });
+
     test('uses cached match details from LocalStore without calling remote fetchMatchDetails', () async {
       when(() => mockSecureStorage.getPuuid()).thenAnswer((_) async => tPuuid);
       when(() => mockSecureStorage.getShard()).thenAnswer((_) async => tShard);

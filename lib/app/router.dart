@@ -5,7 +5,7 @@
 /// - /store       → Daily rotating store, bundle hero, night market
 /// - /tracker     → Match history, ACS, K/D, rank overview
 /// - /collection  → Inventory arsenal, valuation, filters
-/// - /profile     → Settings, notifications, biometric, logout
+/// - /profile     → Settings, notifications, logout
 ///
 /// Modals & Fullscreen:
 /// - /match-detail → Full match analysis (Scoreboard, Rounds, Performance)

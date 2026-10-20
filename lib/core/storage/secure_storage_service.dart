@@ -27,7 +27,6 @@ class SecureStorageService {
   static const _keyRegion = 'riot_region';
   static const _keyClientVersion = 'valorant_client_version';
   static const _keyClientVersionTimestamp = 'valorant_client_version_ts';
-  static const _keyBiometricEnabled = 'biometric_enabled';
   static const _keyGameName = 'riot_game_name';
   static const _keyTagLine = 'riot_tag_line';
   static const _keyNotificationPermissionAsked =
@@ -127,15 +126,6 @@ class SecureStorageService {
         key: _keyNotificationsEnabled,
         value: enabled.toString(),
       );
-
-  // ─── Biometric ──────────────────────────────────────────────
-  Future<bool> isBiometricEnabled() async {
-    final value = await _storage.read(key: _keyBiometricEnabled);
-    return value == 'true';
-  }
-
-  Future<void> setBiometricEnabled(bool enabled) =>
-      _storage.write(key: _keyBiometricEnabled, value: enabled.toString());
 
   // ─── Clear Operations ───────────────────────────────────────
   /// Clear only tokens (keep cookies for reauth attempt).

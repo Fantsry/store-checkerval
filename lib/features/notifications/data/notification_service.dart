@@ -253,9 +253,10 @@ class NotificationService {
     required List<WishlistItem> wishlist,
     required List<StoreAlertRule> alertRules,
     required LocalStoreService localStore,
+    required bool notificationsEnabled,
     bool deduplicate = true,
   }) async {
-    if (store.featuredOffers.isEmpty) return;
+    if (!notificationsEnabled || store.featuredOffers.isEmpty) return;
 
     // Check if already notified for today's store rotation (UTC 00:00 reset)
     final todayKey = DateTime.now().toUtc().toIso8601String().substring(0, 10);

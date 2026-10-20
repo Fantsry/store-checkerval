@@ -53,4 +53,6 @@ class CareerCubit extends Cubit<CareerState> {
   }
 
   Future<void> refresh() => loadCareer(forceRefresh: true);
+
+  void reset() => emit(const CareerInitial());
 }

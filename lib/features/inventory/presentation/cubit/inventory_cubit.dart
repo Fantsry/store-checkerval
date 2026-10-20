@@ -205,4 +205,6 @@ class InventoryCubit extends Cubit<InventoryState> {
 
     return list;
   }
+
+  void reset() => emit(const InventoryInitial());
 }

@@ -139,5 +139,13 @@ void main() {
       expect(loaded.profile.cardUuid, equals('custom-card-uuid-champions'));
       expect(loaded.profile.cardName, equals('Champions 2024 Card'));
     });
+
+    test('reset clears the previous account state', () {
+      profileCubit.emit(const ProfileLoaded(tInGameProfile));
+
+      profileCubit.reset();
+
+      expect(profileCubit.state, isA<ProfileInitial>());
+    });
   });
 }

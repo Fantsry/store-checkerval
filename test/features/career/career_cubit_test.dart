@@ -151,5 +151,13 @@ void main() {
         verify(() => mockCareerRepository.getCareerOverview(forceRefresh: true)).called(1);
       },
     );
+
+    test('reset clears the previous account state', () {
+      careerCubit.emit(CareerLoaded(overview: tOverview));
+
+      careerCubit.reset();
+
+      expect(careerCubit.state, isA<CareerInitial>());
+    });
   });
 }
