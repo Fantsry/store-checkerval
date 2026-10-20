@@ -72,7 +72,7 @@ class StoreRepositoryImpl implements StoreRepository {
 
       // If not force-refreshing, check if valid unexpired cached store exists
       if (!forceRefresh) {
-        final cached = await _localStore.getCachedDailyStore();
+        final cached = await _localStore.getCachedDailyStore(puuid: await _secureStorage.getPuuid());
         if (cached != null && !_isStoreExpired(cached)) {
           return Result.success(cached);
         }
@@ -80,7 +80,7 @@ class StoreRepositoryImpl implements StoreRepository {
 
       // If user is not logged in, check if a real store was cached offline, otherwise require sign-in
       if (puuid == null || puuid.isEmpty) {
-        final cached = await _localStore.getCachedDailyStore();
+        final cached = await _localStore.getCachedDailyStore(puuid: await _secureStorage.getPuuid());
         if (cached != null && !_isStoreExpired(cached)) {
           return Result.success(cached);
         }
@@ -222,21 +222,10 @@ class StoreRepositoryImpl implements StoreRepository {
             }
           }
         }
-        realPrice ??= matched?.cost ?? 1775;
+        if (matched == null) continue;
 
-        if (matched != null) {
-          dailySkins.add(matched.copyWith(cost: realPrice));
-        } else {
-          // Fallback skin item
-          dailySkins.add(
-            SkinItem(
-              uuid: offerUuid,
-              displayName: 'Valorant Skin',
-              cost: realPrice,
-              weaponName: 'Weapon',
-            ),
-          );
-        }
+        final resolvedPrice = realPrice ?? matched.cost;
+        dailySkins.add(matched.copyWith(cost: resolvedPrice));
       }
 
       // ─── 1. Parse Featured Bundles with Valorant-API metadata ────────
@@ -336,7 +325,7 @@ class StoreRepositoryImpl implements StoreRepository {
               displayIcon: bIcon,
               displayIcon2: bIcon2,
               verticalPromoImage: bVertical,
-              price: bundlePrice > 0 ? bundlePrice : 7100,
+              price: bundlePrice,
               remainingDurationSeconds: bRemaining,
               items: bundleSkins,
             ),
@@ -384,14 +373,14 @@ class StoreRepositoryImpl implements StoreRepository {
             final discountedPrice = (discountCostMap?[
                     RiotStoreRemoteDataSourceImpl.vpCurrencyUuid] as num?)
                 ?.toInt() ??
-                (originalPrice * 0.65).round();
+                originalPrice;
 
             final discountPct = (rawOffer['DiscountPercent'] as num?)
                     ?.toInt() ??
                 (originalPrice > 0
                     ? (((originalPrice - discountedPrice) / originalPrice) * 100)
                         .round()
-                    : 35);
+                    : 0);
 
             final isSeen = rawOffer['IsSeen'] as bool? ?? true;
 
@@ -483,7 +472,7 @@ class StoreRepositoryImpl implements StoreRepository {
 
             final costMap = offer['Cost'] as Map?;
             const kcCurrencyUuid = '85ca9543-7697-970b-7caa-e2a3d1a3d49e';
-            int kcCost = 4000;
+            int kcCost = 0;
             if (costMap != null && costMap.isNotEmpty) {
               int? foundCost;
               for (final entry in costMap.entries) {
@@ -494,7 +483,7 @@ class StoreRepositoryImpl implements StoreRepository {
                 }
               }
               foundCost ??= (costMap.values.firstOrNull as num?)?.toInt();
-              kcCost = foundCost ?? 4000;
+              kcCost = foundCost ?? 0;
             }
 
             accessoryOffers.add(
@@ -521,11 +510,11 @@ class StoreRepositoryImpl implements StoreRepository {
         lastFetched: DateTime.now(),
       );
 
-      await _localStore.saveDailyStore(store);
+      await _localStore.saveDailyStore(store, puuid: puuid);
       return Result.success(store);
     } on AuthException catch (e) {
       if (!forceRefresh) {
-        final cached = await _localStore.getCachedDailyStore();
+        final cached = await _localStore.getCachedDailyStore(puuid: await _secureStorage.getPuuid());
         if (cached != null && !_isStoreExpired(cached) && cached.featuredOffers.isNotEmpty) {
           return Result.success(cached);
         }
@@ -535,7 +524,7 @@ class StoreRepositoryImpl implements StoreRepository {
       );
     } catch (e) {
       if (!forceRefresh) {
-        final cached = await _localStore.getCachedDailyStore();
+        final cached = await _localStore.getCachedDailyStore(puuid: await _secureStorage.getPuuid());
         if (cached != null && !_isStoreExpired(cached) && cached.featuredOffers.isNotEmpty) {
           return Result.success(cached);
         }

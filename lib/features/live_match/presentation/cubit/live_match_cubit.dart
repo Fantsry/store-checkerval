@@ -9,8 +9,8 @@ class LiveMatchCubit extends Cubit<LiveMatchState> {
   Timer? _transitionPollTimer;
 
   LiveMatchCubit({required LiveMatchRepository repository})
-      : _repository = repository,
-        super(const LiveMatchInitial());
+    : _repository = repository,
+      super(const LiveMatchInitial());
 
   Future<void> scanLiveMatch({bool silent = false}) async {
     if (!silent) {
@@ -33,11 +33,6 @@ class LiveMatchCubit extends Cubit<LiveMatchState> {
         _transitionPollTimer?.cancel();
       },
     );
-  }
-
-  void loadDemoMatch() {
-    _transitionPollTimer?.cancel();
-    emit(LiveMatchLoaded(matchData: LiveMatchData.createSampleTrackerMatch()));
   }
 
   void _scheduleTransitionPoll() {

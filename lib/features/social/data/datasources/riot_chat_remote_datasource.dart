@@ -283,7 +283,6 @@ class RiotChatRemoteDataSource {
         host,
         5223,
         timeout: const Duration(seconds: 7),
-        onBadCertificate: (_) => true,
       );
 
       final completer = Completer<RiotSocialSyncData>();

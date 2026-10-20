@@ -178,7 +178,7 @@ class AccessoryStoreItem extends Equatable {
     required this.displayName,
     this.displayIcon,
     this.itemType = 'Accessory',
-    this.kcCost = 4000,
+    this.kcCost = 0,
     this.remainingDurationSeconds = 0,
   });
 
@@ -197,7 +197,7 @@ class AccessoryStoreItem extends Equatable {
         displayName: json['displayName'] as String? ?? '',
         displayIcon: json['displayIcon'] as String?,
         itemType: json['itemType'] as String? ?? 'Accessory',
-        kcCost: json['kcCost'] as int? ?? 4000,
+        kcCost: json['kcCost'] as int? ?? 0,
         remainingDurationSeconds:
             json['remainingDurationSeconds'] as int? ?? 0,
       );

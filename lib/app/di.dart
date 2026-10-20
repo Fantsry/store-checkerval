@@ -13,6 +13,7 @@ import 'package:valorant_store_tracker/features/daily_store/data/datasources/val
 import 'package:valorant_store_tracker/features/daily_store/data/repositories/store_repository_impl.dart';
 import 'package:valorant_store_tracker/features/daily_store/domain/repositories/store_repository.dart';
 import 'package:valorant_store_tracker/features/daily_store/presentation/bloc/store_cubit.dart';
+import 'package:valorant_store_tracker/features/notifications/data/background_task_manager.dart';
 import 'package:valorant_store_tracker/features/notifications/data/notification_service.dart';
 import 'package:valorant_store_tracker/features/notifications/presentation/cubit/store_alert_cubit.dart';
 import 'package:valorant_store_tracker/features/profile/data/datasources/profile_remote_datasource.dart';
@@ -109,6 +110,8 @@ Future<void> setupDI() async {
     () => AuthRepositoryImpl(
       remoteDataSource: getIt<AuthRemoteDataSource>(),
       storage: getIt<SecureStorageService>(),
+      localStore: getIt<LocalStoreService>(),
+      onLogout: BackgroundTaskManager.cancelStoreCheck,
     ),
   );
 

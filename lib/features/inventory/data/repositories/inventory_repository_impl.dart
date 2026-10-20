@@ -103,6 +103,12 @@ class InventoryRepositoryImpl implements InventoryRepository {
       final weaponsMap = futures[3] as Map<String, String>;
       final bpRewardUuids = futures[4] as Set<String>;
 
+      if (ownedItemIds.isEmpty || allSkins.isEmpty) {
+        throw Exception(
+          'Inventory data is incomplete; refusing to report an empty collection',
+        );
+      }
+
       // If fresh skins catalog was obtained, save it to local catalog cache
       if (allSkins.isNotEmpty) {
         await _localStore.saveCachedSkins(allSkins);

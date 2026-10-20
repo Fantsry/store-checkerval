@@ -53,6 +53,7 @@ class _HomePageState extends State<HomePage> {
     context.read<CareerCubit>().loadCareer();
     context.read<BattlepassCubit>().loadBattlepass();
     context.read<SocialCubit>().loadFriends();
+    context.read<LiveMatchCubit>().scanLiveMatch(silent: true);
   }
 
   @override
@@ -241,6 +242,9 @@ class _HomePageState extends State<HomePage> {
                           tier: tier,
                           iconUrl: tierIcon,
                           iconSize: 42,
+                          isPlacement: career?.isPlacement ?? false,
+                          gamesNeededForRating:
+                              career?.gamesNeededForRating,
                         ),
 
                         const SizedBox(height: AppSpacing.lg),
@@ -263,21 +267,21 @@ class _HomePageState extends State<HomePage> {
                                 icon: Icons.monetization_on_outlined,
                                 color: AppColors.vpGold,
                                 label: 'VP',
-                                amount: profile?.valorantPoints ?? 0,
+                                amount: profile?.walletAvailable == true ? profile!.valorantPoints : null,
                               ),
                               Container(width: 1, height: 24, color: AppColors.border),
                               _buildWalletItem(
                                 icon: Icons.hexagon_outlined,
                                 color: AppColors.radianite,
                                 label: 'RP',
-                                amount: profile?.radianitePoints ?? 0,
+                                amount: profile?.walletAvailable == true ? profile!.radianitePoints : null,
                               ),
                               Container(width: 1, height: 24, color: AppColors.border),
                               _buildWalletItem(
                                 icon: Icons.token_outlined,
                                 color: AppColors.cyan,
                                 label: 'KC',
-                                amount: profile?.kingdomCredits ?? 0,
+                                amount: profile?.walletAvailable == true ? profile!.kingdomCredits : null,
                               ),
                             ],
                           ),
@@ -298,7 +302,7 @@ class _HomePageState extends State<HomePage> {
     required IconData icon,
     required Color color,
     required String label,
-    required int amount,
+    required int? amount,
   }) {
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -306,7 +310,7 @@ class _HomePageState extends State<HomePage> {
         Icon(icon, size: 16, color: color),
         const SizedBox(width: AppSpacing.xs),
         Text(
-          '$amount',
+          amount?.toString() ?? '--',
           style: AppTextStyles.statValue(color: color, fontSize: 14),
         ),
         const SizedBox(width: 3),

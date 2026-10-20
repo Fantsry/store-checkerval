@@ -231,13 +231,13 @@ class _StorePageState extends State<StorePage> {
               Row(
                 children: [
                   VpChip(
-                    amount: profile?.valorantPoints ?? 0,
+                    amount: profile?.walletAvailable == true ? profile!.valorantPoints : null,
                     fontSize: 13,
                     compact: true,
                   ),
                   const SizedBox(width: AppSpacing.sm),
                   VpChip(
-                    amount: profile?.radianitePoints ?? 0,
+                    amount: profile?.walletAvailable == true ? profile!.radianitePoints : null,
                     isRadianite: true,
                     fontSize: 13,
                     compact: true,

@@ -66,11 +66,11 @@ void main() {
     when(() => mockSecureStorage.getPuuid())
         .thenAnswer((_) async => 'test-puuid');
     when(() => mockSecureStorage.getShard()).thenAnswer((_) async => 'ap');
-    when(() => mockLocalStore.getCachedDailyStore())
+    when(() => mockLocalStore.getCachedDailyStore(puuid: any(named: 'puuid')))
         .thenAnswer((_) async => null);
     when(() => mockLocalStore.getCachedSkins())
         .thenAnswer((_) async => [tKuronamiSkin]);
-    when(() => mockLocalStore.saveDailyStore(any()))
+    when(() => mockLocalStore.saveDailyStore(any(), puuid: any(named: 'puuid')))
         .thenAnswer((_) async => {});
 
     // Riot storefront returns Offer with level UUID and 5350 VP cost
@@ -110,6 +110,42 @@ void main() {
         equals('Kuronami no Yaiba'));
     // Cost must be 5350 VP (from Riot storefront), not 2175 VP
     expect(dailyStore.featuredOffers.first.cost, equals(5350));
+  });
+
+  test('does not invent a skin name or 1775 VP price for unknown offers',
+      () async {
+    when(() => mockSecureStorage.getPuuid())
+        .thenAnswer((_) async => 'test-puuid');
+    when(() => mockSecureStorage.getShard()).thenAnswer((_) async => 'ap');
+    when(() => mockLocalStore.getCachedDailyStore(puuid: any(named: 'puuid')))
+        .thenAnswer((_) async => null);
+    when(() => mockLocalStore.getCachedSkins())
+        .thenAnswer((_) async => [tKuronamiSkin]);
+    when(() => mockLocalStore.saveDailyStore(any(), puuid: any(named: 'puuid')))
+        .thenAnswer((_) async => {});
+
+    when(() => mockRiotRemote.getStorefront(
+          shard: any(named: 'shard'),
+          puuid: any(named: 'puuid'),
+        )).thenAnswer(
+      (_) async => {
+        'SkinsPanelLayout': {
+          'SingleItemOffers': ['unknown-skin-uuid'],
+          'SingleItemOffersRemainingDurationInSeconds': 86400,
+          'SingleItemStoreOffers': [],
+        },
+      },
+    );
+
+    final result = await repository.getDailyStore(forceRefresh: true);
+
+    expect(result.isSuccess, isTrue);
+    final dailyStore = result.valueOrNull!;
+    expect(dailyStore.featuredOffers, isEmpty);
+    expect(
+      dailyStore.featuredOffers.any((s) => s.cost == 1775),
+      isFalse,
+    );
   });
 
   group('SkinPriceHelper Tests', () {
@@ -248,7 +284,7 @@ void main() {
       when(() => mockSecureStorage.getPuuid()).thenAnswer((_) async => 'test-puuid');
       when(() => mockSecureStorage.getShard()).thenAnswer((_) async => 'ap');
       when(() => mockLocalStore.getCachedSkins()).thenAnswer((_) async => [tKuronamiSkin]);
-      when(() => mockLocalStore.saveDailyStore(any())).thenAnswer((_) async => {});
+      when(() => mockLocalStore.saveDailyStore(any(), puuid: any(named: 'puuid'))).thenAnswer((_) async => {});
 
       // Yesterday's store fetched before 00:00 UTC with 86400s duration
       final yesterdayUtc = DateTime.now().toUtc().subtract(const Duration(days: 1));
@@ -265,7 +301,7 @@ void main() {
         lastFetched: yesterdayUtc,
       );
 
-      when(() => mockLocalStore.getCachedDailyStore()).thenAnswer((_) async => staleStore);
+      when(() => mockLocalStore.getCachedDailyStore(puuid: any(named: 'puuid'))).thenAnswer((_) async => staleStore);
 
       // Riot returns fresh store
       when(() => mockRiotRemote.getStorefront(

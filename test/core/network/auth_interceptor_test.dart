@@ -68,6 +68,47 @@ void main() {
       verify(() => handler.next(options)).called(1);
     });
 
+    test('does not overwrite an explicit Authorization header', () async {
+      final storedToken = createFakeJwt(expSecondsFromNow: 3600);
+      when(() => mockStorage.getAccessToken())
+          .thenAnswer((_) async => storedToken);
+      when(() => mockStorage.getEntitlementsToken())
+          .thenAnswer((_) async => storedToken);
+      when(() => mockStorage.getClientVersion())
+          .thenAnswer((_) async => 'release-10.0');
+
+      final options = RequestOptions(
+        path: 'https://pd.ap.a.pvp.net/name-service/v2/players',
+        headers: {'Authorization': 'Bearer explicit-token'},
+      );
+      final handler = MockRequestInterceptorHandler();
+
+      await interceptor.onRequest(options, handler);
+
+      expect(options.headers['Authorization'], equals('Bearer explicit-token'));
+      expect(options.headers['X-Riot-Entitlements-JWT'], equals(storedToken));
+      verify(() => handler.next(options)).called(1);
+    });
+
+    test('does not attach Riot credentials to non-Riot hosts', () async {
+      final token = createFakeJwt(expSecondsFromNow: 3600);
+      when(() => mockStorage.getAccessToken()).thenAnswer((_) async => token);
+      when(() => mockStorage.getEntitlementsToken())
+          .thenAnswer((_) async => token);
+      when(() => mockStorage.getClientVersion())
+          .thenAnswer((_) async => 'release-10.0');
+
+      final options = RequestOptions(path: 'https://example.com/api');
+      final handler = MockRequestInterceptorHandler();
+
+      await interceptor.onRequest(options, handler);
+
+      expect(options.headers.containsKey('Authorization'), isFalse);
+      expect(options.headers.containsKey('X-Riot-Entitlements-JWT'), isFalse);
+      expect(options.headers.containsKey('X-Riot-ClientVersion'), isFalse);
+      verify(() => handler.next(options)).called(1);
+    });
+
     test('onError passes through non-auth errors without retrying', () async {
       final options = RequestOptions(path: 'https://glz-ap-1.ap.a.pvp.net/test');
       final dioErr = DioException(
@@ -83,6 +124,29 @@ void main() {
       await interceptor.onError(dioErr, handler);
 
       expect(options.extra['authRetried'], isNull);
+      verify(() => handler.next(dioErr)).called(1);
+    });
+
+    test('does not retry an ordinary 400 validation error as a version mismatch',
+        () async {
+      final options = RequestOptions(path: 'https://pd.ap.a.pvp.net/store/v3/storefront/1');
+      final dioErr = DioException(
+        requestOptions: options,
+        response: Response(
+          requestOptions: options,
+          statusCode: 400,
+          data: {
+            'errorCode': 'INVALID_ARGUMENT',
+            'message': 'Invalid puuid',
+          },
+        ),
+      );
+
+      final handler = MockErrorInterceptorHandler();
+
+      await interceptor.onError(dioErr, handler);
+
+      expect(options.extra['versionRetried'], isNull);
       verify(() => handler.next(dioErr)).called(1);
     });
 

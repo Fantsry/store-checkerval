@@ -22,7 +22,7 @@ abstract class ProfileRemoteDataSource {
 
   Future<String?> fetchPlayerTitleText(String titleUuid);
 
-  Future<Map<String, int>> fetchWallet({
+  Future<Map<String, int>?> fetchWallet({
     required String shard,
     required String puuid,
   });
@@ -353,7 +353,7 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
 
 
   @override
-  Future<Map<String, int>> fetchWallet({
+  Future<Map<String, int>?> fetchWallet({
     required String shard,
     required String puuid,
   }) async {
@@ -379,16 +379,18 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
         }
 
         if (body is Map) {
-          final balances = (body['Balances'] as Map?) ?? {};
-          return {
-            'vp': (balances[vpCurrencyUuid] as num?)?.toInt() ?? 0,
-            'rp': (balances[rpCurrencyUuid] as num?)?.toInt() ?? 0,
-            'kc': (balances[kcCurrencyUuid] as num?)?.toInt() ?? 0,
-          };
+          final balances = body['Balances'];
+          if (balances is Map) {
+            return {
+              'vp': (balances[vpCurrencyUuid] as num?)?.toInt() ?? 0,
+              'rp': (balances[rpCurrencyUuid] as num?)?.toInt() ?? 0,
+              'kc': (balances[kcCurrencyUuid] as num?)?.toInt() ?? 0,
+            };
+          }
         }
       } catch (_) {}
     }
 
-    return {'vp': 0, 'rp': 0, 'kc': 0};
+    return null;
   }
 }

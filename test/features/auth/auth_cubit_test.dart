@@ -116,6 +116,7 @@ void main() {
               accessToken: any(named: 'accessToken'),
               idToken: any(named: 'idToken'),
               cookieJar: any(named: 'cookieJar'),
+              manualRegion: any(named: 'manualRegion'),
             )).thenAnswer((_) async => const Result.success(tSession));
         return authCubit;
       },
@@ -205,6 +206,7 @@ void main() {
               accessToken: any(named: 'accessToken'),
               idToken: any(named: 'idToken'),
               cookieJar: any(named: 'cookieJar'),
+              manualRegion: any(named: 'manualRegion'),
             )).thenAnswer((_) async =>
             const Result.failure(AuthFailure(message: 'Invalid credentials')));
         return authCubit;

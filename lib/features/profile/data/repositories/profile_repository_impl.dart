@@ -21,11 +21,15 @@ class ProfileRepositoryImpl implements ProfileRepository {
         _localStore = localStore;
 
   @override
-  Future<UserProfile?> getCachedProfile() => _localStore.getCachedProfile();
+  Future<UserProfile?> getCachedProfile() async {
+    final puuid = await _storage.getPuuid();
+    return _localStore.getCachedProfile(puuid: puuid);
+  }
 
   @override
   Future<void> clearProfile() async {
-    await _localStore.clearCachedProfile();
+    final puuid = await _storage.getPuuid();
+    await _localStore.clearCachedProfile(puuid: puuid);
   }
 
   static bool _isDefaultBanner(UserProfile profile) {
@@ -43,7 +47,9 @@ class ProfileRepositoryImpl implements ProfileRepository {
   Future<Result<UserProfile>> getUserProfile({bool forceRefresh = false}) async {
     // 1. Return cached profile immediately if available, valid, and not forced
     if (!forceRefresh) {
-      final cached = await _localStore.getCachedProfile();
+      final cached = await _localStore.getCachedProfile(
+        puuid: await _storage.getPuuid(),
+      );
       if (cached != null) {
         final isDefaultBanner = _isDefaultBanner(cached);
         final isStaleOrPlaceholder = cached.gameName.isEmpty ||
@@ -247,7 +253,7 @@ class ProfileRepositoryImpl implements ProfileRepository {
       }
 
       // Fallback: If network failed to reach valorant-api, reuse previous non-default cached card
-      final cached = await _localStore.getCachedProfile();
+      final cached = await _localStore.getCachedProfile(puuid: puuid);
       if (cardData == null && cached != null && !_isDefaultBanner(cached) && cached.cardWideArt != null) {
         cardData = {
           'uuid': cached.cardUuid ?? effectiveCardUuid ?? '',
@@ -275,6 +281,7 @@ class ProfileRepositoryImpl implements ProfileRepository {
         shard: resolvedShard,
         puuid: puuid,
       );
+      final hasCachedWallet = cached?.walletAvailable == true;
 
       final finalGameName = gameName.isNotEmpty
           ? gameName
@@ -295,18 +302,24 @@ class ProfileRepositoryImpl implements ProfileRepository {
         titleText: titleText,
         region: region,
         shard: resolvedShard,
-        valorantPoints: wallet['vp'] ?? 0,
-        radianitePoints: wallet['rp'] ?? 0,
-        kingdomCredits: wallet['kc'] ?? 0,
+        valorantPoints:
+            wallet?['vp'] ?? (hasCachedWallet ? cached!.valorantPoints : 0),
+        radianitePoints:
+            wallet?['rp'] ?? (hasCachedWallet ? cached!.radianitePoints : 0),
+        kingdomCredits:
+            wallet?['kc'] ?? (hasCachedWallet ? cached!.kingdomCredits : 0),
+        walletAvailable: wallet != null || hasCachedWallet,
       );
 
       // Save fresh profile to offline storage
-      await _localStore.saveCachedProfile(profile);
+      await _localStore.saveCachedProfile(profile, puuid: puuid);
 
       return Result.success(profile);
     } catch (e) {
       // If network fails, return cached profile if present
-      final cached = await _localStore.getCachedProfile();
+      final cached = await _localStore.getCachedProfile(
+        puuid: await _storage.getPuuid(),
+      );
       if (cached != null) {
         return Result.success(cached);
       }

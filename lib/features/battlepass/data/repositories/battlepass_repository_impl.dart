@@ -9,6 +9,8 @@ import 'package:valorant_store_tracker/features/battlepass/domain/entities/missi
 import 'package:valorant_store_tracker/features/battlepass/domain/repositories/battlepass_repository.dart';
 
 class BattlepassRepositoryImpl implements BattlepassRepository {
+  static const Duration _battlepassCacheTtl = Duration(hours: 6);
+
   final ContractsRemoteDataSource _remoteDataSource;
   final SecureStorageService _storage;
   final LocalStoreService _localStore;
@@ -38,21 +40,9 @@ class BattlepassRepositoryImpl implements BattlepassRepository {
   Future<Result<BattlepassOverview>> getBattlepassOverview({
     bool forceRefresh = false,
   }) async {
+    String? puuid;
     try {
-      if (!forceRefresh) {
-        final cached = _localStore.getMap('cached_battlepass_overview');
-        if (cached != null && cached.isNotEmpty) {
-          try {
-            final overview = BattlepassOverview.fromJson(cached);
-            if (overview.battlepassName != 'Act Battlepass' &&
-                overview.battlepassName != 'CLOSED BETA REWARDS') {
-              return Result.success(overview);
-            }
-          } catch (_) {}
-        }
-      }
-
-      var puuid = await _storage.getPuuid();
+      puuid = await _storage.getPuuid();
       if (puuid == null || puuid.isEmpty) {
         final token = await _storage.getAccessToken();
         if (token != null && token.isNotEmpty) {
@@ -70,6 +60,26 @@ class BattlepassRepositoryImpl implements BattlepassRepository {
         return const Result.failure(
           AuthFailure(message: 'No active Riot session. Please sign in.'),
         );
+      }
+
+      final cacheKey = 'cached_battlepass_overview_$puuid';
+      final cacheTsKey = 'cached_battlepass_overview_ts_$puuid';
+      if (!forceRefresh) {
+        final cached = _localStore.getMap(cacheKey);
+        final cachedAtMap = _localStore.getMap(cacheTsKey);
+        final cachedAt =
+            DateTime.tryParse((cachedAtMap?['at'] ?? '').toString());
+        final isFresh = cachedAt != null &&
+            DateTime.now().difference(cachedAt) < _battlepassCacheTtl;
+        if (isFresh && cached != null && cached.isNotEmpty) {
+          try {
+            final overview = BattlepassOverview.fromJson(cached);
+            if (overview.battlepassName != 'Act Battlepass' &&
+                overview.battlepassName != 'CLOSED BETA REWARDS') {
+              return Result.success(overview);
+            }
+          } catch (_) {}
+        }
       }
 
       final futures = await Future.wait<dynamic>([
@@ -92,7 +102,7 @@ class BattlepassRepositoryImpl implements BattlepassRepository {
 
       if (contractsData == null) {
         // Check for existing valid cache
-        final cached = _localStore.getMap('cached_battlepass_overview');
+        final cached = _localStore.getMap(cacheKey);
         if (cached != null && cached.isNotEmpty) {
           try {
             final overview = BattlepassOverview.fromJson(cached);
@@ -240,11 +250,6 @@ class BattlepassRepositoryImpl implements BattlepassRepository {
         }
       }
 
-      // 4. Fallback: pick the latest Season contract chronologically
-      if (bpContractMeta == null && orderedSeasonContracts.isNotEmpty) {
-        bpContractMeta = orderedSeasonContracts.last;
-      }
-
       final bpUuid = (bpContractMeta?['uuid'] ?? '').toString().toLowerCase();
       Map<String, dynamic>? playerBpContract;
 
@@ -365,45 +370,6 @@ class BattlepassRepositoryImpl implements BattlepassRepository {
       final List<BattlepassRewardItem> rewards =
           await Future.wait(rewardFutures);
 
-      // If user has no active missions reported, populate active missions from valorant-api
-      if (dailyMissions.isEmpty && missionsMetadata.isNotEmpty) {
-        for (final entry in missionsMetadata.entries) {
-          final mType = (entry.value['type'] ?? '').toString().toLowerCase();
-          final mTitle = entry.value['title'] ?? '';
-          if (mType.contains('daily') || mType.contains('checkpoint') || mType.contains('npe')) {
-            dailyMissions.add(MissionItem(
-              uuid: entry.key,
-              title: mTitle,
-              type: MissionType.daily,
-              currentProgress: 0,
-              progressToComplete: entry.value['progressToComplete'] as int? ?? 1,
-              xpReward: entry.value['xpGrant'] as int? ?? 2000,
-              isCompleted: false,
-            ));
-            if (dailyMissions.length >= 3) break;
-          }
-        }
-      }
-
-      if (weeklyMissions.isEmpty && missionsMetadata.isNotEmpty) {
-        for (final entry in missionsMetadata.entries) {
-          final mType = (entry.value['type'] ?? '').toString().toLowerCase();
-          final mTitle = entry.value['title'] ?? '';
-          if (mType.contains('weekly')) {
-            weeklyMissions.add(MissionItem(
-              uuid: entry.key,
-              title: mTitle,
-              type: MissionType.weekly,
-              currentProgress: 0,
-              progressToComplete: entry.value['progressToComplete'] as int? ?? 100,
-              xpReward: entry.value['xpGrant'] as int? ?? 23800,
-              isCompleted: false,
-            ));
-            if (weeklyMissions.length >= 3) break;
-          }
-        }
-      }
-
       final overview = BattlepassOverview(
         battlepassName: bpName,
         currentTier: currentTier,
@@ -417,13 +383,20 @@ class BattlepassRepositoryImpl implements BattlepassRepository {
       );
 
       await _localStore.setMap(
-        'cached_battlepass_overview',
+        cacheKey,
         overview.toJson(),
+      );
+      await _localStore.setMap(
+        cacheTsKey,
+        {'at': DateTime.now().toIso8601String()},
       );
 
       return Result.success(overview);
     } catch (e) {
-      final cached = _localStore.getMap('cached_battlepass_overview');
+      final cachedKey = puuid == null || puuid.isEmpty
+          ? 'cached_battlepass_overview'
+          : 'cached_battlepass_overview_$puuid';
+      final cached = _localStore.getMap(cachedKey);
       if (cached != null && cached.isNotEmpty) {
         try {
           final overview = BattlepassOverview.fromJson(cached);

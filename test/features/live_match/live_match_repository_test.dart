@@ -25,6 +25,7 @@ void main() {
   const tPuuid = 'user-puuid-123';
   const tShard = 'ap';
   const tRegion = 'ap';
+  const tActiveSeasonId = 'season-current';
 
   setUp(() {
     mockRemote = MockLiveMatchRemoteDataSource();
@@ -60,6 +61,15 @@ void main() {
         24: {'tierName': 'Ascendant 2', 'largeIcon': 'a2.png'},
       },
     );
+    when(() => mockCareer.fetchSeasonsMetadata()).thenAnswer((_) async => [
+          {
+            'uuid': tActiveSeasonId,
+            'displayName': 'ACT CURRENT',
+            'type': 'EAresSeasonType::Act',
+            'startTime': '2026-10-14T00:00:00Z',
+            'endTime': '2027-01-06T00:00:00Z',
+          },
+        ]);
     when(() => mockCareer.fetchCompetitiveUpdates(
           shard: any(named: 'shard'),
           puuid: any(named: 'puuid'),
@@ -208,8 +218,12 @@ void main() {
           )).thenAnswer((_) async => {
             'QueueSkills': {
               'competitive': {
-                'Tier': 20,
-                'RankedRating': 55,
+                'SeasonalInfoBySeasonID': {
+                  tActiveSeasonId: {
+                    'CompetitiveTier': 20,
+                    'RankedRating': 55,
+                  },
+                },
               },
             },
           });
@@ -271,8 +285,12 @@ void main() {
           )).thenAnswer((_) async => {
             'QueueSkills': {
               'competitive': {
-                'Tier': 20,
-                'RankedRating': 75,
+                'SeasonalInfoBySeasonID': {
+                  tActiveSeasonId: {
+                    'CompetitiveTier': 20,
+                    'RankedRating': 75,
+                  },
+                },
               },
             },
           });
@@ -283,11 +301,11 @@ void main() {
             startIndex: any(named: 'startIndex'),
             endIndex: any(named: 'endIndex'),
           )).thenAnswer((_) async => [
-            {'TierAfterUpdate': 20, 'TierBeforeUpdate': 20, 'RankedRatingEarned': 21},
-            {'TierAfterUpdate': 20, 'TierBeforeUpdate': 20, 'RankedRatingEarned': 18},
-            {'TierAfterUpdate': 20, 'TierBeforeUpdate': 20, 'RankedRatingEarned': -14},
-            {'TierAfterUpdate': 20, 'TierBeforeUpdate': 19, 'RankedRatingEarned': 10},
-            {'TierAfterUpdate': 19, 'TierBeforeUpdate': 20, 'RankedRatingEarned': -25},
+            {'SeasonID': tActiveSeasonId, 'TierAfterUpdate': 20, 'TierBeforeUpdate': 20, 'RankedRatingEarned': 21},
+            {'SeasonID': tActiveSeasonId, 'TierAfterUpdate': 20, 'TierBeforeUpdate': 20, 'RankedRatingEarned': 18},
+            {'SeasonID': tActiveSeasonId, 'TierAfterUpdate': 20, 'TierBeforeUpdate': 20, 'RankedRatingEarned': -14},
+            {'SeasonID': tActiveSeasonId, 'TierAfterUpdate': 20, 'TierBeforeUpdate': 19, 'RankedRatingEarned': 10},
+            {'SeasonID': tActiveSeasonId, 'TierAfterUpdate': 19, 'TierBeforeUpdate': 20, 'RankedRatingEarned': -25},
           ]);
 
       final result = await repository.checkLiveMatch();

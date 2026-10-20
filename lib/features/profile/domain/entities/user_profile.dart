@@ -19,6 +19,7 @@ class UserProfile extends Equatable {
   final int valorantPoints;
   final int radianitePoints;
   final int kingdomCredits;
+  final bool walletAvailable;
 
   const UserProfile({
     required this.puuid,
@@ -38,6 +39,7 @@ class UserProfile extends Equatable {
     this.valorantPoints = 0,
     this.radianitePoints = 0,
     this.kingdomCredits = 0,
+    this.walletAvailable = false,
   });
 
   /// Formatted Riot ID (e.g. "Irfan#1234").
@@ -67,6 +69,7 @@ class UserProfile extends Equatable {
     int? valorantPoints,
     int? radianitePoints,
     int? kingdomCredits,
+    bool? walletAvailable,
   }) {
     return UserProfile(
       puuid: puuid ?? this.puuid,
@@ -86,6 +89,7 @@ class UserProfile extends Equatable {
       valorantPoints: valorantPoints ?? this.valorantPoints,
       radianitePoints: radianitePoints ?? this.radianitePoints,
       kingdomCredits: kingdomCredits ?? this.kingdomCredits,
+      walletAvailable: walletAvailable ?? this.walletAvailable,
     );
   }
 
@@ -108,6 +112,7 @@ class UserProfile extends Equatable {
       'valorantPoints': valorantPoints,
       'radianitePoints': radianitePoints,
       'kingdomCredits': kingdomCredits,
+      'walletAvailable': walletAvailable,
     };
   }
 
@@ -130,6 +135,7 @@ class UserProfile extends Equatable {
       valorantPoints: json['valorantPoints'] as int? ?? 0,
       radianitePoints: json['radianitePoints'] as int? ?? 0,
       kingdomCredits: json['kingdomCredits'] as int? ?? 0,
+      walletAvailable: json['walletAvailable'] as bool? ?? false,
     );
   }
 
@@ -152,5 +158,6 @@ class UserProfile extends Equatable {
         valorantPoints,
         radianitePoints,
         kingdomCredits,
+        walletAvailable,
       ];
 }

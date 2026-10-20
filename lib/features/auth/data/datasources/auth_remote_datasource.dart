@@ -467,20 +467,30 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       );
 
       final data = response.data;
-      String shard = 'ap';
-      String region = 'ap';
+      String? region;
 
       if (data is Map<String, dynamic>) {
         final affinities = data['affinities'];
         if (affinities is Map<String, dynamic> && affinities['live'] != null) {
-          region = affinities['live'].toString().toLowerCase().trim();
-          shard = _mapRegionToShard(region);
+          final live = affinities['live'].toString().toLowerCase().trim();
+          if (live.isNotEmpty) region = live;
         }
       }
 
-      return {'shard': shard, 'region': region};
-    } catch (_) {
-      return {'shard': 'ap', 'region': 'ap'};
+      if (region == null) {
+        throw const AuthException(
+          message:
+              'Riot region detection failed. Select your region manually and retry.',
+        );
+      }
+
+      return {'shard': _mapRegionToShard(region), 'region': region};
+    } on AuthException {
+      rethrow;
+    } catch (e) {
+      throw AuthException(
+        message: 'Riot region detection failed: $e',
+      );
     }
   }
 

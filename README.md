@@ -18,13 +18,14 @@ Aplikasi ini dibangun secara mandiri dengan antarmuka **Dark Esports HUD Overlay
 - **Featured Bundle**: Preview bundle skin yang sedang aktif beserta harga dan durasi penawaran.
 - **Night Market**: Tampilan kartu penawaran diskon Night Market dengan efek interaktif.
 - **Accessory Store**: Memantau rotasi Gunbuddy, Player Card, Spray, dan Title menggunakan Kingdom Credits (KC).
-- **Detail Skin Interaktif**: Switcher level chroma/tingkat upgrade dan pratinjau audio/video skin.
+- **Detail Skin Interaktif**: Switcher level chroma/tingkat upgrade dan pratinjau artwork skin.
 
 ### 2. Live Match Tracker (Esports HUD)
-- **Status Pertandingan Real-Time**: Mendeteksi status pertandingan aktif (Pregame / In-Game / Postgame).
+- **Status Pertandingan Real-Time**: Mendeteksi status pertandingan aktif (Agent Select / In-Game / In Lobby).
 - **Esports Player Card**: Rincian performa pemain di lobi: ACS, K/D, KAST, KDA, ADR, HS%, dan WIN%.
 - **Custom Diamond Rank Icon**: Ikon pangkat berbentuk permata kustom dengan efek glow dinamis.
-- **Live Match Scoreboard**: Skor ronde, status sisi menyerang/bertahan (Attacker/Defender), dan peta yang dimainkan.
+- **Live Match Scoreboard**: Daftar tim dan peta yang dimainkan. Skor/sisi hanya tampil jika tersedia dari API Riot.
+- **Catatan**: Riot tidak menyediakan skor ronde live untuk akun sendiri; aplikasi tidak menampilkan angka palsu saat data itu kosong.
 
 ### 3. Career & Rank Progression
 - **Overview Pangkat**: Visual rank kompetitif saat ini, Rank Rating (RR), MMR, dan riwayat promosi.
@@ -32,14 +33,14 @@ Aplikasi ini dibangun secara mandiri dengan antarmuka **Dark Esports HUD Overlay
 - **Statistik Akumulatif**: Winrate, total kemenangan/kekalahan, dan statistik tembakan kepala (Headshot %).
 
 ### 4. Account Valuation & Inventory
-- **Kalkulasi Total Nilai Akun**: Estimasi total belanja dalam satuan Valorant Points (VP) dan konversi Rupiah Indonesia (IDR).
+- **Kalkulasi Total Nilai Akun**: Estimasi total belanja dalam satuan Valorant Points (VP) dan konversi Rupiah Indonesia (IDR) memakai kurs estimasi, bukan riwayat pembelian.
 - **Skin Tiers Distribution**: Visualisasi jumlah koleksi skin berdasarkan tier (Exclusive, Ultra, Premium, Deluxe, Select).
 - **Filter & Search Cepat**: Filter berdasarkan sumber (Store / Battlepass), kategori tier skin, serta kata kunci pencarian dengan auto-scroll dan counter bar (Showing X of Y Skins).
 - **Equipped Loadout Preview**: Menampilkan skin yang sedang aktif terpasang pada seluruh senjata.
 
 ### 5. Battlepass & Missions Tracker
 - **Progres Battlepass**: Melacak tier aktif, sisa XP menuju level berikutnya, dan pratinjau hadiah Free maupun Premium.
-- **Misi Harian & Mingguan**: Menampilkan daftar misi aktif beserta reward XP dan progres pengerjaannya.
+- **Misi Harian & Mingguan**: Menampilkan misi aktif dari Riot beserta reward XP dan progres pengerjaannya (kosong jika Riot tidak melaporkan misi).
 
 ### 6. Wishlist & Custom Store Alerts
 - **Koleksi Skin Impian**: Tandai skin favorit dan dapatkan badge "IN STORE TODAY" jika skin muncul di rotasi hari ini.
@@ -51,6 +52,18 @@ Aplikasi ini dibangun secara mandiri dengan antarmuka **Dark Esports HUD Overlay
 - **Dukungan 2FA**: Mendukung verifikasi dua langkah (2-Factor Authentication) dan notifikasi Riot Mobile.
 
 ---
+
+## Build Release
+
+Untuk menandatangani APK release dengan keystore sendiri:
+
+```bash
+cp android/key.properties.example android/key.properties
+# isi storePassword, keyPassword, keyAlias, dan storeFile
+flutter build apk --release
+```
+
+Jika `android/key.properties` tidak ada, build lokal tetap berjalan memakai debug signing. File `key.properties` dan keystore sudah diabaikan oleh git.
 
 ## Download & Instalasi
 

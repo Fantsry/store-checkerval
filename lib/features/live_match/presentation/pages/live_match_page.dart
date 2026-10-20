@@ -152,7 +152,7 @@ class _LiveMatchPageState extends State<LiveMatchPage>
               children: [
                 _TeamHeader(
                   title: 'MY TEAM',
-                  subtitle: matchData.playerSide ?? 'Attack',
+                  subtitle: matchData.playerSide,
                   color: AppTheme.accentMagenta,
                   count: matchData.blueTeam.length,
                 ),
@@ -178,7 +178,7 @@ class _LiveMatchPageState extends State<LiveMatchPage>
               children: [
                 _TeamHeader(
                   title: 'ENEMY',
-                  subtitle: 'Defense',
+                  subtitle: _enemySide(matchData.playerSide),
                   color: AppTheme.accentPurple,
                   alignRight: true,
                   count: matchData.redTeam.length,
@@ -251,7 +251,7 @@ class _LiveMatchPageState extends State<LiveMatchPage>
           if (_mobileTab == 0 || !hasEnemies) ...[
             _TeamHeader(
               title: 'MY TEAM',
-              subtitle: matchData.playerSide ?? 'Attack',
+              subtitle: matchData.playerSide,
               color: AppTheme.accentMagenta,
               count: matchData.blueTeam.length,
             ),
@@ -268,7 +268,7 @@ class _LiveMatchPageState extends State<LiveMatchPage>
           ] else if (_mobileTab == 1) ...[
             _TeamHeader(
               title: 'ENEMY',
-              subtitle: 'Defense',
+              subtitle: _enemySide(matchData.playerSide),
               color: AppTheme.accentPurple,
               alignRight: true,
               count: matchData.redTeam.length,
@@ -287,7 +287,7 @@ class _LiveMatchPageState extends State<LiveMatchPage>
             // FULL / BOTH (VS) View
             _TeamHeader(
               title: 'MY TEAM',
-              subtitle: matchData.playerSide ?? 'Attack',
+              subtitle: matchData.playerSide,
               color: AppTheme.accentMagenta,
               count: matchData.blueTeam.length,
             ),
@@ -304,7 +304,7 @@ class _LiveMatchPageState extends State<LiveMatchPage>
             const SizedBox(height: 14),
             _TeamHeader(
               title: 'ENEMY',
-              subtitle: 'Defense',
+              subtitle: _enemySide(matchData.playerSide),
               color: AppTheme.accentPurple,
               alignRight: true,
               count: matchData.redTeam.length,
@@ -627,7 +627,7 @@ class _LiveMatchPageState extends State<LiveMatchPage>
 
 class _TeamHeader extends StatelessWidget {
   final String title;
-  final String subtitle;
+  final String? subtitle;
   final Color color;
   final bool alignRight;
   final int count;
@@ -679,8 +679,9 @@ class _TeamHeader extends StatelessWidget {
       ],
     );
 
+    final hasSubtitle = subtitle != null && subtitle!.isNotEmpty;
     final subtitleWidget = Text(
-      subtitle,
+      subtitle ?? '',
       style: GoogleFonts.inter(
         fontSize: 11,
         fontWeight: FontWeight.w500,
@@ -694,8 +695,10 @@ class _TeamHeader extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.end,
           children: [
-            subtitleWidget,
-            const SizedBox(width: 8),
+            if (hasSubtitle) ...[
+              subtitleWidget,
+              const SizedBox(width: 8),
+            ],
             titleWidget,
           ],
         ),
@@ -707,8 +710,10 @@ class _TeamHeader extends StatelessWidget {
       child: Row(
         children: [
           titleWidget,
-          const SizedBox(width: 8),
-          subtitleWidget,
+          if (hasSubtitle) ...[
+            const SizedBox(width: 8),
+            subtitleWidget,
+          ],
         ],
       ),
     );
@@ -768,6 +773,12 @@ class _TabButton extends StatelessWidget {
 
 // ─── HUD Header Widget (Sporty Header from user photo) ────────────
 
+String? _enemySide(String? allySide) {
+  if (allySide == 'Attack') return 'Defense';
+  if (allySide == 'Defense') return 'Attack';
+  return null;
+}
+
 class _HudHeader extends StatelessWidget {
   final LiveMatchData matchData;
 
@@ -819,39 +830,38 @@ class _HudHeader extends StatelessWidget {
 
           const SizedBox(height: 8),
 
-          // Score: 0 - 0
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
-            children: [
-              Text(
-                '${matchData.blueScore}',
-                style: AppTheme.scoreBig(color: AppTheme.textPrimary),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 10),
-                child: Text(
-                  '–',
-                  style: AppTheme.scoreBig(color: AppTheme.textSecondary),
+          if (matchData.blueScore != null && matchData.redScore != null) ...[
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              textBaseline: TextBaseline.alphabetic,
+              children: [
+                Text(
+                  '${matchData.blueScore}',
+                  style: AppTheme.scoreBig(color: AppTheme.textPrimary),
                 ),
-              ),
-              Text(
-                '${matchData.redScore}',
-                style: AppTheme.scoreBig(color: AppTheme.textPrimary),
-              ),
-            ],
-          ),
-
-          // SCORE label
-          Text(
-            'SCORE',
-            style: GoogleFonts.inter(
-              fontSize: 10,
-              fontWeight: FontWeight.w700,
-              color: AppTheme.textMuted,
-              letterSpacing: 2,
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  child: Text(
+                    '–',
+                    style: AppTheme.scoreBig(color: AppTheme.textSecondary),
+                  ),
+                ),
+                Text(
+                  '${matchData.redScore}',
+                  style: AppTheme.scoreBig(color: AppTheme.textPrimary),
+                ),
+              ],
             ),
-          ),
+            Text(
+              'SCORE',
+              style: GoogleFonts.inter(
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+                color: AppTheme.textMuted,
+                letterSpacing: 2,
+              ),
+            ),
+          ],
         ],
       ),
     );

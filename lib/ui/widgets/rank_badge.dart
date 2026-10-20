@@ -13,6 +13,8 @@ class RankBadge extends StatelessWidget {
   final double iconSize;
   final bool showProgress;
   final bool showLabel;
+  final bool isPlacement;
+  final int? gamesNeededForRating;
 
   const RankBadge({
     super.key,
@@ -23,6 +25,8 @@ class RankBadge extends StatelessWidget {
     this.iconSize = 36,
     this.showProgress = true,
     this.showLabel = true,
+    this.isPlacement = false,
+    this.gamesNeededForRating,
   });
 
   @override
@@ -30,6 +34,8 @@ class RankBadge extends StatelessWidget {
     final rankColor = AppColors.getRankColor(tierName);
     final rr = rankedRating ?? 0;
     final progress = (rr.clamp(0, 100)) / 100.0;
+    final isUnranked = tierName.toLowerCase() == 'unrated';
+    final isProvisional = isPlacement || isUnranked;
 
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -55,7 +61,7 @@ class RankBadge extends StatelessWidget {
                   fontSize: 14,
                 ),
               ),
-              if (showProgress) ...[
+              if (showProgress && !isProvisional) ...[
                 const SizedBox(height: 3),
                 Row(
                   children: [
@@ -79,6 +85,16 @@ class RankBadge extends StatelessWidget {
                       ),
                     ),
                   ],
+                ),
+              ] else if (isPlacement &&
+                  gamesNeededForRating != null &&
+                  gamesNeededForRating! > 0) ...[
+                const SizedBox(height: 3),
+                Text(
+                  '$gamesNeededForRating placements left',
+                  style: AppTextStyles.caption(color: rankColor).copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ],
             ],

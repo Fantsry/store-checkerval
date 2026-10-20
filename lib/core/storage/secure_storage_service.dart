@@ -30,6 +30,9 @@ class SecureStorageService {
   static const _keyBiometricEnabled = 'biometric_enabled';
   static const _keyGameName = 'riot_game_name';
   static const _keyTagLine = 'riot_tag_line';
+  static const _keyNotificationPermissionAsked =
+      'notification_permission_asked';
+  static const _keyNotificationsEnabled = 'notifications_enabled';
 
   // ─── Game Name & TagLine ────────────────────────────────────
   Future<String?> getGameName() => _storage.read(key: _keyGameName);
@@ -101,6 +104,30 @@ class SecureStorageService {
   Future<void> setClientVersionTimestamp(String timestamp) =>
       _storage.write(key: _keyClientVersionTimestamp, value: timestamp);
 
+  // ─── Notification Permission ────────────────────────────────
+  Future<bool> isNotificationPermissionAsked() async {
+    final value = await _storage.read(key: _keyNotificationPermissionAsked);
+    return value == 'true';
+  }
+
+  Future<void> setNotificationPermissionAsked(bool asked) =>
+      _storage.write(
+        key: _keyNotificationPermissionAsked,
+        value: asked.toString(),
+      );
+
+  /// Defaults to true so existing installs keep their scheduled checks.
+  Future<bool> areNotificationsEnabled() async {
+    final value = await _storage.read(key: _keyNotificationsEnabled);
+    return value != 'false';
+  }
+
+  Future<void> setNotificationsEnabled(bool enabled) =>
+      _storage.write(
+        key: _keyNotificationsEnabled,
+        value: enabled.toString(),
+      );
+
   // ─── Biometric ──────────────────────────────────────────────
   Future<bool> isBiometricEnabled() async {
     final value = await _storage.read(key: _keyBiometricEnabled);
@@ -121,7 +148,15 @@ class SecureStorageService {
   }
 
   /// Clear everything (full logout).
-  Future<void> clearAll() => _storage.deleteAll();
+  Future<void> clearAll() async {
+    final permissionAsked = await isNotificationPermissionAsked();
+    final notificationsEnabled = await areNotificationsEnabled();
+    await _storage.deleteAll();
+    if (permissionAsked) {
+      await setNotificationPermissionAsked(true);
+    }
+    await setNotificationsEnabled(notificationsEnabled);
+  }
 
   /// Check if user has a stored session (either valid access token or saved cookie jar).
   Future<bool> hasSession() async {

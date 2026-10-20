@@ -39,6 +39,15 @@ void main() {
       expect(restored.cost, 1775);
     });
 
+    test('fromJson does not invent a price when cost is missing', () {
+      final restored = WishlistItem.fromJson({
+        'uuid': 'legacy-item',
+        'displayName': 'Legacy Skin',
+      });
+
+      expect(restored.cost, 0);
+    });
+
     test('toSkinItem converts back to SkinItem', () {
       final item = WishlistItem(
         uuid: 'uuid-1',

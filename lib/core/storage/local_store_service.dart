@@ -219,8 +219,13 @@ class LocalStoreService {
 
   // ─── Daily Store Offline Cache ─────────────────────────────
 
-  Future<DailyStore?> getCachedDailyStore() async {
-    final raw = _storeCacheBox.get('latest_daily_store');
+  String _accountKey(String base, String? puuid) {
+    final id = puuid?.trim();
+    return id == null || id.isEmpty ? base : '${base}_$id';
+  }
+
+  Future<DailyStore?> getCachedDailyStore({String? puuid}) async {
+    final raw = _storeCacheBox.get(_accountKey('latest_daily_store', puuid));
     if (raw == null || raw.isEmpty) return null;
 
     try {
@@ -231,15 +236,18 @@ class LocalStoreService {
     }
   }
 
-  Future<void> saveDailyStore(DailyStore store) async {
+  Future<void> saveDailyStore(DailyStore store, {String? puuid}) async {
     final jsonStr = jsonEncode(store.toJson());
-    await _storeCacheBox.put('latest_daily_store', jsonStr);
+    await _storeCacheBox.put(
+      _accountKey('latest_daily_store', puuid),
+      jsonStr,
+    );
   }
 
   // ─── Player Profile Offline Cache ──────────────────────────
 
-  Future<UserProfile?> getCachedProfile() async {
-    final raw = _profileCacheBox.get('latest_user_profile');
+  Future<UserProfile?> getCachedProfile({String? puuid}) async {
+    final raw = _profileCacheBox.get(_accountKey('latest_user_profile', puuid));
     if (raw == null || raw.isEmpty) return null;
 
     try {
@@ -250,13 +258,18 @@ class LocalStoreService {
     }
   }
 
-  Future<void> saveCachedProfile(UserProfile profile) async {
+  Future<void> saveCachedProfile(UserProfile profile, {String? puuid}) async {
     final jsonStr = jsonEncode(profile.toJson());
-    await _profileCacheBox.put('latest_user_profile', jsonStr);
+    await _profileCacheBox.put(
+      _accountKey('latest_user_profile', puuid ?? profile.puuid),
+      jsonStr,
+    );
   }
 
-  Future<void> clearCachedProfile() async {
-    await _profileCacheBox.delete('latest_user_profile');
+  Future<void> clearCachedProfile({String? puuid}) async {
+    await _profileCacheBox.delete(
+      _accountKey('latest_user_profile', puuid),
+    );
   }
 
   // ─── Store Alert Rules Operations ─────────────────────────
@@ -434,5 +447,18 @@ class LocalStoreService {
 
   Future<void> clearSavedFriends() async {
     await _socialFriendsBox.clear();
+  }
+
+  // ─── Account-scoped Cleanup ────────────────────────────────
+
+  /// Clears every cache that belongs to the signed-in Riot account.
+  /// Device preferences (wishlist, alert rules, settings, skins catalog) are kept.
+  Future<void> clearAccountCaches() async {
+    await Future.wait([
+      _storeCacheBox.clear(),
+      _profileCacheBox.clear(),
+      _careerCacheBox.clear(),
+      _socialFriendsBox.clear(),
+    ]);
   }
 }

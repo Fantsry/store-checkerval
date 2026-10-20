@@ -3,6 +3,7 @@ import 'package:dio/dio.dart';
 import 'package:valorant_store_tracker/core/error/failures.dart';
 import 'package:valorant_store_tracker/core/error/result.dart';
 import 'package:valorant_store_tracker/core/storage/secure_storage_service.dart';
+import 'package:valorant_store_tracker/core/utils/competitive_rank_helper.dart';
 import 'package:valorant_store_tracker/features/career/data/datasources/career_remote_datasource.dart';
 import 'package:valorant_store_tracker/features/live_match/data/datasources/live_match_remote_datasource.dart';
 import 'package:valorant_store_tracker/features/live_match/domain/entities/live_match_data.dart';
@@ -69,6 +70,13 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
         );
       }
 
+      String? activeSeasonId;
+      try {
+        final seasons = await _careerDataSource.fetchSeasonsMetadata();
+        activeSeasonId =
+            CompetitiveRankHelper.resolveActiveAct(seasons)?.id;
+      } catch (_) {}
+
       // ── Step 1: Check CoreGame (Live in-match) ──
       // Prioritize live in-game detection so stale agent select lobbies are ignored
       final corePlayer = await _remoteDataSource.fetchCoreGamePlayer(
@@ -92,6 +100,7 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
             selfPuuid: puuid,
             matchId: coreMatchId,
             matchData: match,
+            activeSeasonId: activeSeasonId,
           );
         } else {
           return Result.failure(
@@ -125,6 +134,7 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
             selfPuuid: puuid,
             matchId: preMatchId,
             matchData: preMatch,
+            activeSeasonId: activeSeasonId,
           );
         }
 
@@ -144,6 +154,7 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
             selfPuuid: puuid,
             matchId: preMatchId,
             matchData: directCoreMatch,
+            activeSeasonId: activeSeasonId,
           );
         }
 
@@ -169,6 +180,7 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
                 selfPuuid: puuid,
                 matchId: retryMatchId,
                 matchData: match,
+                activeSeasonId: activeSeasonId,
               );
             }
           }
@@ -219,6 +231,7 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
     required String selfPuuid,
     required String matchId,
     required Map<String, dynamic> matchData,
+    required String? activeSeasonId,
   }) async {
     final mapUrl = (matchData['MapID'] ?? '').toString();
     final modeUrl = (matchData['ModeID'] ?? '').toString();
@@ -335,6 +348,7 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
             mmrData ?? const {},
             tiersMeta,
             competitiveUpdates: compUpdates,
+            activeSeasonId: activeSeasonId,
           );
           rankName = parsed['rankName'] ?? 'Unranked';
           rankIcon = parsed['rankIcon'];
@@ -343,8 +357,15 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
           peakRankIcon = parsed['peakRankIcon'];
         }
 
-        final wl = _calculateRecentWinLoss(compUpdates);
-        final extendedStats = _calculateExtendedStats(compUpdates, mmrData);
+        final wl = _calculateRecentWinLoss(
+          compUpdates,
+          activeSeasonId: activeSeasonId,
+        );
+        final extendedStats = _calculateExtendedStats(
+          compUpdates,
+          mmrData,
+          activeSeasonId: activeSeasonId,
+        );
 
         final playerIdentity = p['PlayerIdentity'] as Map?;
         final cardId = (playerIdentity?['PlayerCardID'] ?? '').toString();
@@ -417,9 +438,9 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
         modeName: modeName,
         blueTeam: blueTeam,
         redTeam: redTeam,
-        playerSide: 'Attack', // placeholder — API doesn't expose side directly
-        blueScore: 0,
-        redScore: 0,
+        playerSide: null,
+        blueScore: null,
+        redScore: null,
       ),
     );
   }
@@ -429,6 +450,7 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
     required String selfPuuid,
     required String matchId,
     required Map<String, dynamic> matchData,
+    required String? activeSeasonId,
   }) async {
     final mapUrl = (matchData['MapID'] ?? '').toString();
     final modeUrl = (matchData['Mode'] ?? '').toString();
@@ -538,6 +560,7 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
             mmrData ?? const {},
             tiersMeta,
             competitiveUpdates: compUpdates,
+            activeSeasonId: activeSeasonId,
           );
           rankName = parsed['rankName'] ?? 'Unranked';
           rankIcon = parsed['rankIcon'];
@@ -546,8 +569,15 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
           peakRankIcon = parsed['peakRankIcon'];
         }
 
-        final wl = _calculateRecentWinLoss(compUpdates);
-        final extendedStats = _calculateExtendedStats(compUpdates, mmrData);
+        final wl = _calculateRecentWinLoss(
+          compUpdates,
+          activeSeasonId: activeSeasonId,
+        );
+        final extendedStats = _calculateExtendedStats(
+          compUpdates,
+          mmrData,
+          activeSeasonId: activeSeasonId,
+        );
 
         final playerIdentity = p['PlayerIdentity'] as Map?;
         final cardId = (playerIdentity?['PlayerCardID'] ?? '').toString();
@@ -614,9 +644,9 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
         modeName: modeName,
         blueTeam: allyTeam,
         redTeam: const [],
-        playerSide: 'Attack',
-        blueScore: 0,
-        redScore: 0,
+        playerSide: null,
+        blueScore: null,
+        redScore: null,
       ),
     );
   }
@@ -625,94 +655,41 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
     Map<String, dynamic> mmrData,
     Map<int, Map<String, dynamic>> tiersMeta, {
     List<Map<String, dynamic>>? competitiveUpdates,
+    String? activeSeasonId,
   }) {
     try {
-      final queueSkills = mmrData['QueueSkills'] is Map
-          ? Map<String, dynamic>.from(mmrData['QueueSkills'] as Map)
-          : null;
-      final compSkill = queueSkills?['competitive'] is Map
-          ? Map<String, dynamic>.from(queueSkills!['competitive'] as Map)
-          : null;
-      var currentTier = compSkill?['Tier'] as int? ?? 0;
-      var currentRr = compSkill?['RankedRating'] as int? ?? 0;
-
-      // Fallback 1: LatestCompetitiveUpdate from mmrData
-      final latestUpdate = mmrData['LatestCompetitiveUpdate'] is Map
-          ? Map<String, dynamic>.from(mmrData['LatestCompetitiveUpdate'] as Map)
-          : null;
-      if (latestUpdate != null) {
-        final tierAfter =
-            (latestUpdate['TierAfterUpdate'] as num?)?.toInt() ?? 0;
-        final rrAfter =
-            (latestUpdate['RankedRatingAfterUpdate'] as num?)?.toInt() ??
-                (latestUpdate['RankRatingAfterUpdate'] as num?)?.toInt() ??
-                0;
-        if (tierAfter > 0 && currentTier == 0) {
-          currentTier = tierAfter;
-          currentRr = rrAfter;
-        } else if (currentRr == 0 && rrAfter > 0) {
-          currentRr = rrAfter;
-        }
-      }
-
-      // Fallback 2: First match from competitiveUpdates
-      if (currentTier == 0 &&
-          competitiveUpdates != null &&
-          competitiveUpdates.isNotEmpty) {
-        final firstComp = competitiveUpdates.first;
-        final tierAfter = (firstComp['TierAfterUpdate'] as num?)?.toInt() ?? 0;
-        final rrAfter =
-            (firstComp['RankedRatingAfterUpdate'] as num?)?.toInt() ??
-                (firstComp['RankRatingAfterUpdate'] as num?)?.toInt() ??
-                0;
-        if (tierAfter > 0) {
-          currentTier = tierAfter;
-          currentRr = rrAfter;
-        }
-      }
-
-      // Fallback 3: check recent seasonal tier
-      final seasonal = compSkill?['SeasonalInfoBySeasonID'] is Map
-          ? Map<String, dynamic>.from(compSkill!['SeasonalInfoBySeasonID'] as Map)
-          : null;
-      if (currentTier == 0 && seasonal != null && seasonal.isNotEmpty) {
-        for (final entry in seasonal.values) {
-          if (entry is Map) {
-            final t = entry['CompetitiveTier'] as int? ?? 0;
-            if (t > 0) {
-              currentTier = t;
-              break;
-            }
-          }
-        }
-      }
+      final updates = competitiveUpdates ?? const <Map<String, dynamic>>[];
+      final ranked = CompetitiveRankHelper.resolveCurrentRank(
+        mmr: mmrData,
+        activeSeasonId: activeSeasonId,
+        competitiveUpdates: updates,
+      );
+      final currentTier = ranked.tier;
+      final currentRr = ranked.rating;
 
       final tierInfo = tiersMeta[currentTier];
-      final rankName = tierInfo?['tierName'] ?? 'Unranked';
-      var rankIcon = tierInfo?['largeIcon'] ?? tierInfo?['smallIcon'];
+      final rankName = ranked.isPlacement
+          ? 'Placement'
+          : (!ranked.isRanked
+              ? 'Unranked'
+              : (tierInfo?['tierName'] ?? 'Unranked'));
+      var rankIcon = currentTier == 0
+          ? null
+          : (tierInfo?['largeIcon'] ?? tierInfo?['smallIcon']);
       if (rankIcon != null && rankIcon.toString().trim().isEmpty) {
         rankIcon = null;
       }
 
-      // Peak Rank
-      int peakTier = currentTier;
-      if (seasonal != null) {
-        for (final entry in seasonal.values) {
-          if (entry is Map) {
-            final t = entry['CompetitiveTier'] as int? ?? 0;
-            if (t > peakTier) peakTier = t;
-            final badgeRank =
-                entry['SeasonalBadgeInfo']?['Rank'] as int? ?? 0;
-            if (badgeRank > peakTier) peakTier = badgeRank;
-          }
+      int peakTier =
+          CompetitiveRankHelper.peakTierFromMmr(mmrData) ?? currentTier;
+      for (final update in updates) {
+        if (activeSeasonId != null &&
+            CompetitiveRankHelper.updateSeasonId(update) != activeSeasonId) {
+          continue;
         }
-      }
-
-      if (competitiveUpdates != null) {
-        for (final update in competitiveUpdates) {
-          final tAfter = (update['TierAfterUpdate'] as num?)?.toInt() ?? 0;
-          if (tAfter > peakTier) peakTier = tAfter;
-        }
+        final tierAfter =
+            CompetitiveRankHelper.tierAfterUpdate(update) ?? 0;
+        if (tierAfter > peakTier) peakTier = tierAfter;
       }
 
       final peakInfo = tiersMeta[peakTier];
@@ -741,19 +718,30 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
   }
 
   ({int wins, int losses, List<bool> outcomes}) _calculateRecentWinLoss(
-    List<Map<String, dynamic>> updates,
-  ) {
+    List<Map<String, dynamic>> updates, {
+    String? activeSeasonId,
+  }) {
     int wins = 0;
     int losses = 0;
     final List<bool> outcomes = [];
 
-    for (final update in updates.take(10)) {
-      final tierAfter = (update['TierAfterUpdate'] as num?)?.toInt() ?? 0;
-      final tierBefore = (update['TierBeforeUpdate'] as num?)?.toInt() ?? 0;
-      final rrEarned = (update['RankedRatingEarned'] as num?)?.toInt() ??
-          (update['RankRatingEarned'] as num?)?.toInt() ??
-          (((update['RankedRatingAfterUpdate'] as num?)?.toInt() ?? 0) -
-              ((update['RankedRatingBeforeUpdate'] as num?)?.toInt() ?? 0));
+    final relevant = activeSeasonId == null
+        ? updates
+        : updates
+            .where((u) =>
+                CompetitiveRankHelper.updateSeasonId(u) == activeSeasonId)
+            .toList();
+
+    for (final update in relevant.take(10)) {
+      final tierAfter =
+          CompetitiveRankHelper.tierAfterUpdate(update) ?? 0;
+      final tierBefore =
+          (update['TierBeforeUpdate'] as num?)?.toInt() ??
+              (update['tierBeforeUpdate'] as num?)?.toInt() ??
+              (update['TierBefore'] as num?)?.toInt() ??
+              0;
+      final rrEarned =
+          CompetitiveRankHelper.rrEarnedFromUpdate(update) ?? 0;
 
       if (tierAfter > tierBefore) {
         wins++;
@@ -779,8 +767,9 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
   /// alone, so they remain null unless we can extract them.
   _ExtendedStats _calculateExtendedStats(
     List<Map<String, dynamic>> compUpdates,
-    Map<String, dynamic>? mmrData,
-  ) {
+    Map<String, dynamic>? mmrData, {
+    String? activeSeasonId,
+  }) {
     // Try to extract episode/act info from MMR data
     String? currentEpisodeAct;
     String? peakEpisodeAct;
@@ -800,27 +789,17 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
           : null;
 
       if (seasonal != null && seasonal.isNotEmpty) {
-        // Sort seasons to find the most recent with data
         final entries = seasonal.entries.toList();
-        // Season IDs are UUIDs but we can just pick the last entry as "current"
-        for (final entry in entries.reversed) {
-          if (entry.value is Map) {
-            final seasonData = Map<String, dynamic>.from(entry.value as Map);
-            final tier = seasonData['CompetitiveTier'] as int? ?? 0;
-            final wins = seasonData['NumberOfWins'] as int? ?? 0;
-            final winsWithPlacements = seasonData['NumberOfWinsWithPlacements'] as int? ?? 0;
-            final rankedRating = seasonData['RankedRating'] as int? ?? 0;
 
-            if (tier > 0 || wins > 0 || winsWithPlacements > 0) {
-              // Try to extract Act Rank (RankedRating from seasonal info)
-              actScore = rankedRating > 0 ? rankedRating : null;
-
-              // Episode/Act label from season ID pattern
-              final seasonId = entry.key;
-              currentEpisodeAct = _seasonIdToLabel(seasonId);
-              break;
-            }
-          }
+        // Only the active act may be presented as the current act.
+        final currentEntry = activeSeasonId == null
+            ? null
+            : seasonal[activeSeasonId];
+        if (currentEntry is Map) {
+          final seasonData = Map<String, dynamic>.from(currentEntry);
+          actScore =
+              CompetitiveRankHelper.ratingFromSeasonData(seasonData) ?? 0;
+          currentEpisodeAct = _seasonIdToLabel(activeSeasonId!);
         }
 
         // Find peak season

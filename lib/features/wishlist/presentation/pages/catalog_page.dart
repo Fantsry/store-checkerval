@@ -49,9 +49,9 @@ class _CatalogPageState extends State<CatalogPage> {
 
   void _onSearchChanged(String query) {
     context.read<WishlistCubit>().searchCatalog(
-          query: query,
-          weapon: _selectedFilter,
-        );
+      query: query,
+      weapon: _selectedFilter,
+    );
   }
 
   void _onFilterSelected(String filter) {
@@ -59,9 +59,9 @@ class _CatalogPageState extends State<CatalogPage> {
       _selectedFilter = filter;
     });
     context.read<WishlistCubit>().searchCatalog(
-          query: _searchController.text,
-          weapon: filter,
-        );
+      query: _searchController.text,
+      weapon: filter,
+    );
   }
 
   @override
@@ -71,15 +71,14 @@ class _CatalogPageState extends State<CatalogPage> {
       appBar: AppBar(
         title: const Text(
           'SKIN CATALOG',
-          style: TextStyle(
-            letterSpacing: 2,
-            fontWeight: FontWeight.w900,
-          ),
+          style: TextStyle(letterSpacing: 2, fontWeight: FontWeight.w900),
         ),
       ),
       body: BlocBuilder<WishlistCubit, WishlistState>(
         builder: (context, state) {
-          final catalog = state is WishlistLoaded ? state.catalog : <SkinItem>[];
+          final catalog = state is WishlistLoaded
+              ? state.catalog
+              : <SkinItem>[];
           final isSearching = state is WishlistLoaded && state.isSearching;
 
           return Column(
@@ -212,9 +211,9 @@ class _CatalogPageState extends State<CatalogPage> {
                           const SizedBox(height: 20),
                           ElevatedButton.icon(
                             onPressed: () {
-                              context
-                                  .read<WishlistCubit>()
-                                  .loadWishlist(forceRefresh: true);
+                              context.read<WishlistCubit>().loadWishlist(
+                                forceRefresh: true,
+                              );
                             },
                             icon: const Icon(Icons.refresh_rounded),
                             label: const Text('RETRY'),
@@ -231,10 +230,10 @@ class _CatalogPageState extends State<CatalogPage> {
                     backgroundColor: AppTheme.surfaceDark,
                     onRefresh: () async {
                       await context.read<WishlistCubit>().searchCatalog(
-                            query: _searchController.text,
-                            weapon: _selectedFilter,
-                            forceRefresh: true,
-                          );
+                        query: _searchController.text,
+                        weapon: _selectedFilter,
+                        forceRefresh: true,
+                      );
                     },
                     child: isSearching
                         ? const Center(
@@ -243,69 +242,65 @@ class _CatalogPageState extends State<CatalogPage> {
                             ),
                           )
                         : catalog.isEmpty
-                            ? ListView(
-                                children: [
-                                  SizedBox(
-                                    height:
-                                        MediaQuery.of(context).size.height *
-                                            0.5,
-                                    child: Center(
-                                      child: Column(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        children: [
-                                          const Icon(
-                                            Icons.search_off_rounded,
-                                            size: 48,
-                                            color: AppTheme.textMuted,
-                                          ),
-                                          const SizedBox(height: 16),
-                                          Text(
-                                            'No skins found',
-                                            style: Theme.of(context)
-                                                .textTheme
-                                                .titleLarge,
-                                          ),
-                                          const SizedBox(height: 8),
-                                          const Text(
-                                            'Try adjusting your search or filters',
-                                            style: TextStyle(
-                                                color: AppTheme.textSecondary),
-                                          ),
-                                          const SizedBox(height: 16),
-                                          OutlinedButton.icon(
-                                            onPressed: () {
-                                              _searchController.clear();
-                                              _onFilterSelected('All');
-                                            },
-                                            icon: const Icon(
-                                                Icons.refresh_rounded),
-                                            label: const Text('RESET FILTERS'),
-                                          ),
-                                        ],
+                        ? ListView(
+                            children: [
+                              SizedBox(
+                                height:
+                                    MediaQuery.of(context).size.height * 0.5,
+                                child: Center(
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      const Icon(
+                                        Icons.search_off_rounded,
+                                        size: 48,
+                                        color: AppTheme.textMuted,
                                       ),
-                                    ),
+                                      const SizedBox(height: 16),
+                                      Text(
+                                        'No skins found',
+                                        style: Theme.of(
+                                          context,
+                                        ).textTheme.titleLarge,
+                                      ),
+                                      const SizedBox(height: 8),
+                                      const Text(
+                                        'Try adjusting your search or filters',
+                                        style: TextStyle(
+                                          color: AppTheme.textSecondary,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 16),
+                                      OutlinedButton.icon(
+                                        onPressed: () {
+                                          _searchController.clear();
+                                          _onFilterSelected('All');
+                                        },
+                                        icon: const Icon(Icons.refresh_rounded),
+                                        label: const Text('RESET FILTERS'),
+                                      ),
+                                    ],
                                   ),
-                                ],
-                              )
-                            : GridView.builder(
-                                physics:
-                                    const AlwaysScrollableScrollPhysics(),
-                                padding:
-                                    const EdgeInsets.fromLTRB(20, 0, 20, 24),
-                                gridDelegate:
-                                    const SliverGridDelegateWithFixedCrossAxisCount(
+                                ),
+                              ),
+                            ],
+                          )
+                        : GridView.builder(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+                            gridDelegate:
+                                const SliverGridDelegateWithFixedCrossAxisCount(
                                   crossAxisCount: 2,
                                   mainAxisSpacing: 10,
                                   crossAxisSpacing: 10,
                                   childAspectRatio: 0.78,
                                 ),
-                                itemCount: catalog.length,
-                                itemBuilder: (context, index) {
-                                  final skin = catalog[index];
-                                  return _CatalogCard(skin: skin);
-                                },
-                              ),
+                            itemCount: catalog.length,
+                            itemBuilder: (context, index) {
+                              final skin = catalog[index];
+                              return _CatalogCard(skin: skin);
+                            },
+                          ),
                   ),
                 ),
             ],
@@ -342,7 +337,10 @@ class _CatalogCard extends StatelessWidget {
 
         return GestureDetector(
           onTap: () {
-            context.pushNamed('skinDetail', pathParameters: {'skinId': skin.uuid});
+            context.pushNamed(
+              'skinDetail',
+              pathParameters: {'skinId': skin.uuid},
+            );
           },
           child: Container(
             decoration: BoxDecoration(
@@ -449,7 +447,7 @@ class _CatalogCard extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          '${skin.cost} VP',
+                          skin.cost > 0 ? '${skin.cost} VP' : '-- VP',
                           style: GoogleFonts.rajdhani(
                             fontSize: 13,
                             fontWeight: FontWeight.w800,

@@ -20,6 +20,7 @@ void main() {
 
   const tPuuid = '11111111-2222-3333-4444-555555555555';
   const tShard = 'ap';
+  const tActiveSeasonId = 'season-current';
 
   final tMatchSummary = MatchSummary(
     matchId: 'match-101',
@@ -52,6 +53,8 @@ void main() {
     currentTier: 15,
     currentTierName: 'Platinum 1',
     currentRankRating: 70,
+    isRanked: true,
+    seasonId: tActiveSeasonId,
     totalMatches: 1,
     totalWins: 1,
     totalLosses: 0,
@@ -68,6 +71,15 @@ void main() {
     mockLocalStore = MockLocalStoreService();
 
     when(() => mockSecureStorage.getShard()).thenAnswer((_) async => tShard);
+    when(() => mockRemote.fetchSeasonsMetadata()).thenAnswer((_) async => [
+          {
+            'uuid': tActiveSeasonId,
+            'displayName': 'ACT CURRENT',
+            'type': 'EAresSeasonType::Act',
+            'startTime': '2026-10-14T00:00:00Z',
+            'endTime': '2027-01-06T00:00:00Z',
+          },
+        ]);
     when(() => mockLocalStore.getCachedMatchDetails(any()))
         .thenAnswer((_) async => null);
     when(() => mockLocalStore.saveCachedMatchDetails(any(), any()))
@@ -123,6 +135,7 @@ void main() {
           )).thenAnswer((_) async => [
             {
               'MatchID': 'match-101',
+              'SeasonID': tActiveSeasonId,
               'TierAfterUpdate': 15,
               'RankRatingAfterUpdate': 74,
               'RankRatingEarned': 24,
@@ -138,7 +151,11 @@ void main() {
                 'QueueSkills': {
                   'competitive': {
                     'SeasonalInfoBySeasonID': {
-                      'season-1': {'Rank': 16},
+                      tActiveSeasonId: {
+                        'CompetitiveTier': 15,
+                        'RankedRating': 74,
+                      },
+                      'season-old': {'Rank': 16},
                     }
                   }
                 }
@@ -338,6 +355,7 @@ void main() {
           )).thenAnswer((_) async => [
             {
               'MatchID': 'match-riot-202',
+              'SeasonID': tActiveSeasonId,
               'TierAfterUpdate': 15,
               'RankedRatingAfterUpdate': 88,
               'RankedRatingEarned': 18,
@@ -352,7 +370,7 @@ void main() {
                     'Tier': 15,
                     'RankedRating': 88,
                     'SeasonalInfoBySeasonID': {
-                      'season-1': {
+                      tActiveSeasonId: {
                         'CompetitiveTier': 16,
                         'RankedRating': 50,
                       },
@@ -424,8 +442,8 @@ void main() {
 
       expect(result.isSuccess, true);
       final overview = result.valueOrNull!;
-      expect(overview.currentTier, 15);
-      expect(overview.currentRankRating, 88);
+      expect(overview.currentTier, 16);
+      expect(overview.currentRankRating, 50);
       expect(overview.peakTier, 16);
       expect(overview.matches.first.rankRatingEarned, 18);
     });
@@ -529,6 +547,7 @@ void main() {
           )).thenAnswer((_) async => [
             {
               'MatchID': '{match-calculated-rr-1}',
+              'SeasonID': tActiveSeasonId,
               'TierBeforeUpdate': 14,
               'TierAfterUpdate': 15,
               'RankedRatingBeforeUpdate': 88,
@@ -546,9 +565,9 @@ void main() {
                 'QueueSkills': {
                   'competitive': {
                     'SeasonalInfoBySeasonID': {
-                      'old-season': {
-                        'CompetitiveTier': 10,
-                        'RankedRating': 0,
+                      tActiveSeasonId: {
+                        'CompetitiveTier': 15,
+                        'RankedRating': 12,
                       }
                     }
                   }

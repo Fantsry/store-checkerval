@@ -55,6 +55,14 @@ void main() {
       expect(testPlayer.displayName, equals('TenZ #SEN'));
     });
 
+    test('fromJson keeps unavailable score and side fields null', () {
+      final restored = LiveMatchData.fromJson(testMatch.toJson());
+
+      expect(restored.playerSide, isNull);
+      expect(restored.blueScore, isNull);
+      expect(restored.redScore, isNull);
+    });
+
     test('toJson and fromJson preserves data', () {
       const playerWithStats = LivePlayerInfo(
         puuid: 'p-1',
@@ -68,7 +76,18 @@ void main() {
         peakRankIcon: 'https://example.com/radiant.png',
         recentWins: 7,
         recentLosses: 3,
-        recentMatchOutcomes: [true, true, false, true, false, true, true, false, true, true],
+        recentMatchOutcomes: [
+          true,
+          true,
+          false,
+          true,
+          false,
+          true,
+          true,
+          false,
+          true,
+          true,
+        ],
       );
 
       expect(playerWithStats.recentTotalMatches, equals(10));
@@ -91,51 +110,28 @@ void main() {
       expect(cubit.state, equals(const LiveMatchInitial()));
     });
 
-    test('emits [LiveMatchLoading, LiveMatchLoaded] on scanLiveMatch success',
-        () async {
-      when(() => mockRepository.checkLiveMatch())
-          .thenAnswer((_) async => const Result.success(testMatch));
+    test(
+      'emits [LiveMatchLoading, LiveMatchLoaded] on scanLiveMatch success',
+      () async {
+        when(
+          () => mockRepository.checkLiveMatch(),
+        ).thenAnswer((_) async => const Result.success(testMatch));
 
-      final expectedStates = [
-        const LiveMatchLoading(),
-        isA<LiveMatchLoaded>()
-            .having((s) => s.matchData.mapName, 'mapName', 'Ascent')
-            .having((s) => s.matchData.blueTeam.first.agentName, 'agent', 'Jett'),
-      ];
+        final expectedStates = [
+          const LiveMatchLoading(),
+          isA<LiveMatchLoaded>()
+              .having((s) => s.matchData.mapName, 'mapName', 'Ascent')
+              .having(
+                (s) => s.matchData.blueTeam.first.agentName,
+                'agent',
+                'Jett',
+              ),
+        ];
 
-      expectLater(cubit.stream, emitsInOrder(expectedStates));
+        expectLater(cubit.stream, emitsInOrder(expectedStates));
 
-      await cubit.scanLiveMatch();
-    });
-
-    test('loadDemoMatch emits LiveMatchLoaded with 10 players and landscape card art', () {
-      final sample = LiveMatchData.createSampleTrackerMatch();
-      expect(sample.blueTeam, hasLength(5));
-      expect(sample.redTeam, hasLength(5));
-      expect(sample.mapName, equals('Abyss'));
-      expect(sample.modeName, equals('Competitive'));
-
-      // Check Desolate#2009 has cardWideArt
-      final desolate = sample.blueTeam.first;
-      expect(desolate.gameName, equals('Desolate'));
-      expect(desolate.tagLine, equals('2009'));
-      expect(desolate.isSelf, isTrue);
-      expect(desolate.cardWideArt, isNotNull);
-      expect(desolate.cardWideArt, contains('wideart.png'));
-      expect(desolate.averageCombatScore, equals(198));
-
-      // Check Vyse on red team
-      final vyse = sample.redTeam.first;
-      expect(vyse.gameName, equals('Vyse'));
-      expect(vyse.averageCombatScore, equals(204));
-      expect(vyse.averageDamageRound, equals(150));
-
-      cubit.loadDemoMatch();
-      expect(cubit.state, isA<LiveMatchLoaded>());
-      final loaded = cubit.state as LiveMatchLoaded;
-      expect(loaded.matchData.blueTeam, hasLength(5));
-      expect(loaded.matchData.redTeam, hasLength(5));
-    });
+        await cubit.scanLiveMatch();
+      },
+    );
   });
 }
-

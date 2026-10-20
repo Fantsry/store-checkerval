@@ -132,6 +132,83 @@ void main() {
     when(() => mockStorage.getShard()).thenAnswer((_) async => 'ap');
   });
 
+  group('Battlepass cache TTL', () {
+    final cachedPayload = {
+      'battlepassName': 'Cached Old Act',
+      'currentTier': 20,
+      'maxTier': 55,
+      'currentTierXp': 100,
+      'tierXpRequired': 10000,
+      'totalXpEarned': 200000,
+      'dailyMissions': [],
+      'weeklyMissions': [],
+      'nextRewards': [],
+    };
+
+    test('uses cache when it is younger than six hours', () async {
+      when(() => mockLocalStore.getMap(any())).thenAnswer((invocation) {
+        final key = invocation.positionalArguments.first as String;
+        if (key == 'cached_battlepass_overview_test-puuid') {
+          return cachedPayload;
+        }
+        if (key == 'cached_battlepass_overview_ts_test-puuid') {
+          return {'at': DateTime.now().toIso8601String()};
+        }
+        return null;
+      });
+
+      final result = await repository.getBattlepassOverview();
+
+      expect(result.valueOrNull?.battlepassName, 'Cached Old Act');
+      verifyNever(() => mockDataSource.fetchContractsAndMissions(
+            shard: any(named: 'shard'),
+            puuid: any(named: 'puuid'),
+          ));
+    });
+
+    test('ignores cache when it is older than six hours', () async {
+      when(() => mockLocalStore.getMap(any())).thenAnswer((invocation) {
+        final key = invocation.positionalArguments.first as String;
+        if (key == 'cached_battlepass_overview_test-puuid') {
+          return cachedPayload;
+        }
+        if (key == 'cached_battlepass_overview_ts_test-puuid') {
+          return {
+            'at': DateTime.now()
+                .subtract(const Duration(hours: 7))
+                .toIso8601String(),
+          };
+        }
+        return null;
+      });
+      when(() => mockDataSource.fetchContractsAndMissions(
+            shard: any(named: 'shard'),
+            puuid: any(named: 'puuid'),
+          )).thenAnswer((_) async => samplePlayerContractsData);
+      when(() => mockDataSource.fetchMissionsMetadata())
+          .thenAnswer((_) async => sampleMissionsMetadata);
+      when(() => mockDataSource.fetchContractsMetadata())
+          .thenAnswer((_) async => sampleContractsMetadata);
+      when(() => mockDataSource.fetchSeasonsMetadata())
+          .thenAnswer((_) async => sampleSeasonsMetadata);
+      when(() => mockDataSource.fetchRewardDetails(
+            uuid: any(named: 'uuid'),
+            type: any(named: 'type'),
+          )).thenAnswer((_) async => {
+            'displayName': 'Velocity Skin',
+            'displayIcon': 'https://example.com/skin.png',
+          });
+
+      final result = await repository.getBattlepassOverview();
+
+      expect(result.valueOrNull?.battlepassName, 'Season 2026 // Act V');
+      verify(() => mockDataSource.fetchContractsAndMissions(
+            shard: any(named: 'shard'),
+            puuid: any(named: 'puuid'),
+          )).called(1);
+    });
+  });
+
   group('BattlepassRepositoryImpl Tests', () {
     test('returns AuthFailure when PUUID is missing', () async {
       when(() => mockStorage.getPuuid()).thenAnswer((_) async => null);

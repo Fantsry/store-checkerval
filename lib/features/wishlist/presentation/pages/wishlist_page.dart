@@ -82,11 +82,12 @@ class _WishlistPageState extends State<WishlistPage> {
                                   state is WishlistLoaded
                                       ? '${state.items.length} skins tracked'
                                       : 'TRACKING YOUR DREAM SKINS',
-                                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                    letterSpacing: 0.8,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w600,
-                                  ),
+                                  style: Theme.of(context).textTheme.bodyMedium
+                                      ?.copyWith(
+                                        letterSpacing: 0.8,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                      ),
                                 ),
                               ],
                             ),
@@ -174,9 +175,9 @@ class _WishlistPageState extends State<WishlistPage> {
                               const SizedBox(height: 20),
                               ElevatedButton.icon(
                                 onPressed: () {
-                                  context
-                                      .read<WishlistCubit>()
-                                      .loadWishlist(forceRefresh: true);
+                                  context.read<WishlistCubit>().loadWishlist(
+                                    forceRefresh: true,
+                                  );
                                 },
                                 icon: const Icon(Icons.refresh_rounded),
                                 label: const Text('RETRY'),
@@ -220,17 +221,17 @@ class _WishlistPageState extends State<WishlistPage> {
                                       const SizedBox(height: 24),
                                       Text(
                                         'No Skins in Wishlist',
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .titleLarge,
+                                        style: Theme.of(
+                                          context,
+                                        ).textTheme.titleLarge,
                                       ),
                                       const SizedBox(height: 8),
                                       Text(
                                         'Add skins from the catalog to get\nnotified when they appear in your store.',
                                         textAlign: TextAlign.center,
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .bodyMedium,
+                                        style: Theme.of(
+                                          context,
+                                        ).textTheme.bodyMedium,
                                       ),
                                       const SizedBox(height: 24),
                                       ElevatedButton.icon(
@@ -264,8 +265,9 @@ class _WishlistPageState extends State<WishlistPage> {
                               const SizedBox(height: 10),
                           itemBuilder: (context, index) {
                             final item = state.items[index];
-                            final isInStore = currentStoreUuids
-                                .contains(item.uuid.toLowerCase());
+                            final isInStore = currentStoreUuids.contains(
+                              item.uuid.toLowerCase(),
+                            );
 
                             return _WishlistItemCard(
                               item: item,
@@ -291,9 +293,7 @@ class _WishlistPageState extends State<WishlistPage> {
         backgroundColor: AppTheme.cardDark,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(8),
-          side: BorderSide(
-            color: Colors.white.withValues(alpha: 0.08),
-          ),
+          side: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
         ),
         title: const Text('CLEAR WISHLIST'),
         content: const Text(
@@ -302,7 +302,10 @@ class _WishlistPageState extends State<WishlistPage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('CANCEL', style: TextStyle(color: AppTheme.textMuted)),
+            child: const Text(
+              'CANCEL',
+              style: TextStyle(color: AppTheme.textMuted),
+            ),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -328,10 +331,7 @@ class _WishlistItemCard extends StatelessWidget {
   final WishlistItem item;
   final bool isInStoreNow;
 
-  const _WishlistItemCard({
-    required this.item,
-    required this.isInStoreNow,
-  });
+  const _WishlistItemCard({required this.item, required this.isInStoreNow});
 
   @override
   Widget build(BuildContext context) {
@@ -345,17 +345,17 @@ class _WishlistItemCard extends StatelessWidget {
           color: AppTheme.accentMagenta.withValues(alpha: 0.8),
           borderRadius: BorderRadius.circular(6),
         ),
-        child: const Icon(
-          Icons.delete_rounded,
-          color: Colors.white,
-        ),
+        child: const Icon(Icons.delete_rounded, color: Colors.white),
       ),
       onDismissed: (_) {
         context.read<WishlistCubit>().toggleWishlist(item.toSkinItem());
       },
       child: GestureDetector(
         onTap: () {
-          context.pushNamed('skinDetail', pathParameters: {'skinId': item.uuid});
+          context.pushNamed(
+            'skinDetail',
+            pathParameters: {'skinId': item.uuid},
+          );
         },
         child: Container(
           padding: const EdgeInsets.all(12),
@@ -459,7 +459,7 @@ class _WishlistItemCard extends StatelessWidget {
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          '${item.cost} VP',
+                          item.cost > 0 ? '${item.cost} VP' : '-- VP',
                           style: GoogleFonts.rajdhani(
                             fontSize: 13,
                             fontWeight: FontWeight.w800,
@@ -485,7 +485,9 @@ class _WishlistItemCard extends StatelessWidget {
               // Delete button
               IconButton(
                 onPressed: () {
-                  context.read<WishlistCubit>().toggleWishlist(item.toSkinItem());
+                  context.read<WishlistCubit>().toggleWishlist(
+                    item.toSkinItem(),
+                  );
                 },
                 icon: const Icon(
                   Icons.favorite_rounded,

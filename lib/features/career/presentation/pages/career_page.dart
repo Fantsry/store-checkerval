@@ -210,6 +210,8 @@ class _CareerPageState extends State<CareerPage> {
                   tier: overview.currentTier,
                   iconUrl: overview.currentTierIcon,
                   iconSize: 42,
+                  isPlacement: overview.isPlacement,
+                  gamesNeededForRating: overview.gamesNeededForRating,
                 ),
               ],
             ),
@@ -261,7 +263,7 @@ class _CareerPageState extends State<CareerPage> {
               child: StatBox(
                 label: 'K/D RATIO',
                 value: overview.avgKdRatio.toStringAsFixed(2),
-                subtitle: 'Lifetime Avg',
+                subtitle: 'Last 10 Avg',
                 valueColor: overview.avgKdRatio >= 1.0 ? AppColors.winGreen : AppColors.lossRed,
               ),
             ),

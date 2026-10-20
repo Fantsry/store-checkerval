@@ -65,6 +65,7 @@ class ProfileCubit extends Cubit<ProfileState> {
             valorantPoints: vp,
             radianitePoints: rp,
             kingdomCredits: kc,
+            walletAvailable: true,
           ),
         ),
       );

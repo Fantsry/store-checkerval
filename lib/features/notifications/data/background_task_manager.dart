@@ -216,17 +216,7 @@ class BackgroundTaskManager {
           }
         }
       }
-      if (matched != null) {
-        dailySkins.add(matched);
-      } else {
-        dailySkins.add(
-          SkinItem(
-            uuid: offerUuid,
-            displayName: 'Valorant Skin',
-            weaponName: 'Weapon',
-          ),
-        );
-      }
+      if (matched != null) dailySkins.add(matched);
     }
 
     final remainingSecs =
@@ -234,14 +224,20 @@ class BackgroundTaskManager {
                 ?.toInt() ??
             86400;
 
+    // This job only refreshes individual offers; keep bundle/night-market
+    // data from the last full sync instead of replacing it with an empty list.
+    final existingStore = await localStore.getCachedDailyStore(puuid: puuid);
     final dailyStore = DailyStore(
       featuredOffers: dailySkins,
       remainingDurationSeconds: remainingSecs,
+      bundles: existingStore?.bundles ?? const [],
+      accessoryOffers: existingStore?.accessoryOffers ?? const [],
+      nightMarket: existingStore?.nightMarket,
       lastFetched: DateTime.now(),
     );
 
     // Save to daily store cache
-    await localStore.saveDailyStore(dailyStore);
+    await localStore.saveDailyStore(dailyStore, puuid: puuid);
 
     // Check both Wishlist and Custom Alert Rules
     final wishlist = await localStore.getWishlist();

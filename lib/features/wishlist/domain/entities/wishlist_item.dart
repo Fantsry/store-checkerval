@@ -68,7 +68,7 @@ class WishlistItem extends Equatable {
         displayName: json['displayName'] as String? ?? '',
         displayIcon: json['displayIcon'] as String?,
         weaponName: json['weaponName'] as String?,
-        cost: json['cost'] as int? ?? 1775,
+        cost: json['cost'] as int? ?? 0,
         tierName: json['tierName'] as String?,
         tierColor: json['tierColor'] as String?,
         tierIcon: json['tierIcon'] as String?,

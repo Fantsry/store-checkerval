@@ -47,9 +47,11 @@ class _SettingsPageState extends State<SettingsPage> {
   Future<void> _loadSettings() async {
     final storage = getIt<SecureStorageService>();
     final bio = await storage.isBiometricEnabled();
+    final notifications = await storage.areNotificationsEnabled();
     if (mounted) {
       setState(() {
         _biometricEnabled = bio;
+        _notificationsEnabled = notifications;
       });
     }
   }
@@ -92,6 +94,7 @@ class _SettingsPageState extends State<SettingsPage> {
     if (value) {
       final granted = await getIt<NotificationService>().requestPermissions();
       if (granted) {
+        await getIt<SecureStorageService>().setNotificationsEnabled(true);
         await BackgroundTaskManager.scheduleNextResetCheck();
         await BackgroundTaskManager.registerPeriodicStoreCheck();
         setState(() => _notificationsEnabled = true);
@@ -108,6 +111,7 @@ class _SettingsPageState extends State<SettingsPage> {
         }
       }
     } else {
+      await getIt<SecureStorageService>().setNotificationsEnabled(false);
       await BackgroundTaskManager.cancelStoreCheck();
       setState(() => _notificationsEnabled = false);
     }
@@ -449,8 +453,8 @@ class _SettingsPageState extends State<SettingsPage> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
-                  VpChip(amount: profile?.valorantPoints ?? 0, fontSize: 13),
-                  VpChip(amount: profile?.radianitePoints ?? 0, isRadianite: true, fontSize: 13),
+                  VpChip(amount: profile?.walletAvailable == true ? profile!.valorantPoints : null, fontSize: 13),
+                  VpChip(amount: profile?.walletAvailable == true ? profile!.radianitePoints : null, isRadianite: true, fontSize: 13),
                 ],
               ),
             ],

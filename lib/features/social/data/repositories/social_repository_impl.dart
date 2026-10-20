@@ -3,6 +3,7 @@ import 'package:valorant_store_tracker/core/error/failures.dart';
 import 'package:valorant_store_tracker/core/error/result.dart';
 import 'package:valorant_store_tracker/core/storage/local_store_service.dart';
 import 'package:valorant_store_tracker/core/storage/secure_storage_service.dart';
+import 'package:valorant_store_tracker/core/utils/competitive_rank_helper.dart';
 import 'package:valorant_store_tracker/features/career/data/datasources/career_remote_datasource.dart';
 import 'package:valorant_store_tracker/features/career/domain/entities/match_summary.dart';
 import 'package:valorant_store_tracker/features/career/domain/repositories/career_repository.dart';
@@ -29,14 +30,22 @@ class SocialRepositoryImpl implements SocialRepository {
     required SecureStorageService storage,
     required LocalStoreService localStore,
     RiotChatRemoteDataSource? chatDataSource,
-  })  : _liveDataSource = liveDataSource,
-        _careerDataSource = careerDataSource,
-        _profileDataSource = profileDataSource,
-        _careerRepository = careerRepository,
-        _storage = storage,
-        _localStore = localStore,
-        _chatDataSource = chatDataSource ?? RiotChatRemoteDataSource();
+  }) : _liveDataSource = liveDataSource,
+       _careerDataSource = careerDataSource,
+       _profileDataSource = profileDataSource,
+       _careerRepository = careerRepository,
+       _storage = storage,
+       _localStore = localStore,
+       _chatDataSource = chatDataSource ?? RiotChatRemoteDataSource();
 
+  Future<String?> _fetchActiveSeasonId() async {
+    try {
+      final seasons = await _careerDataSource.fetchSeasonsMetadata();
+      return CompetitiveRankHelper.resolveActiveAct(seasons)?.id;
+    } catch (_) {
+      return null;
+    }
+  }
 
   static String _cleanModeName(String modeUrl) {
     final lower = modeUrl.toLowerCase();
@@ -70,14 +79,18 @@ class SocialRepositoryImpl implements SocialRepository {
     if (lower.contains('pitt')) return 'Pearl';
     if (lower.contains('jam')) return 'Lotus';
     if (lower.contains('jules')) return 'Sunset';
-    if (lower.contains('corrode') || lower.contains('infinity')) return 'Corrode';
+    if (lower.contains('corrode') || lower.contains('infinity')) {
+      return 'Corrode';
+    }
     if (lower.contains('hurm')) return 'Team Deathmatch';
     final parts = path.split('/');
     return parts.isNotEmpty ? parts.last : 'Valorant';
   }
 
   @override
-  Future<Result<List<FriendEntity>>> getFriends({bool forceRefresh = false}) async {
+  Future<Result<List<FriendEntity>>> getFriends({
+    bool forceRefresh = false,
+  }) async {
     try {
       final selfPuuid = await _storage.getPuuid();
       final rawList = await _localStore.getSavedFriendsJson();
@@ -88,7 +101,8 @@ class SocialRepositoryImpl implements SocialRepository {
           final map = jsonDecode(raw) as Map<String, dynamic>;
           final friend = FriendEntity.fromJson(map);
           // Purge mock/dummy seed friends automatically
-          if (friend.puuid.startsWith('mock-') || friend.puuid.startsWith('player-')) {
+          if (friend.puuid.startsWith('mock-') ||
+              friend.puuid.startsWith('player-')) {
             await _localStore.deleteSavedFriend(friend.puuid);
             continue;
           }
@@ -108,7 +122,9 @@ class SocialRepositoryImpl implements SocialRepository {
 
       return Result.success(friends);
     } catch (e) {
-      return Result.failure(ServerFailure(message: 'Gagal memuat daftar teman: $e'));
+      return Result.failure(
+        ServerFailure(message: 'Gagal memuat daftar teman: $e'),
+      );
     }
   }
 
@@ -119,7 +135,10 @@ class SocialRepositoryImpl implements SocialRepository {
       final selfPuuid = await _storage.getPuuid();
 
       // If user is logged in, perform live XMPP sync to refresh real-time presence
-      if (selfPuuid != null && selfPuuid.isNotEmpty && accessToken != null && accessToken.isNotEmpty) {
+      if (selfPuuid != null &&
+          selfPuuid.isNotEmpty &&
+          accessToken != null &&
+          accessToken.isNotEmpty) {
         final syncResult = await syncRiotFriends(clearMocks: false);
         if (syncResult.isSuccess && syncResult.valueOrNull != null) {
           return syncResult;
@@ -132,7 +151,8 @@ class SocialRepositoryImpl implements SocialRepository {
         try {
           final map = jsonDecode(raw) as Map<String, dynamic>;
           final friend = FriendEntity.fromJson(map);
-          if (!friend.puuid.startsWith('mock-') && !friend.puuid.startsWith('player-')) {
+          if (!friend.puuid.startsWith('mock-') &&
+              !friend.puuid.startsWith('player-')) {
             friends.add(friend);
           }
         } catch (_) {}
@@ -140,11 +160,11 @@ class SocialRepositoryImpl implements SocialRepository {
 
       return Result.success(friends);
     } catch (e) {
-      return Result.failure(ServerFailure(message: 'Gagal memperbarui status live: $e'));
+      return Result.failure(
+        ServerFailure(message: 'Gagal memperbarui status live: $e'),
+      );
     }
   }
-
-
 
   @override
   Future<Result<FriendEntity>> addFriend({
@@ -155,7 +175,9 @@ class SocialRepositoryImpl implements SocialRepository {
     try {
       final cleanPuuid = puuid.trim();
       if (cleanPuuid.isEmpty) {
-        return const Result.failure(ServerFailure(message: 'PUUID tidak boleh kosong'));
+        return const Result.failure(
+          ServerFailure(message: 'PUUID tidak boleh kosong'),
+        );
       }
 
       final shard = await _storage.getShard() ?? 'ap';
@@ -165,7 +187,10 @@ class SocialRepositoryImpl implements SocialRepository {
 
       // Fetch name via Name-Service if incomplete
       if (resolvedName.isEmpty) {
-        final names = await _liveDataSource.fetchPlayerNames(shard: shard, puuids: [cleanPuuid]);
+        final names = await _liveDataSource.fetchPlayerNames(
+          shard: shard,
+          puuids: [cleanPuuid],
+        );
         if (names.isNotEmpty) {
           resolvedName = names.first['GameName']?.toString() ?? '';
           resolvedTag = names.first['TagLine']?.toString() ?? resolvedTag;
@@ -173,7 +198,9 @@ class SocialRepositoryImpl implements SocialRepository {
       }
 
       if (resolvedName.isEmpty) {
-        resolvedName = cleanPuuid.length > 8 ? cleanPuuid.substring(0, 8) : 'Agent';
+        resolvedName = cleanPuuid.length > 8
+            ? cleanPuuid.substring(0, 8)
+            : 'Agent';
       }
 
       // Fetch Player Identity & Equipped Card
@@ -181,46 +208,53 @@ class SocialRepositoryImpl implements SocialRepository {
         shard: shard,
         puuid: cleanPuuid,
       );
-      final identityMap = identityRes['identity'] as Map<String, dynamic>? ?? {};
+      final identityMap =
+          identityRes['identity'] as Map<String, dynamic>? ?? {};
 
-      final cardUuid = (identityMap['PlayerCardID'] ??
-              identityMap['playerCardId'] ??
-              identityMap['cardId'])
-          ?.toString();
+      final cardUuid =
+          (identityMap['PlayerCardID'] ??
+                  identityMap['playerCardId'] ??
+                  identityMap['cardId'])
+              ?.toString();
 
       var accountLevel = 1;
-      final levelRaw = identityMap['AccountLevel'] ?? identityMap['accountLevel'];
+      final levelRaw =
+          identityMap['AccountLevel'] ?? identityMap['accountLevel'];
       if (levelRaw is num) accountLevel = levelRaw.toInt();
 
       // Fetch Card Details from Valorant-API
       Map<String, dynamic>? cardData;
-      if (cardUuid != null && cardUuid.isNotEmpty && cardUuid != '00000000-0000-0000-0000-000000000000') {
+      if (cardUuid != null &&
+          cardUuid.isNotEmpty &&
+          cardUuid != '00000000-0000-0000-0000-000000000000') {
         cardData = await _profileDataSource.fetchPlayerCardDetails(cardUuid);
       }
 
       // Fetch MMR / Rank
-      final mmr = await _liveDataSource.fetchPlayerMmr(shard: shard, puuid: cleanPuuid);
+      final mmr = await _liveDataSource.fetchPlayerMmr(
+        shard: shard,
+        puuid: cleanPuuid,
+      );
       final tiersMeta = await _careerDataSource
           .fetchCompetitiveTiersMetadata()
           .catchError((_) => <int, Map<String, dynamic>>{});
 
-      int? rankTier;
+      final activeSeasonId = await _fetchActiveSeasonId();
+      final ranked = CompetitiveRankHelper.resolveCurrentRank(
+        mmr: mmr,
+        activeSeasonId: activeSeasonId,
+      );
+      final int? rankTier = ranked.isRanked ? ranked.tier : null;
+      final int rr = ranked.rating;
       String? rankName;
       String? rankIcon;
-      int rr = 0;
-
-      if (mmr != null && mmr['QueueSkills'] is Map) {
-        final qs = Map<String, dynamic>.from(mmr['QueueSkills'] as Map);
-        final comp = qs['competitive'] as Map?;
-        if (comp != null) {
-          rankTier = (comp['Tier'] as num?)?.toInt();
-          rr = (comp['RankedRating'] as num?)?.toInt() ?? 0;
-          if (rankTier != null && tiersMeta.containsKey(rankTier)) {
-            rankName = tiersMeta[rankTier]?['tierName'];
-            rankIcon = tiersMeta[rankTier]?['largeIcon'] ?? tiersMeta[rankTier]?['smallIcon'];
-          }
-        }
+      if (rankTier != null && tiersMeta.containsKey(rankTier)) {
+        rankName = tiersMeta[rankTier]?['tierName'];
+        rankIcon =
+            tiersMeta[rankTier]?['largeIcon'] ??
+            tiersMeta[rankTier]?['smallIcon'];
       }
+      if (ranked.isPlacement) rankName = 'Placement';
 
       final friend = FriendEntity(
         puuid: cleanPuuid,
@@ -244,7 +278,9 @@ class SocialRepositoryImpl implements SocialRepository {
 
       return Result.success(friend);
     } catch (e) {
-      return Result.failure(ServerFailure(message: 'Gagal menambahkan teman: $e'));
+      return Result.failure(
+        ServerFailure(message: 'Gagal menambahkan teman: $e'),
+      );
     }
   }
 
@@ -257,7 +293,9 @@ class SocialRepositoryImpl implements SocialRepository {
       final tag = parts.length > 1 ? parts[1].trim() : '';
 
       if (name.isEmpty) {
-        return const Result.failure(ServerFailure(message: 'Riot ID tidak valid'));
+        return const Result.failure(
+          ServerFailure(message: 'Riot ID tidak valid'),
+        );
       }
 
       // Search recent matches for this player's PUUID
@@ -268,7 +306,8 @@ class SocialRepositoryImpl implements SocialRepository {
           for (final p in m.allPlayers) {
             final pName = p.gameName.toLowerCase().trim();
             final pTag = p.tagLine.toLowerCase().trim();
-            if (pName == name.toLowerCase() && (tag.isEmpty || pTag == tag.toLowerCase())) {
+            if (pName == name.toLowerCase() &&
+                (tag.isEmpty || pTag == tag.toLowerCase())) {
               return await addFriend(
                 puuid: p.puuid,
                 gameName: p.gameName,
@@ -283,11 +322,14 @@ class SocialRepositoryImpl implements SocialRepository {
       final accessToken = await _storage.getAccessToken();
       if (accessToken != null && accessToken.isNotEmpty) {
         try {
-          final roster = await _chatDataSource.fetchRemoteRoster(accessToken: accessToken);
+          final roster = await _chatDataSource.fetchRemoteRoster(
+            accessToken: accessToken,
+          );
           for (final item in roster) {
             final rName = item.name.toLowerCase().trim();
             final rTag = (item.tag ?? '').toLowerCase().trim();
-            if (rName == name.toLowerCase() && (tag.isEmpty || rTag == tag.toLowerCase())) {
+            if (rName == name.toLowerCase() &&
+                (tag.isEmpty || rTag == tag.toLowerCase())) {
               return await addFriend(
                 puuid: item.puuid,
                 gameName: item.name,
@@ -305,7 +347,9 @@ class SocialRepositoryImpl implements SocialRepository {
         ),
       );
     } catch (e) {
-      return Result.failure(ServerFailure(message: 'Gagal menambahkan teman: $e'));
+      return Result.failure(
+        ServerFailure(message: 'Gagal menambahkan teman: $e'),
+      );
     }
   }
 
@@ -315,7 +359,9 @@ class SocialRepositoryImpl implements SocialRepository {
       await _localStore.deleteSavedFriend(puuid);
       return const Result.success(null);
     } catch (e) {
-      return Result.failure(ServerFailure(message: 'Gagal menghapus teman: $e'));
+      return Result.failure(
+        ServerFailure(message: 'Gagal menghapus teman: $e'),
+      );
     }
   }
 
@@ -332,9 +378,13 @@ class SocialRepositoryImpl implements SocialRepository {
           return Result.success(updated);
         }
       }
-      return const Result.failure(ServerFailure(message: 'Teman tidak ditemukan'));
+      return const Result.failure(
+        ServerFailure(message: 'Teman tidak ditemukan'),
+      );
     } catch (e) {
-      return Result.failure(ServerFailure(message: 'Gagal mengubah status favorit: $e'));
+      return Result.failure(
+        ServerFailure(message: 'Gagal mengubah status favorit: $e'),
+      );
     }
   }
 
@@ -362,7 +412,10 @@ class SocialRepositoryImpl implements SocialRepository {
       final Map<String, MatchPlayerSummary> teammatesMap = {};
       for (final m in matches) {
         for (final t in m.teammates) {
-          if (t.puuid.isNotEmpty && t.puuid != selfPuuid && !t.isSelf && !existingPuuids.contains(t.puuid)) {
+          if (t.puuid.isNotEmpty &&
+              t.puuid != selfPuuid &&
+              !t.isSelf &&
+              !existingPuuids.contains(t.puuid)) {
             teammatesMap[t.puuid] = t;
           }
         }
@@ -376,14 +429,23 @@ class SocialRepositoryImpl implements SocialRepository {
       for (final entry in teammatesMap.entries.take(8)) {
         final t = entry.value;
 
-        // Fetch card identity
+        // Fetch card identity and account level
         Map<String, dynamic>? cardData;
+        var accountLevel = 1;
         try {
-          final identityRes = await _profileDataSource.fetchPlayerIdentity(shard: shard, puuid: t.puuid);
+          final identityRes = await _profileDataSource.fetchPlayerIdentity(
+            shard: shard,
+            puuid: t.puuid,
+          );
           final idMap = identityRes['identity'] as Map<String, dynamic>? ?? {};
-          final cardUuid = (idMap['PlayerCardID'] ?? idMap['playerCardId'])?.toString();
+          final level = idMap['AccountLevel'] ?? idMap['accountLevel'];
+          if (level is num) accountLevel = level.toInt();
+          final cardUuid = (idMap['PlayerCardID'] ?? idMap['playerCardId'])
+              ?.toString();
           if (cardUuid != null && cardUuid.isNotEmpty) {
-            cardData = await _profileDataSource.fetchPlayerCardDetails(cardUuid);
+            cardData = await _profileDataSource.fetchPlayerCardDetails(
+              cardUuid,
+            );
           }
         } catch (_) {}
 
@@ -391,27 +453,36 @@ class SocialRepositoryImpl implements SocialRepository {
           puuid: t.puuid,
           gameName: t.gameName.isNotEmpty ? t.gameName : 'Teammate',
           tagLine: t.tagLine,
-          accountLevel: 1,
+          accountLevel: accountLevel,
           cardUuid: cardData?['uuid']?.toString(),
           cardName: cardData?['displayName']?.toString() ?? 'Player Card',
-          cardWideArt: cardData?['wideArt']?.toString() ?? 'https://media.valorant-api.com/playercards/9fb348bc-41a0-91ad-8a3e-818035c4e561/wideart.png',
-          cardSmallArt: cardData?['smallArt']?.toString() ?? 'https://media.valorant-api.com/playercards/9fb348bc-41a0-91ad-8a3e-818035c4e561/smallart.png',
+          cardWideArt:
+              cardData?['wideArt']?.toString() ??
+              'https://media.valorant-api.com/playercards/9fb348bc-41a0-91ad-8a3e-818035c4e561/wideart.png',
+          cardSmallArt:
+              cardData?['smallArt']?.toString() ??
+              'https://media.valorant-api.com/playercards/9fb348bc-41a0-91ad-8a3e-818035c4e561/smallart.png',
           cardLargeArt: cardData?['largeArt']?.toString(),
           rankTier: t.competitiveTier,
           rankName: t.rankName ?? 'Unranked',
           rankIcon: t.rankIconUrl,
-          rankedRating: 25,
-          status: FriendLiveStatus.inLobby,
+          rankedRating: 0,
+          status: FriendLiveStatus.offline,
           lastUpdated: DateTime.now(),
         );
 
-        await _localStore.saveFriendJson(friend.puuid, jsonEncode(friend.toJson()));
+        await _localStore.saveFriendJson(
+          friend.puuid,
+          jsonEncode(friend.toJson()),
+        );
         newFriends.add(friend);
       }
 
       return Result.success(newFriends);
     } catch (e) {
-      return Result.failure(ServerFailure(message: 'Gagal mengimpor rekan tim: $e'));
+      return Result.failure(
+        ServerFailure(message: 'Gagal mengimpor rekan tim: $e'),
+      );
     }
   }
 
@@ -436,7 +507,10 @@ class SocialRepositoryImpl implements SocialRepository {
       final Map<String, MatchPlayerSummary> teammates = {};
       for (final m in careerResult.valueOrNull!.matches) {
         for (final t in m.teammates) {
-          if (t.puuid.isNotEmpty && t.puuid != selfPuuid && !t.isSelf && !existingPuuids.contains(t.puuid)) {
+          if (t.puuid.isNotEmpty &&
+              t.puuid != selfPuuid &&
+              !t.isSelf &&
+              !existingPuuids.contains(t.puuid)) {
             teammates[t.puuid] = t;
           }
         }
@@ -465,7 +539,9 @@ class SocialRepositoryImpl implements SocialRepository {
 
       final idx = friends.indexWhere((f) => f.puuid == puuid);
       if (idx == -1) {
-        return const Result.failure(ServerFailure(message: 'Teman tidak ditemukan'));
+        return const Result.failure(
+          ServerFailure(message: 'Teman tidak ditemukan'),
+        );
       }
 
       final friend = friends[idx];
@@ -474,8 +550,11 @@ class SocialRepositoryImpl implements SocialRepository {
       final currentEnemyScore = currentActivity.scoreEnemy ?? 0;
 
       final newAllyScore = isAllyWon ? currentAllyScore + 1 : currentAllyScore;
-      final newEnemyScore = isAllyWon ? currentEnemyScore : currentEnemyScore + 1;
-      final newHistory = List<bool>.from(currentActivity.roundHistory)..add(isAllyWon);
+      final newEnemyScore = isAllyWon
+          ? currentEnemyScore
+          : currentEnemyScore + 1;
+      final newHistory = List<bool>.from(currentActivity.roundHistory)
+        ..add(isAllyWon);
 
       final updatedActivity = currentActivity.copyWith(
         scoreAlly: newAllyScore,
@@ -498,12 +577,16 @@ class SocialRepositoryImpl implements SocialRepository {
 
       return Result.success(updatedFriend);
     } catch (e) {
-      return Result.failure(ServerFailure(message: 'Gagal memperbarui round: $e'));
+      return Result.failure(
+        ServerFailure(message: 'Gagal memperbarui round: $e'),
+      );
     }
   }
 
   @override
-  Future<Result<List<FriendEntity>>> syncRiotFriends({bool clearMocks = true}) async {
+  Future<Result<List<FriendEntity>>> syncRiotFriends({
+    bool clearMocks = true,
+  }) async {
     try {
       final accessToken = await _storage.getAccessToken();
       final selfPuuid = await _storage.getPuuid() ?? '';
@@ -536,18 +619,10 @@ class SocialRepositoryImpl implements SocialRepository {
               }
             }
 
-            // If clearMocks is true, purge any friends in local store not in the active Riot roster
+            // A partial XMPP roster is not proof that a real friend was
+            // removed, so only deliberately seeded mock entries are purged.
             if (clearMocks) {
-              final rawList = await _localStore.getSavedFriendsJson();
-              for (final raw in rawList) {
-                try {
-                  final map = jsonDecode(raw) as Map<String, dynamic>;
-                  final p = map['puuid']?.toString() ?? '';
-                  if (!rosterMap.containsKey(p)) {
-                    await _localStore.deleteSavedFriend(p);
-                  }
-                } catch (_) {}
-              }
+              await clearMockFriends();
             }
 
             // Pre-fetch player names via Riot GLZ Name-Service
@@ -567,12 +642,20 @@ class SocialRepositoryImpl implements SocialRepository {
             } catch (_) {}
 
             final metaResults = await Future.wait([
-              _careerDataSource.fetchMapsMetadata().catchError((_) => <String, Map<String, dynamic>>{}),
-              _careerDataSource.fetchAgentsMetadata().catchError((_) => <String, Map<String, dynamic>>{}),
-              _careerDataSource.fetchCompetitiveTiersMetadata().catchError((_) => <int, Map<String, dynamic>>{}),
+              _careerDataSource.fetchMapsMetadata().catchError(
+                (_) => <String, Map<String, dynamic>>{},
+              ),
+              _careerDataSource.fetchAgentsMetadata().catchError(
+                (_) => <String, Map<String, dynamic>>{},
+              ),
+              _careerDataSource.fetchCompetitiveTiersMetadata().catchError(
+                (_) => <int, Map<String, dynamic>>{},
+              ),
             ]);
-            final mapsMeta = metaResults[0] as Map<String, Map<String, dynamic>>;
+            final mapsMeta =
+                metaResults[0] as Map<String, Map<String, dynamic>>;
             final tiersMeta = metaResults[2] as Map<int, Map<String, dynamic>>;
+            final activeSeasonId = await _fetchActiveSeasonId();
 
             for (final puuid in puuidsToResolve) {
               final rosterItem = rosterMap[puuid];
@@ -602,7 +685,9 @@ class SocialRepositoryImpl implements SocialRepository {
 
                 if (presence.isInGame) {
                   status = FriendLiveStatus.inGame;
-                  final mapName = mapsMeta[presence.matchMap?.toLowerCase()]?['displayName'] ??
+                  final mapName =
+                      mapsMeta[presence.matchMap
+                          ?.toLowerCase()]?['displayName'] ??
                       _cleanMapName(presence.matchMap ?? '');
                   final modeName = _cleanModeName(presence.queueId ?? '');
                   liveActivity = FriendLiveActivity(
@@ -631,42 +716,58 @@ class SocialRepositoryImpl implements SocialRepository {
               String? cardUuid = presence?.playerCardId;
               try {
                 if (cardUuid == null || cardUuid.isEmpty) {
-                  final idRes = await _profileDataSource.fetchPlayerIdentity(shard: shard, puuid: puuid);
-                  final idMap = idRes['identity'] as Map<String, dynamic>? ?? {};
-                  cardUuid = (idMap['PlayerCardID'] ?? idMap['playerCardId'])?.toString();
+                  final idRes = await _profileDataSource.fetchPlayerIdentity(
+                    shard: shard,
+                    puuid: puuid,
+                  );
+                  final idMap =
+                      idRes['identity'] as Map<String, dynamic>? ?? {};
+                  cardUuid = (idMap['PlayerCardID'] ?? idMap['playerCardId'])
+                      ?.toString();
                   final lvl = idMap['AccountLevel'] ?? idMap['accountLevel'];
                   if (lvl is num) accountLevel = lvl.toInt();
                 }
-                if (cardUuid != null && cardUuid.isNotEmpty && cardUuid != '00000000-0000-0000-0000-000000000000') {
-                  cardData = await _profileDataSource.fetchPlayerCardDetails(cardUuid);
+                if (cardUuid != null &&
+                    cardUuid.isNotEmpty &&
+                    cardUuid != '00000000-0000-0000-0000-000000000000') {
+                  cardData = await _profileDataSource.fetchPlayerCardDetails(
+                    cardUuid,
+                  );
                 }
               } catch (_) {}
 
-              // Rank & MMR
+              // Rank & MMR. Presence only carries tier; the act-aware RR must
+              // always come from the MMR endpoint so friends do not show 0 RR.
               int? rankTier = presence?.competitiveTier;
               String? rankName;
               String? rankIcon;
               int rr = 0;
-              if (rankTier != null && rankTier > 0 && tiersMeta.containsKey(rankTier)) {
+              var isPlacement = false;
+              try {
+                final mmr = await _liveDataSource.fetchPlayerMmr(
+                  shard: shard,
+                  puuid: puuid,
+                );
+                final ranked = CompetitiveRankHelper.resolveCurrentRank(
+                  mmr: mmr,
+                  activeSeasonId: activeSeasonId,
+                );
+                if (ranked.hasCurrentActData) {
+                  rankTier = ranked.isRanked ? ranked.tier : null;
+                  rr = ranked.rating;
+                  isPlacement = ranked.isPlacement;
+                }
+              } catch (_) {}
+
+              if (rankTier != null &&
+                  rankTier > 0 &&
+                  tiersMeta.containsKey(rankTier)) {
                 rankName = tiersMeta[rankTier]?['tierName'];
-                rankIcon = tiersMeta[rankTier]?['largeIcon'] ?? tiersMeta[rankTier]?['smallIcon'];
-              } else {
-                try {
-                  final mmr = await _liveDataSource.fetchPlayerMmr(shard: shard, puuid: puuid);
-                  if (mmr != null && mmr['QueueSkills'] is Map) {
-                    final qs = Map<String, dynamic>.from(mmr['QueueSkills'] as Map);
-                    final comp = qs['competitive'] as Map?;
-                    if (comp != null) {
-                      rankTier = (comp['Tier'] as num?)?.toInt();
-                      rr = (comp['RankedRating'] as num?)?.toInt() ?? 0;
-                      if (rankTier != null && tiersMeta.containsKey(rankTier)) {
-                        rankName = tiersMeta[rankTier]?['tierName'];
-                        rankIcon = tiersMeta[rankTier]?['largeIcon'] ?? tiersMeta[rankTier]?['smallIcon'];
-                      }
-                    }
-                  }
-                } catch (_) {}
+                rankIcon =
+                    tiersMeta[rankTier]?['largeIcon'] ??
+                    tiersMeta[rankTier]?['smallIcon'];
               }
+              if (isPlacement) rankName = 'Placement';
 
               final friend = FriendEntity(
                 puuid: puuid,
@@ -675,11 +776,13 @@ class SocialRepositoryImpl implements SocialRepository {
                 accountLevel: accountLevel,
                 cardUuid: cardUuid,
                 cardName: cardData?['displayName']?.toString() ?? 'Player Card',
-                cardWideArt: cardData?['wideArt']?.toString() ??
+                cardWideArt:
+                    cardData?['wideArt']?.toString() ??
                     (cardUuid != null && cardUuid.isNotEmpty
                         ? 'https://media.valorant-api.com/playercards/$cardUuid/wideart.png'
                         : 'https://media.valorant-api.com/playercards/9fb348bc-41a0-91ad-8a3e-818035c4e561/wideart.png'),
-                cardSmallArt: cardData?['smallArt']?.toString() ??
+                cardSmallArt:
+                    cardData?['smallArt']?.toString() ??
                     (cardUuid != null && cardUuid.isNotEmpty
                         ? 'https://media.valorant-api.com/playercards/$cardUuid/smallart.png'
                         : 'https://media.valorant-api.com/playercards/9fb348bc-41a0-91ad-8a3e-818035c4e561/smallart.png'),
@@ -697,7 +800,10 @@ class SocialRepositoryImpl implements SocialRepository {
                 lastUpdated: DateTime.now(),
               );
 
-              await _localStore.saveFriendJson(puuid, jsonEncode(friend.toJson()));
+              await _localStore.saveFriendJson(
+                puuid,
+                jsonEncode(friend.toJson()),
+              );
               realFriends.add(friend);
             }
           }
@@ -716,7 +822,8 @@ class SocialRepositoryImpl implements SocialRepository {
         try {
           final map = jsonDecode(raw) as Map<String, dynamic>;
           final friend = FriendEntity.fromJson(map);
-          if (!friend.puuid.startsWith('mock-') && !friend.puuid.startsWith('player-')) {
+          if (!friend.puuid.startsWith('mock-') &&
+              !friend.puuid.startsWith('player-')) {
             cached.add(friend);
           }
         } catch (_) {}
@@ -724,7 +831,9 @@ class SocialRepositoryImpl implements SocialRepository {
 
       return Result.success(cached);
     } catch (e) {
-      return Result.failure(ServerFailure(message: 'Gagal menyinkronkan teman: $e'));
+      return Result.failure(
+        ServerFailure(message: 'Gagal menyinkronkan teman: $e'),
+      );
     }
   }
 
@@ -743,22 +852,9 @@ class SocialRepositoryImpl implements SocialRepository {
       }
       return const Result.success(null);
     } catch (e) {
-      return Result.failure(ServerFailure(message: 'Gagal membersihkan data dummy: $e'));
-    }
-  }
-
-  @override
-  Future<Result<List<FriendEntity>>> loadDemoSquad() async {
-    try {
-      await clearMockFriends();
-      // Import real teammates from match history instead of fake mock players
-      final importResult = await importRecentTeammates();
-      if (importResult.isSuccess && importResult.valueOrNull != null && importResult.valueOrNull!.isNotEmpty) {
-        return importResult;
-      }
-      return await getFriends(forceRefresh: true);
-    } catch (e) {
-      return Result.failure(ServerFailure(message: 'Gagal memuat rekan tim: $e'));
+      return Result.failure(
+        ServerFailure(message: 'Gagal membersihkan data dummy: $e'),
+      );
     }
   }
 }

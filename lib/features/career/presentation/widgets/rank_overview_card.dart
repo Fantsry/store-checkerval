@@ -64,8 +64,9 @@ class RankOverviewCard extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        if (overview.currentTier > 0 ||
-                            overview.currentRankRating > 0)
+                        if (!overview.isPlacement &&
+                            (overview.currentTier > 0 ||
+                                overview.currentRankRating > 0))
                           Text(
                             '${overview.currentRankRating} RR',
                             style: AppTheme.statLarge(
@@ -77,8 +78,9 @@ class RankOverviewCard extends StatelessWidget {
                     const SizedBox(height: 4),
 
                     // RR Progress Bar (magenta)
-                    if (overview.currentTier > 0 ||
-                        overview.currentRankRating > 0) ...[
+                    if (!overview.isPlacement &&
+                        (overview.currentTier > 0 ||
+                            overview.currentRankRating > 0)) ...[
                       ClipRRect(
                         borderRadius: BorderRadius.circular(3),
                         child: LinearProgressIndicator(
@@ -88,6 +90,17 @@ class RankOverviewCard extends StatelessWidget {
                           valueColor: const AlwaysStoppedAnimation<Color>(
                             AppTheme.accentMagenta,
                           ),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                    ] else if (overview.isPlacement &&
+                        (overview.gamesNeededForRating ?? 0) > 0) ...[
+                      Text(
+                        '${overview.gamesNeededForRating} placements left',
+                        style: GoogleFonts.inter(
+                          color: AppTheme.accentMagenta,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
                       const SizedBox(height: 4),

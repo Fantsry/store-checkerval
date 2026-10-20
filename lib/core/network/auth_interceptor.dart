@@ -21,10 +21,15 @@ class AuthInterceptor extends Interceptor {
     RequestOptions options,
     RequestInterceptorHandler handler,
   ) async {
-    // Skip auth headers for valorant-api.com (public API)
-    if (options.uri.host.contains('valorant-api.com')) {
+    // Only Riot-owned endpoints receive Riot credentials. Public metadata APIs
+    // and arbitrary third-party hosts must never see the user's tokens.
+    if (!_isRiotHost(options.uri)) {
       return handler.next(options);
     }
+
+    final hasExplicitAuthorization = _hasHeader(options.headers, 'Authorization');
+    final hasExplicitEntitlements =
+        _hasHeader(options.headers, 'X-Riot-Entitlements-JWT');
 
     var accessToken = await _storage.getAccessToken();
     var entitlementsToken = await _storage.getEntitlementsToken();
@@ -49,10 +54,14 @@ class AuthInterceptor extends Interceptor {
     options.headers['X-Riot-ClientPlatform'] = _clientPlatform;
     options.headers['X-Riot-ClientVersion'] = clientVersion;
 
-    if (accessToken != null && accessToken.isNotEmpty) {
+    if (!hasExplicitAuthorization &&
+        accessToken != null &&
+        accessToken.isNotEmpty) {
       options.headers['Authorization'] = 'Bearer $accessToken';
     }
-    if (entitlementsToken != null && entitlementsToken.isNotEmpty) {
+    if (!hasExplicitEntitlements &&
+        entitlementsToken != null &&
+        entitlementsToken.isNotEmpty) {
       options.headers['X-Riot-Entitlements-JWT'] = entitlementsToken;
     }
 
@@ -65,14 +74,19 @@ class AuthInterceptor extends Interceptor {
     ErrorInterceptorHandler handler,
   ) async {
     final statusCode = err.response?.statusCode;
+    final isRiotRequest = _isRiotHost(err.requestOptions.uri);
+    final hasExplicitAuthorization =
+        _hasHeader(err.requestOptions.headers, 'Authorization');
     final isUnauthorized = statusCode == 401;
     final isBadClaims =
         statusCode == 400 && _isRiotAuthClaimError(err.response?.data);
 
-    // Handle 401 Unauthorized or 400 BAD_CLAIMS (GLZ token expiry) by attempting silent re-authentication once
+    // Handle 401 Unauthorized or 400 BAD_CLAIMS (GLZ token expiry) by attempting silent re-authentication once.
+    // Explicit Authorization calls own their credential lifecycle; never replace them with stored tokens.
     if ((isUnauthorized || isBadClaims) &&
-        err.requestOptions.extra['authRetried'] != true &&
-        !err.requestOptions.uri.host.contains('valorant-api.com')) {
+        isRiotRequest &&
+        !hasExplicitAuthorization &&
+        err.requestOptions.extra['authRetried'] != true) {
       err.requestOptions.extra['authRetried'] = true;
 
       final refreshed = await _refreshToken();
@@ -103,11 +117,13 @@ class AuthInterceptor extends Interceptor {
       }
     }
 
-    // Handle 400 Bad Request client version mismatch (e.g. after Act update) by auto-refreshing client version
-    final isVersionMismatch = statusCode == 400 && !_isRiotAuthClaimError(err.response?.data);
+    // Handle client-version mismatch only. A generic 400 (bad puuid, invalid
+    // payload, etc.) must never trigger a version refresh/retry loop.
+    final isVersionMismatch =
+        statusCode == 400 && _isClientVersionError(err.response?.data);
     if (isVersionMismatch &&
-        err.requestOptions.extra['versionRetried'] != true &&
-        !err.requestOptions.uri.host.contains('valorant-api.com')) {
+        isRiotRequest &&
+        err.requestOptions.extra['versionRetried'] != true) {
       err.requestOptions.extra['versionRetried'] = true;
       try {
         final newVersion = await _resolveClientVersion(forceRefresh: true);
@@ -124,6 +140,42 @@ class AuthInterceptor extends Interceptor {
     }
 
     handler.next(err);
+  }
+
+  static bool _isRiotHost(Uri uri) {
+    final host = uri.host.toLowerCase();
+    return host == 'riotgames.com' ||
+        host.endsWith('.riotgames.com') ||
+        host == 'pvp.net' ||
+        host.endsWith('.pvp.net');
+  }
+
+  static bool _hasHeader(Map<String, dynamic> headers, String name) {
+    final target = name.toLowerCase();
+    return headers.keys.any((key) => key.toLowerCase() == target);
+  }
+
+  bool _isClientVersionError(dynamic data) {
+    final code = data is Map
+        ? (data['errorCode'] ?? data['error_code'] ?? '').toString().toUpperCase()
+        : '';
+    final message = data is Map
+        ? (data['message'] ?? data['errorMessage'] ?? '').toString().toUpperCase()
+        : data?.toString().toUpperCase() ?? '';
+
+    const versionCodes = {
+      'INVALID_CLIENT_VERSION',
+      'CLIENT_VERSION_MISMATCH',
+      'BAD_CLIENT_VERSION',
+      'VERSION_MISMATCH',
+    };
+    if (versionCodes.contains(code)) return true;
+
+    return message.contains('CLIENT VERSION') ||
+        message.contains('VERSION MISMATCH') ||
+        message.contains('INVALID VERSION') ||
+        message.contains('VERSION IS INVALID') ||
+        message.contains('UNSUPPORTED VERSION');
   }
 
   bool _isRiotAuthClaimError(dynamic data) {

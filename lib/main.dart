@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:valorant_store_tracker/app/app.dart';
 import 'package:valorant_store_tracker/app/di.dart';
 import 'package:valorant_store_tracker/app/router.dart';
+import 'package:valorant_store_tracker/core/storage/secure_storage_service.dart';
 import 'package:valorant_store_tracker/core/utils/timezone_helper.dart';
 import 'package:valorant_store_tracker/features/auth/domain/repositories/auth_repository.dart';
 import 'package:valorant_store_tracker/features/notifications/data/background_task_manager.dart';
@@ -44,13 +45,23 @@ Future<void> main() async {
     },
   );
 
-  // Request notification permissions automatically on startup (Android 13+ / iOS)
-  await notificationService.requestPermissions();
+  // Ask for notification permission once per install. Denials are handled in
+  // Settings instead of prompting on every cold start.
+  final secureStorage = getIt<SecureStorageService>();
+  if (!await secureStorage.isNotificationPermissionAsked()) {
+    final granted = await notificationService.requestPermissions();
+    await secureStorage.setNotificationPermissionAsked(true);
+    if (!granted) {
+      await secureStorage.setNotificationsEnabled(false);
+    }
+  }
 
   // Initialize Background Scheduler & schedule next shop reset check (00:00 UTC)
   await BackgroundTaskManager.initialize();
-  await BackgroundTaskManager.scheduleNextResetCheck();
-  await BackgroundTaskManager.registerPeriodicStoreCheck();
+  if (await secureStorage.areNotificationsEnabled()) {
+    await BackgroundTaskManager.scheduleNextResetCheck();
+    await BackgroundTaskManager.registerPeriodicStoreCheck();
+  }
 
   runApp(const ValorantStoreApp());
 }

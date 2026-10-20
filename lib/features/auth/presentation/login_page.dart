@@ -20,6 +20,7 @@ class _LoginPageState extends State<LoginPage> {
   InAppWebViewController? _webViewController;
   double _webProgress = 0;
   bool _isProcessingTokens = false;
+  String? _manualRegion;
 
   void _handleUrlChange(Uri? uri) async {
     if (uri == null || _isProcessingTokens) return;
@@ -87,6 +88,7 @@ class _LoginPageState extends State<LoginPage> {
                 accessToken: accessToken,
                 idToken: idToken,
                 cookieJar: cookieJar,
+                manualRegion: _manualRegion,
               );
         }
       }
@@ -213,9 +215,70 @@ class _LoginPageState extends State<LoginPage> {
                   onSelected: (value) {
                     if (value == 'clear') {
                       _clearCookiesAndReload();
+                    } else if (value == 'region:auto') {
+                      setState(() => _manualRegion = null);
+                    } else if (value.startsWith('region:')) {
+                      setState(() => _manualRegion = value.substring(7));
                     }
                   },
                   itemBuilder: (context) => [
+                    PopupMenuItem(
+                      enabled: false,
+                      child: Text(
+                        'REGION: ${_manualRegion?.toUpperCase() ?? 'AUTO'}',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1,
+                          color: AppTheme.textMuted,
+                        ),
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: 'region:auto',
+                      child: Row(
+                        children: [
+                          Icon(
+                            _manualRegion == null
+                                ? Icons.check_rounded
+                                : Icons.public_rounded,
+                            size: 20,
+                            color: _manualRegion == null
+                                ? AppTheme.accentMagenta
+                                : Colors.white70,
+                          ),
+                          const SizedBox(width: 8),
+                          const Text('Deteksi Otomatis'),
+                        ],
+                      ),
+                    ),
+                    for (final region in const [
+                      'ap',
+                      'na',
+                      'eu',
+                      'kr',
+                      'latam',
+                      'br',
+                    ])
+                      PopupMenuItem(
+                        value: 'region:$region',
+                        child: Row(
+                          children: [
+                            Icon(
+                              _manualRegion == region
+                                  ? Icons.check_rounded
+                                  : Icons.circle_outlined,
+                              size: 20,
+                              color: _manualRegion == region
+                                  ? AppTheme.accentMagenta
+                                  : Colors.white70,
+                            ),
+                            const SizedBox(width: 8),
+                            Text('Region ${region.toUpperCase()}'),
+                          ],
+                        ),
+                      ),
+                    const PopupMenuDivider(),
                     const PopupMenuItem(
                       value: 'clear',
                       child: Row(

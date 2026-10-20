@@ -8,8 +8,8 @@ class SocialCubit extends Cubit<SocialState> {
   final SocialRepository _socialRepository;
 
   SocialCubit({required SocialRepository socialRepository})
-      : _socialRepository = socialRepository,
-        super(const SocialInitial());
+    : _socialRepository = socialRepository,
+      super(const SocialInitial());
 
   List<FriendEntity>? get _currentFriends {
     final s = state;
@@ -27,7 +27,9 @@ class SocialCubit extends Cubit<SocialState> {
       emit((state as SocialLoaded).copyWith(isRefreshing: true));
     }
 
-    final result = await _socialRepository.getFriends(forceRefresh: forceRefresh);
+    final result = await _socialRepository.getFriends(
+      forceRefresh: forceRefresh,
+    );
 
     result.when(
       success: (friends) {
@@ -58,7 +60,12 @@ class SocialCubit extends Cubit<SocialState> {
     result.when(
       success: (updated) {
         if (state is SocialLoaded) {
-          emit((state as SocialLoaded).copyWith(friends: updated, isRefreshing: false));
+          emit(
+            (state as SocialLoaded).copyWith(
+              friends: updated,
+              isRefreshing: false,
+            ),
+          );
         } else {
           emit(SocialLoaded(friends: updated));
         }
@@ -67,7 +74,12 @@ class SocialCubit extends Cubit<SocialState> {
         if (state is SocialLoaded) {
           emit((state as SocialLoaded).copyWith(isRefreshing: false));
         } else {
-          emit(SocialError(message: failure.message, cachedFriends: _currentFriends));
+          emit(
+            SocialError(
+              message: failure.message,
+              cachedFriends: _currentFriends,
+            ),
+          );
         }
       },
     );
@@ -82,12 +94,19 @@ class SocialCubit extends Cubit<SocialState> {
       emit(SocialLoading(cachedFriends: current));
     }
 
-    final result = await _socialRepository.syncRiotFriends(clearMocks: clearMocks);
+    final result = await _socialRepository.syncRiotFriends(
+      clearMocks: clearMocks,
+    );
 
     result.when(
       success: (friends) {
         if (state is SocialLoaded) {
-          emit((state as SocialLoaded).copyWith(friends: friends, isRefreshing: false));
+          emit(
+            (state as SocialLoaded).copyWith(
+              friends: friends,
+              isRefreshing: false,
+            ),
+          );
         } else {
           emit(SocialLoaded(friends: friends));
         }
@@ -106,16 +125,6 @@ class SocialCubit extends Cubit<SocialState> {
   Future<void> clearMockFriends() async {
     await _socialRepository.clearMockFriends();
     await loadFriends(forceRefresh: true);
-  }
-
-  /// Explicitly load demo squad for preview
-  Future<void> loadDemoSquad() async {
-    emit(const SocialLoading());
-    final result = await _socialRepository.loadDemoSquad();
-    result.when(
-      success: (friends) => emit(SocialLoaded(friends: friends)),
-      failure: (f) => emit(SocialError(message: f.message)),
-    );
   }
 
   void setFilter(FriendFilter filter) {

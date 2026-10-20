@@ -8,6 +8,7 @@ abstract class AuthRepository {
     required String accessToken,
     required String idToken,
     required String cookieJar,
+    String? manualRegion,
   });
 
   /// Direct credentials login with automatic 2FA detection.

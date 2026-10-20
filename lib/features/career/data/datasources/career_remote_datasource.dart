@@ -33,6 +33,8 @@ abstract class CareerRemoteDataSource {
 
   Future<Map<int, Map<String, dynamic>>> fetchCompetitiveTiersMetadata();
 
+  Future<List<Map<String, dynamic>>> fetchSeasonsMetadata();
+
   Future<List<Map<String, dynamic>>> fetchPlayerNames({
     required String shard,
     required List<String> puuids,
@@ -46,6 +48,7 @@ class CareerRemoteDataSourceImpl implements CareerRemoteDataSource {
   Map<String, Map<String, dynamic>>? _cachedMaps;
   Map<String, Map<String, dynamic>>? _cachedAgents;
   Map<int, Map<String, dynamic>>? _cachedTiers;
+  List<Map<String, dynamic>>? _cachedSeasons;
 
   CareerRemoteDataSourceImpl({required Dio dio}) : _dio = dio;
 
@@ -419,6 +422,44 @@ class CareerRemoteDataSourceImpl implements CareerRemoteDataSource {
     } catch (_) {}
 
     return _cachedTiers ?? {};
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> fetchSeasonsMetadata() async {
+    if (_cachedSeasons != null && _cachedSeasons!.isNotEmpty) {
+      return _cachedSeasons!;
+    }
+
+    try {
+      final response = await _dio.get(
+        ApiConstants.valorantApiSeasons,
+        options: Options(
+          validateStatus: (status) => status != null && status < 500,
+        ),
+      );
+
+      if (response.statusCode == 200) {
+        dynamic body = response.data;
+        if (body is String) {
+          try {
+            body = jsonDecode(body);
+          } catch (_) {}
+        }
+
+        if (body is Map && body['data'] is List) {
+          final seasons = (body['data'] as List)
+              .whereType<Map>()
+              .map((item) => Map<String, dynamic>.from(item))
+              .toList();
+          if (seasons.isNotEmpty) {
+            _cachedSeasons = seasons;
+            return seasons;
+          }
+        }
+      }
+    } catch (_) {}
+
+    return _cachedSeasons ?? const [];
   }
 
   @override

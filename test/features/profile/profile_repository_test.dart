@@ -65,7 +65,8 @@ void main() {
 
   group('ProfileRepositoryImpl', () {
     test('returns cached profile immediately when valid and not default banner', () async {
-      when(() => mockLocalStore.getCachedProfile())
+      when(() => mockSecureStorage.getPuuid()).thenAnswer((_) async => tPuuid);
+      when(() => mockLocalStore.getCachedProfile(puuid: any(named: 'puuid')))
           .thenAnswer((_) async => tCachedValidProfile);
 
       final result = await repository.getUserProfile(forceRefresh: false);
@@ -77,7 +78,7 @@ void main() {
     });
 
     test('invalidates cache and fetches fresh in-game card if cached profile is default VALORANT Card banner', () async {
-      when(() => mockLocalStore.getCachedProfile())
+      when(() => mockLocalStore.getCachedProfile(puuid: any(named: 'puuid')))
           .thenAnswer((_) async => tCachedDefaultBannerProfile);
       when(() => mockSecureStorage.getPuuid()).thenAnswer((_) async => tPuuid);
       when(() => mockSecureStorage.getShard()).thenAnswer((_) async => 'ap');
@@ -119,7 +120,7 @@ void main() {
       when(() => mockRemote.fetchWallet(shard: 'ap', puuid: tPuuid))
           .thenAnswer((_) async => {'vp': 1500, 'rp': 50, 'kc': 4000});
 
-      when(() => mockLocalStore.saveCachedProfile(any())).thenAnswer((_) async {});
+      when(() => mockLocalStore.saveCachedProfile(any(), puuid: any(named: 'puuid'))).thenAnswer((_) async {});
 
       final result = await repository.getUserProfile(forceRefresh: false);
 
@@ -130,6 +131,8 @@ void main() {
       expect(profile.cardWideArt, contains(tInGameCardUuid));
       expect(profile.titleText, equals('Prime Agent'));
       expect(profile.accountLevel, equals(105));
+      expect(profile.walletAvailable, isTrue);
+      expect(profile.valorantPoints, equals(1500));
       verify(() => mockRemote.fetchPlayerIdentity(shard: 'ap', puuid: tPuuid)).called(1);
     });
 
@@ -139,7 +142,7 @@ void main() {
       final payload = base64Url.encode(utf8.encode('{"sub":"$tPuuid","exp":9999999999}')).replaceAll('=', '');
       final jwt = '$header.$payload.signature';
 
-      when(() => mockLocalStore.getCachedProfile()).thenAnswer((_) async => null);
+      when(() => mockLocalStore.getCachedProfile(puuid: any(named: 'puuid'))).thenAnswer((_) async => null);
       when(() => mockSecureStorage.getPuuid()).thenAnswer((_) async => null);
       when(() => mockSecureStorage.getAccessToken()).thenAnswer((_) async => jwt);
       when(() => mockSecureStorage.setPuuid(tPuuid)).thenAnswer((_) async {});
@@ -176,7 +179,7 @@ void main() {
       when(() => mockRemote.fetchWallet(shard: 'ap', puuid: tPuuid))
           .thenAnswer((_) async => {'vp': 500, 'rp': 10, 'kc': 1000});
 
-      when(() => mockLocalStore.saveCachedProfile(any())).thenAnswer((_) async {});
+      when(() => mockLocalStore.saveCachedProfile(any(), puuid: any(named: 'puuid'))).thenAnswer((_) async {});
 
       final result = await repository.getUserProfile(forceRefresh: true);
 

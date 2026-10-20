@@ -487,7 +487,7 @@ class _ActiveProfileCard extends StatelessWidget {
                       _WalletChip(
                         icon: Icons.monetization_on_outlined,
                         iconColor: const Color(0xFFE5B94E),
-                        amount: profile.valorantPoints,
+                        amount: profile.walletAvailable ? profile.valorantPoints : null,
                         symbol: 'VP',
                       ),
                       const SizedBox(width: 8),
@@ -496,7 +496,7 @@ class _ActiveProfileCard extends StatelessWidget {
                       _WalletChip(
                         icon: Icons.change_circle_outlined,
                         iconColor: Colors.cyanAccent,
-                        amount: profile.radianitePoints,
+                        amount: profile.walletAvailable ? profile.radianitePoints : null,
                         symbol: 'RP',
                       ),
                       const SizedBox(width: 8),
@@ -505,7 +505,7 @@ class _ActiveProfileCard extends StatelessWidget {
                       _WalletChip(
                         icon: Icons.workspace_premium_rounded,
                         iconColor: const Color(0xFFFFD700),
-                        amount: profile.kingdomCredits,
+                        amount: profile.walletAvailable ? profile.kingdomCredits : null,
                         symbol: 'KC',
                       ),
                     ],
@@ -596,13 +596,13 @@ class _InfoChip extends StatelessWidget {
 class _WalletChip extends StatelessWidget {
   final IconData icon;
   final Color iconColor;
-  final int amount;
+  final int? amount;
   final String symbol;
 
   const _WalletChip({
     required this.icon,
     required this.iconColor,
-    required this.amount,
+    this.amount,
     required this.symbol,
   });
 
@@ -626,7 +626,7 @@ class _WalletChip extends StatelessWidget {
             const SizedBox(width: 4),
             Flexible(
               child: Text(
-                '$amount $symbol',
+                '${amount?.toString() ?? '--'} $symbol',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: GoogleFonts.rajdhani(

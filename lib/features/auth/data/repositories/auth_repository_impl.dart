@@ -1,6 +1,7 @@
 import 'package:valorant_store_tracker/core/error/exceptions.dart';
 import 'package:valorant_store_tracker/core/error/failures.dart';
 import 'package:valorant_store_tracker/core/error/result.dart';
+import 'package:valorant_store_tracker/core/storage/local_store_service.dart';
 import 'package:valorant_store_tracker/core/storage/secure_storage_service.dart';
 import 'package:valorant_store_tracker/features/auth/data/datasources/auth_remote_datasource.dart';
 import 'package:valorant_store_tracker/features/auth/domain/entities/auth_login_result.dart';
@@ -10,12 +11,42 @@ import 'package:valorant_store_tracker/features/auth/domain/repositories/auth_re
 class AuthRepositoryImpl implements AuthRepository {
   final AuthRemoteDataSource _remoteDataSource;
   final SecureStorageService _storage;
+  final LocalStoreService? _localStore;
+  final Future<void> Function()? _onLogout;
 
   AuthRepositoryImpl({
     required AuthRemoteDataSource remoteDataSource,
     required SecureStorageService storage,
+    LocalStoreService? localStore,
+    Future<void> Function()? onLogout,
   })  : _remoteDataSource = remoteDataSource,
-        _storage = storage;
+        _storage = storage,
+        _localStore = localStore,
+        _onLogout = onLogout;
+
+  static final RegExp _puuidPattern = RegExp(
+    r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
+  );
+
+  static bool _isValidPuuid(String? puuid) =>
+      puuid != null && _puuidPattern.hasMatch(puuid);
+
+  static String _regionToShard(String region) {
+    switch (region.toLowerCase().trim()) {
+      case 'latam':
+      case 'br':
+      case 'na':
+      case 'pbe':
+        return 'na';
+      case 'eu':
+        return 'eu';
+      case 'kr':
+        return 'kr';
+      case 'ap':
+      default:
+        return 'ap';
+    }
+  }
 
   @override
   Future<Result<AuthLoginResult>> loginWithCredentials({
@@ -140,26 +171,66 @@ class AuthRepositoryImpl implements AuthRepository {
     required String accessToken,
     required String idToken,
     required String cookieJar,
+    String? manualRegion,
   }) async {
     try {
+      if (accessToken.trim().isEmpty || idToken.trim().isEmpty) {
+        throw const AuthException(message: 'Missing Riot authentication tokens');
+      }
+
       // 1. Fetch entitlements token
       final entitlementsToken =
           await _remoteDataSource.getEntitlementsToken(accessToken);
 
       // 2. Fetch UserInfo for PUUID & account name
       final userInfo = await _remoteDataSource.getUserInfo(accessToken);
-      final puuid = userInfo['sub'] as String? ?? '';
+      final puuid = (userInfo['sub'] as String? ?? '').trim();
+      if (!_isValidPuuid(puuid)) {
+        throw const AuthException(
+          message: 'Riot did not return a valid PUUID for this session',
+        );
+      }
       final acct = userInfo['acct'] as Map<String, dynamic>?;
       final gameName = acct?['game_name'] as String?;
       final tagLine = acct?['tag_line'] as String?;
 
-      // 3. Determine region / shard via PAS Geo
-      final geo = await _remoteDataSource.getPasGeo(
-        accessToken: accessToken,
-        idToken: idToken,
-      );
-      final shard = geo['shard'] ?? 'ap';
-      final region = geo['region'] ?? 'ap';
+      // 3. Determine region / shard via PAS Geo. Never silently guess a
+      // region: a wrong shard makes every Riot API request target the wrong
+      // data center. If geo lookup fails, require an explicit manual choice.
+      Map<String, String>? geo;
+      try {
+        geo = await _remoteDataSource.getPasGeo(
+          accessToken: accessToken,
+          idToken: idToken,
+        );
+      } on AuthException catch (e) {
+        if (manualRegion == null || manualRegion.trim().isEmpty) {
+          throw AuthException(
+            message:
+                '${e.message} Select your region manually and try again.',
+            statusCode: e.statusCode,
+          );
+        }
+      } on ServerException catch (e) {
+        if (manualRegion == null || manualRegion.trim().isEmpty) {
+          throw AuthException(message: e.message, statusCode: e.statusCode);
+        }
+      }
+
+      final detectedRegion = (geo?['region'] ?? '').trim();
+      final selectedRegion = detectedRegion.isNotEmpty
+          ? detectedRegion
+          : (manualRegion ?? '').trim();
+      if (selectedRegion.isEmpty) {
+        throw const AuthException(
+          message:
+              'Unable to detect your Riot region. Choose a region manually and try again.',
+        );
+      }
+      final region = selectedRegion.toLowerCase();
+      final shard = (geo?['shard'] ?? '').trim().isNotEmpty
+          ? geo!['shard']!.trim().toLowerCase()
+          : _regionToShard(region);
 
       // 4. Cache client version
       await getClientVersion();
@@ -258,7 +329,22 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Future<Result<void>> logout() async {
     try {
+      // Stop background work first so it cannot repopulate the caches we clear.
+      try {
+        await _onLogout?.call();
+      } catch (_) {}
+      Object? cacheError;
+      try {
+        await _localStore?.clearAccountCaches();
+      } catch (e) {
+        cacheError = e;
+      }
       await _storage.clearAll();
+      if (cacheError != null) {
+        return Result.failure(
+          CacheFailure(message: 'Logout cache cleanup failed: $cacheError'),
+        );
+      }
       return const Result.success(null);
     } catch (e) {
       return Result.failure(CacheFailure(message: 'Logout failed: $e'));
@@ -268,7 +354,7 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Future<bool> isLoggedIn() async {
     final puuid = await _storage.getPuuid();
-    if (puuid == null || puuid.isEmpty) return false;
+    if (!_isValidPuuid(puuid)) return false;
     final accessToken = await _storage.getAccessToken();
     if (accessToken != null && accessToken.isNotEmpty) return true;
     final cookieJar = await _storage.getCookieJar();
@@ -277,10 +363,12 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   Future<AuthSession?> getCachedSession() async {
+    final puuid = await _storage.getPuuid();
+    if (!_isValidPuuid(puuid)) return null;
+
     var accessToken = await _storage.getAccessToken();
     var idToken = await _storage.getIdToken();
     var entitlementsToken = await _storage.getEntitlementsToken();
-    final puuid = await _storage.getPuuid();
     final shard = await _storage.getShard();
     final region = await _storage.getRegion();
     final cookieJar = await _storage.getCookieJar();
@@ -290,9 +378,7 @@ class AuthRepositoryImpl implements AuthRepository {
     // If tokens are missing/cleared but we have a valid cookie session, attempt silent reauth
     if ((accessToken == null || idToken == null || entitlementsToken == null) &&
         cookieJar != null &&
-        cookieJar.isNotEmpty &&
-        puuid != null &&
-        puuid.isNotEmpty) {
+        cookieJar.isNotEmpty) {
       final reauthResult = await silentReauth();
       if (reauthResult.isSuccess) {
         return reauthResult.valueOrNull;

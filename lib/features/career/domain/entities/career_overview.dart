@@ -6,6 +6,10 @@ class CareerOverview extends Equatable {
   final String currentTierName;
   final String? currentTierIcon;
   final int currentRankRating;
+  final bool isRanked;
+  final bool isPlacement;
+  final int? gamesNeededForRating;
+  final String? seasonId;
   final int? peakTier;
   final String? peakTierName;
   final String? peakTierIcon;
@@ -23,6 +27,10 @@ class CareerOverview extends Equatable {
     this.currentTierName = 'Unrated',
     this.currentTierIcon,
     this.currentRankRating = 0,
+    this.isRanked = false,
+    this.isPlacement = false,
+    this.gamesNeededForRating,
+    this.seasonId,
     this.peakTier,
     this.peakTierName,
     this.peakTierIcon,
@@ -42,6 +50,10 @@ class CareerOverview extends Equatable {
       'currentTierName': currentTierName,
       'currentTierIcon': currentTierIcon,
       'currentRankRating': currentRankRating,
+      'isRanked': isRanked,
+      'isPlacement': isPlacement,
+      'gamesNeededForRating': gamesNeededForRating,
+      'seasonId': seasonId,
       'peakTier': peakTier,
       'peakTierName': peakTierName,
       'peakTierIcon': peakTierIcon,
@@ -67,6 +79,12 @@ class CareerOverview extends Equatable {
       currentTierName: json['currentTierName'] as String? ?? 'Unrated',
       currentTierIcon: json['currentTierIcon'] as String?,
       currentRankRating: json['currentRankRating'] as int? ?? 0,
+      isRanked: json['isRanked'] as bool? ??
+          ((json['currentTier'] as int? ?? 0) > 0),
+      isPlacement: json['isPlacement'] as bool? ?? false,
+      gamesNeededForRating:
+          (json['gamesNeededForRating'] as num?)?.toInt(),
+      seasonId: json['seasonId'] as String?,
       peakTier: json['peakTier'] as int?,
       peakTierName: json['peakTierName'] as String?,
       peakTierIcon: json['peakTierIcon'] as String?,
@@ -87,6 +105,10 @@ class CareerOverview extends Equatable {
         currentTierName,
         currentTierIcon,
         currentRankRating,
+        isRanked,
+        isPlacement,
+        gamesNeededForRating,
+        seasonId,
         peakTier,
         peakTierName,
         peakTierIcon,

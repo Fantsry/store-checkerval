@@ -6,14 +6,14 @@ import '../theme/app_spacing.dart';
 import '../theme/app_text_styles.dart';
 
 class VpChip extends StatelessWidget {
-  final int amount;
+  final int? amount;
   final bool isRadianite;
   final double fontSize;
   final bool compact;
 
   const VpChip({
     super.key,
-    required this.amount,
+    this.amount,
     this.isRadianite = false,
     this.fontSize = 13,
     this.compact = false,
@@ -22,7 +22,7 @@ class VpChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final formatter = NumberFormat('#,###');
-    final formatted = formatter.format(amount);
+    final formatted = amount == null ? '--' : formatter.format(amount!);
     final color = isRadianite ? AppColors.radianite : AppColors.vpGold;
 
     return Container(

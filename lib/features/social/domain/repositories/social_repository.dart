@@ -43,8 +43,4 @@ abstract class SocialRepository {
 
   /// Remove all mock/dummy seeded friends from local storage.
   Future<Result<void>> clearMockFriends();
-
-  /// Explicitly load demo squad for testing layout when requested by user.
-  Future<Result<List<FriendEntity>>> loadDemoSquad();
 }
-

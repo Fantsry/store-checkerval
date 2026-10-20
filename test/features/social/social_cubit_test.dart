@@ -72,15 +72,13 @@ void main() {
     blocTest<SocialCubit, SocialState>(
       'loadFriends emits [SocialLoading, SocialLoaded] on success',
       build: () {
-        when(() => mockRepository.getFriends(forceRefresh: false))
-            .thenAnswer((_) async => Result.success(testFriends));
+        when(
+          () => mockRepository.getFriends(forceRefresh: false),
+        ).thenAnswer((_) async => Result.success(testFriends));
         return cubit;
       },
       act: (c) => c.loadFriends(),
-      expect: () => [
-        const SocialLoading(),
-        SocialLoaded(friends: testFriends),
-      ],
+      expect: () => [const SocialLoading(), SocialLoaded(friends: testFriends)],
       verify: (c) {
         final s = c.state as SocialLoaded;
         expect(s.totalCount, 3);
@@ -91,8 +89,9 @@ void main() {
     );
 
     test('setFilter filters friends correctly', () async {
-      when(() => mockRepository.getFriends(forceRefresh: false))
-          .thenAnswer((_) async => Result.success(testFriends));
+      when(
+        () => mockRepository.getFriends(forceRefresh: false),
+      ).thenAnswer((_) async => Result.success(testFriends));
 
       await cubit.loadFriends();
 
@@ -112,39 +111,50 @@ void main() {
       expect(state.filteredFriends.first.gameName, 'Derke');
     });
 
-    test('setSearchQuery searches across name, tag, map, mode, agent', () async {
-      when(() => mockRepository.getFriends(forceRefresh: false))
-          .thenAnswer((_) async => Result.success(testFriends));
+    test(
+      'setSearchQuery searches across name, tag, map, mode, agent',
+      () async {
+        when(
+          () => mockRepository.getFriends(forceRefresh: false),
+        ).thenAnswer((_) async => Result.success(testFriends));
 
-      await cubit.loadFriends();
+        await cubit.loadFriends();
 
-      cubit.setSearchQuery('jett');
-      var state = cubit.state as SocialLoaded;
-      expect(state.filteredFriends.length, 1);
-      expect(state.filteredFriends.first.gameName, 'TenZ');
+        cubit.setSearchQuery('jett');
+        var state = cubit.state as SocialLoaded;
+        expect(state.filteredFriends.length, 1);
+        expect(state.filteredFriends.first.gameName, 'TenZ');
 
-      cubit.setSearchQuery('ascent');
-      state = cubit.state as SocialLoaded;
-      expect(state.filteredFriends.length, 1);
+        cubit.setSearchQuery('ascent');
+        state = cubit.state as SocialLoaded;
+        expect(state.filteredFriends.length, 1);
 
-      cubit.setSearchQuery('fnc');
-      state = cubit.state as SocialLoaded;
-      expect(state.filteredFriends.length, 1);
-      expect(state.filteredFriends.first.gameName, 'Chronicle');
-    });
+        cubit.setSearchQuery('fnc');
+        state = cubit.state as SocialLoaded;
+        expect(state.filteredFriends.length, 1);
+        expect(state.filteredFriends.first.gameName, 'Chronicle');
+      },
+    );
 
     test('addFriend prepends friend to list', () async {
-      when(() => mockRepository.getFriends(forceRefresh: false))
-          .thenAnswer((_) async => Result.success([testFriendLobby]));
+      when(
+        () => mockRepository.getFriends(forceRefresh: false),
+      ).thenAnswer((_) async => Result.success([testFriendLobby]));
       await cubit.loadFriends();
 
-      when(() => mockRepository.addFriend(
-            puuid: 'p1',
-            gameName: 'TenZ',
-            tagLine: 'SEN',
-          )).thenAnswer((_) async => Result.success(testFriendInGame));
+      when(
+        () => mockRepository.addFriend(
+          puuid: 'p1',
+          gameName: 'TenZ',
+          tagLine: 'SEN',
+        ),
+      ).thenAnswer((_) async => Result.success(testFriendInGame));
 
-      final success = await cubit.addFriend(puuid: 'p1', gameName: 'TenZ', tagLine: 'SEN');
+      final success = await cubit.addFriend(
+        puuid: 'p1',
+        gameName: 'TenZ',
+        tagLine: 'SEN',
+      );
       expect(success, isTrue);
 
       final state = cubit.state as SocialLoaded;
@@ -153,8 +163,9 @@ void main() {
     });
 
     test('simulateRoundWon updates ally score and round outcome', () async {
-      when(() => mockRepository.getFriends(forceRefresh: false))
-          .thenAnswer((_) async => Result.success([testFriendInGame]));
+      when(
+        () => mockRepository.getFriends(forceRefresh: false),
+      ).thenAnswer((_) async => Result.success([testFriendInGame]));
       await cubit.loadFriends();
 
       final updatedFriend = testFriendInGame.copyWith(
@@ -166,8 +177,9 @@ void main() {
         ),
       );
 
-      when(() => mockRepository.updateFriendRound(puuid: 'p1', isAllyWon: true))
-          .thenAnswer((_) async => Result.success(updatedFriend));
+      when(
+        () => mockRepository.updateFriendRound(puuid: 'p1', isAllyWon: true),
+      ).thenAnswer((_) async => Result.success(updatedFriend));
 
       await cubit.simulateRoundWon('p1');
 
@@ -177,8 +189,9 @@ void main() {
     });
 
     test('simulateRoundLost updates enemy score and round outcome', () async {
-      when(() => mockRepository.getFriends(forceRefresh: false))
-          .thenAnswer((_) async => Result.success([testFriendInGame]));
+      when(
+        () => mockRepository.getFriends(forceRefresh: false),
+      ).thenAnswer((_) async => Result.success([testFriendInGame]));
       await cubit.loadFriends();
 
       final updatedFriend = testFriendInGame.copyWith(
@@ -190,8 +203,9 @@ void main() {
         ),
       );
 
-      when(() => mockRepository.updateFriendRound(puuid: 'p1', isAllyWon: false))
-          .thenAnswer((_) async => Result.success(updatedFriend));
+      when(
+        () => mockRepository.updateFriendRound(puuid: 'p1', isAllyWon: false),
+      ).thenAnswer((_) async => Result.success(updatedFriend));
 
       await cubit.simulateRoundLost('p1');
 
@@ -201,8 +215,9 @@ void main() {
     });
 
     test('syncRiotFriends calls repository and reloads friends', () async {
-      when(() => mockRepository.syncRiotFriends(clearMocks: true))
-          .thenAnswer((_) async => Result.success(testFriends));
+      when(
+        () => mockRepository.syncRiotFriends(clearMocks: true),
+      ).thenAnswer((_) async => Result.success(testFriends));
 
       await cubit.syncRiotFriends(clearMocks: true);
 
@@ -213,10 +228,12 @@ void main() {
     });
 
     test('clearMockFriends calls repository and reloads friends', () async {
-      when(() => mockRepository.clearMockFriends())
-          .thenAnswer((_) async => const Result.success(null));
-      when(() => mockRepository.getFriends(forceRefresh: true))
-          .thenAnswer((_) async => const Result.success([]));
+      when(
+        () => mockRepository.clearMockFriends(),
+      ).thenAnswer((_) async => const Result.success(null));
+      when(
+        () => mockRepository.getFriends(forceRefresh: true),
+      ).thenAnswer((_) async => const Result.success([]));
 
       await cubit.clearMockFriends();
 
@@ -226,18 +243,5 @@ void main() {
       verify(() => mockRepository.clearMockFriends()).called(1);
       verify(() => mockRepository.getFriends(forceRefresh: true)).called(1);
     });
-
-    test('loadDemoSquad calls repository and updates state', () async {
-      when(() => mockRepository.loadDemoSquad())
-          .thenAnswer((_) async => Result.success(testFriends));
-
-      await cubit.loadDemoSquad();
-
-      expect(cubit.state, isA<SocialLoaded>());
-      final state = cubit.state as SocialLoaded;
-      expect(state.friends, equals(testFriends));
-      verify(() => mockRepository.loadDemoSquad()).called(1);
-    });
   });
 }
-

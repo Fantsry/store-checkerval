@@ -135,6 +135,7 @@ class AuthCubit extends Cubit<AuthState> {
     required String accessToken,
     required String idToken,
     required String cookieJar,
+    String? manualRegion,
   }) async {
     cancelMfaPolling();
     emit(const AuthLoading(message: 'Connecting to Riot services...'));
@@ -142,6 +143,7 @@ class AuthCubit extends Cubit<AuthState> {
       accessToken: accessToken,
       idToken: idToken,
       cookieJar: cookieJar,
+      manualRegion: manualRegion,
     );
 
     result.when(
