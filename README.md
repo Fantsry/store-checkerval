@@ -22,7 +22,7 @@ Aplikasi ini dibangun secara mandiri dengan antarmuka **Dark Esports HUD Overlay
 
 ### 2. Live Match Tracker (Esports HUD)
 - **Status Pertandingan Real-Time**: Mendeteksi status pertandingan aktif (Agent Select / In-Game / In Lobby).
-- **Esports Player Card**: Rincian performa pemain di lobi: ACS, K/D, KAST, KDA, ADR, HS%, dan WIN%.
+- **Esports Player Card**: Kartu pemain menampilkan rank, riwayat hasil pertandingan terakhir, dan statistik yang memang tersedia dari Riot. Metrik seperti ACS, KAST, KDA, ADR, dan HS% ditampilkan sebagai `—` bila API tidak menyediakannya.
 - **Custom Diamond Rank Icon**: Ikon pangkat berbentuk permata kustom dengan efek glow dinamis.
 - **Live Match Scoreboard**: Daftar tim dan peta yang dimainkan. Skor/sisi hanya tampil jika tersedia dari API Riot.
 - **Catatan**: Riot tidak menyediakan skor ronde live untuk akun sendiri; aplikasi tidak menampilkan angka palsu saat data itu kosong.
