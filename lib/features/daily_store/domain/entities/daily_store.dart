@@ -237,6 +237,13 @@ class DailyStore extends Equatable {
   FeaturedBundle? get bundle =>
       _bundle ?? (bundles.isNotEmpty ? bundles.first : null);
 
+  /// Real-time remaining seconds dynamically adjusted for elapsed time since lastFetched
+  int get currentRemainingSeconds {
+    final elapsed = DateTime.now().difference(lastFetched).inSeconds;
+    final remaining = remainingDurationSeconds - elapsed;
+    return remaining > 0 ? remaining : 0;
+  }
+
   Map<String, dynamic> toJson() => {
         'featuredOffers': featuredOffers.map((o) => o.toJson()).toList(),
         'remainingDurationSeconds': remainingDurationSeconds,

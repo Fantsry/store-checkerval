@@ -243,5 +243,66 @@ void main() {
       expect(skin.cost, equals(5950));
       expect(skin.weaponName, equals('Melee'));
     });
+
+    test('daily store fetched before 00:00 UTC reset is expired even if remainingSeconds is large', () async {
+      when(() => mockSecureStorage.getPuuid()).thenAnswer((_) async => 'test-puuid');
+      when(() => mockSecureStorage.getShard()).thenAnswer((_) async => 'ap');
+      when(() => mockLocalStore.getCachedSkins()).thenAnswer((_) async => [tKuronamiSkin]);
+      when(() => mockLocalStore.saveDailyStore(any())).thenAnswer((_) async => {});
+
+      // Yesterday's store fetched before 00:00 UTC with 86400s duration
+      final yesterdayUtc = DateTime.now().toUtc().subtract(const Duration(days: 1));
+      final staleStore = DailyStore(
+        featuredOffers: const [
+          SkinItem(
+            uuid: 'old-skin-uuid',
+            displayName: 'Old Skin',
+            weaponName: 'Vandal',
+            cost: 1775,
+          ),
+        ],
+        remainingDurationSeconds: 86400,
+        lastFetched: yesterdayUtc,
+      );
+
+      when(() => mockLocalStore.getCachedDailyStore()).thenAnswer((_) async => staleStore);
+
+      // Riot returns fresh store
+      when(() => mockRiotRemote.getStorefront(
+            shard: any(named: 'shard'),
+            puuid: any(named: 'puuid'),
+          )).thenAnswer(
+        (_) async => {
+          'SkinsPanelLayout': {
+            'SingleItemOffers': ['kuronami-level-1-uuid'],
+            'SingleItemOffersRemainingDurationInSeconds': 86400,
+            'SingleItemStoreOffers': [
+              {
+                'OfferID': 'riot-offer-id-1',
+                'Cost': {
+                  RiotStoreRemoteDataSourceImpl.vpCurrencyUuid: 5350,
+                },
+                'Rewards': [
+                  {
+                    'ItemTypeID': 'e7c63390-eda7-46e0-bb7a-a6abdacd2433',
+                    'ItemID': 'kuronami-level-1-uuid',
+                    'Quantity': 1,
+                  }
+                ]
+              }
+            ],
+          },
+        },
+      );
+
+      // Call without forceRefresh
+      final result = await repository.getDailyStore(forceRefresh: false);
+
+      expect(result.isSuccess, isTrue);
+      final store = result.valueOrNull!;
+      // Should NOT return staleStore (Old Skin); should return fresh Kuronami
+      expect(store.featuredOffers.first.displayName, equals('Kuronami no Yaiba'));
+      verify(() => mockRiotRemote.getStorefront(shard: any(named: 'shard'), puuid: any(named: 'puuid'))).called(1);
+    });
   });
 }

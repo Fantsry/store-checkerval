@@ -101,5 +101,17 @@ void main() {
       expect(restored.accessoryOffers.length, 1);
       expect(restored.accessoryOffers.first.kcCost, 4000);
     });
+
+    test('currentRemainingSeconds correctly accounts for elapsed time', () {
+      final now = DateTime.now();
+      final store = DailyStore(
+        featuredOffers: const [],
+        remainingDurationSeconds: 3600,
+        lastFetched: now.subtract(const Duration(minutes: 10)), // 600s elapsed
+      );
+
+      // Remaining should be around 3000s (tolerance +/- 2s)
+      expect(store.currentRemainingSeconds, inInclusiveRange(2995, 3005));
+    });
   });
 }

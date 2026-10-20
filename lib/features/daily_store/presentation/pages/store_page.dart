@@ -224,7 +224,7 @@ class _StorePageState extends State<StorePage> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               CountdownTimerWidget(
-                initialRemainingSeconds: store.remainingDurationSeconds,
+                initialRemainingSeconds: store.currentRemainingSeconds,
                 onTimerExpired: () => _fetchStoreData(forceRefresh: true),
                 compact: true,
               ),

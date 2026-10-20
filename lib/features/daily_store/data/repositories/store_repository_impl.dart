@@ -51,6 +51,15 @@ class StoreRepositoryImpl implements StoreRepository {
 
   bool _isStoreExpired(DailyStore store) {
     if (store.featuredOffers.isEmpty) return true;
+
+    // Check 1: Did a 00:00 UTC (07:00 WIB) reset boundary pass since lastFetched?
+    final utcNow = DateTime.now().toUtc();
+    final todayResetUtc = DateTime.utc(utcNow.year, utcNow.month, utcNow.day);
+    if (store.lastFetched.toUtc().isBefore(todayResetUtc)) {
+      return true; // Store was fetched before today's 00:00 UTC reset!
+    }
+
+    // Check 2: Has remainingDurationSeconds elapsed?
     final elapsed = DateTime.now().difference(store.lastFetched).inSeconds;
     return elapsed >= store.remainingDurationSeconds;
   }
@@ -517,7 +526,9 @@ class StoreRepositoryImpl implements StoreRepository {
     } on AuthException catch (e) {
       if (!forceRefresh) {
         final cached = await _localStore.getCachedDailyStore();
-        if (cached != null && cached.featuredOffers.isNotEmpty) return Result.success(cached);
+        if (cached != null && !_isStoreExpired(cached) && cached.featuredOffers.isNotEmpty) {
+          return Result.success(cached);
+        }
       }
       return Result.failure(
         AuthFailure(message: e.message, statusCode: e.statusCode),
@@ -525,7 +536,9 @@ class StoreRepositoryImpl implements StoreRepository {
     } catch (e) {
       if (!forceRefresh) {
         final cached = await _localStore.getCachedDailyStore();
-        if (cached != null && cached.featuredOffers.isNotEmpty) return Result.success(cached);
+        if (cached != null && !_isStoreExpired(cached) && cached.featuredOffers.isNotEmpty) {
+          return Result.success(cached);
+        }
       }
       String cleanMessage = 'Gagal memuat daily store';
       if (e is ServerException) {

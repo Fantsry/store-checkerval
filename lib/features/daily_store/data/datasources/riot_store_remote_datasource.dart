@@ -48,32 +48,7 @@ class RiotStoreRemoteDataSourceImpl implements RiotStoreRemoteDataSource {
     DioException? lastDioException;
 
     for (final s in shardsToTry) {
-      // 1. Primary: GET /store/v2/storefront/{puuid} (standard, universal Riot endpoint)
-      try {
-        final urlV2 = ApiConstants.storefrontUrl(s, cleanPuuid);
-        final response = await _dio.get(urlV2);
-
-        dynamic rawData = response.data;
-        if (rawData is String) {
-          try {
-            rawData = jsonDecode(rawData);
-          } catch (_) {}
-        }
-
-        if (rawData is Map) {
-          final data = Map<String, dynamic>.from(rawData);
-          // Attach the successfully resolved shard
-          data['_resolvedShard'] = s;
-          return data;
-        }
-      } on DioException catch (e) {
-        lastDioException = e;
-        // If 401, let AuthInterceptor handle it or try next step
-      } catch (_) {
-        // Fall through to try v3
-      }
-
-      // 2. Secondary: POST /store/v3/storefront/{puuid} with empty JSON body
+      // 1. Primary: POST /store/v3/storefront/{puuid} (standard modern endpoint used by official client)
       try {
         final urlV3 = ApiConstants.storefrontV3Url(s, cleanPuuid);
         final response = await _dio.post(
@@ -81,7 +56,11 @@ class RiotStoreRemoteDataSourceImpl implements RiotStoreRemoteDataSource {
           data: '{}',
           options: Options(
             contentType: Headers.jsonContentType,
-            headers: {'Content-Type': 'application/json'},
+            headers: {
+              'Content-Type': 'application/json',
+              'Cache-Control': 'no-cache, no-store, must-revalidate',
+              'Pragma': 'no-cache',
+            },
           ),
         );
 
@@ -100,7 +79,15 @@ class RiotStoreRemoteDataSourceImpl implements RiotStoreRemoteDataSource {
           if (data['AccessoryStore'] == null || data['BonusStore'] == null) {
             try {
               final urlV2 = ApiConstants.storefrontUrl(s, cleanPuuid);
-              final responseV2 = await _dio.get(urlV2);
+              final responseV2 = await _dio.get(
+                urlV2,
+                options: Options(
+                  headers: {
+                    'Cache-Control': 'no-cache, no-store, must-revalidate',
+                    'Pragma': 'no-cache',
+                  },
+                ),
+              );
               dynamic rawV2 = responseV2.data;
               if (rawV2 is String) {
                 try {
@@ -125,6 +112,39 @@ class RiotStoreRemoteDataSourceImpl implements RiotStoreRemoteDataSource {
       } on DioException catch (e) {
         lastDioException = e;
       } catch (_) {}
+
+      // 2. Secondary fallback: GET /store/v2/storefront/{puuid}
+      try {
+        final urlV2 = ApiConstants.storefrontUrl(s, cleanPuuid);
+        final response = await _dio.get(
+          urlV2,
+          options: Options(
+            headers: {
+              'Cache-Control': 'no-cache, no-store, must-revalidate',
+              'Pragma': 'no-cache',
+            },
+          ),
+        );
+
+        dynamic rawData = response.data;
+        if (rawData is String) {
+          try {
+            rawData = jsonDecode(rawData);
+          } catch (_) {}
+        }
+
+        if (rawData is Map) {
+          final data = Map<String, dynamic>.from(rawData);
+          // Attach the successfully resolved shard
+          data['_resolvedShard'] = s;
+          return data;
+        }
+      } on DioException catch (e) {
+        lastDioException = e;
+        // If 401, let AuthInterceptor handle it or try next step
+      } catch (_) {
+        // Fall through to try next shard
+      }
     }
 
     if (lastDioException?.response?.statusCode == 401) {
