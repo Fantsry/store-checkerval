@@ -201,9 +201,7 @@ class _AccessoryStoreSectionState extends State<AccessoryStoreSection> {
               decoration: BoxDecoration(
                 color: AppTheme.cardDark,
                 borderRadius: BorderRadius.circular(6),
-                border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.06),
-                ),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -218,8 +216,9 @@ class _AccessoryStoreSectionState extends State<AccessoryStoreSection> {
                           vertical: 2,
                         ),
                         decoration: BoxDecoration(
-                          color:
-                              const Color(0xFF00E5FF).withValues(alpha: 0.15),
+                          color: const Color(
+                            0xFF00E5FF,
+                          ).withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(
@@ -245,7 +244,7 @@ class _AccessoryStoreSectionState extends State<AccessoryStoreSection> {
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            '${item.kcCost} KC',
+                            item.kcCost > 0 ? '${item.kcCost} KC' : '-- KC',
                             style: GoogleFonts.rajdhani(
                               fontSize: 12,
                               fontWeight: FontWeight.w800,
@@ -261,7 +260,8 @@ class _AccessoryStoreSectionState extends State<AccessoryStoreSection> {
                   // Accessory Icon / Art
                   Expanded(
                     child: Center(
-                      child: item.displayIcon != null &&
+                      child:
+                          item.displayIcon != null &&
                               item.displayIcon!.isNotEmpty
                           ? CachedNetworkImage(
                               imageUrl: item.displayIcon!,
@@ -284,19 +284,20 @@ class _AccessoryStoreSectionState extends State<AccessoryStoreSection> {
                             )
                           : Container(
                               width: double.infinity,
-                              margin:
-                                  const EdgeInsets.symmetric(horizontal: 4),
+                              margin: const EdgeInsets.symmetric(horizontal: 4),
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 8,
                                 vertical: 12,
                               ),
                               decoration: BoxDecoration(
-                                color: const Color(0xFF00E5FF)
-                                    .withValues(alpha: 0.08),
+                                color: const Color(
+                                  0xFF00E5FF,
+                                ).withValues(alpha: 0.08),
                                 borderRadius: BorderRadius.circular(10),
                                 border: Border.all(
-                                  color: const Color(0xFF00E5FF)
-                                      .withValues(alpha: 0.25),
+                                  color: const Color(
+                                    0xFF00E5FF,
+                                  ).withValues(alpha: 0.25),
                                 ),
                               ),
                               child: Column(

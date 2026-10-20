@@ -135,7 +135,8 @@ class NightMarketSection extends StatelessWidget {
 
             return BlocBuilder<WishlistCubit, WishlistState>(
               builder: (context, wishlistState) {
-                final isWishlisted = wishlistState is WishlistLoaded &&
+                final isWishlisted =
+                    wishlistState is WishlistLoaded &&
                     wishlistState.isInWishlist(skin.uuid);
 
                 return Container(
@@ -224,8 +225,7 @@ class NightMarketSection extends StatelessWidget {
                                               ),
                                             ),
                                           ),
-                                          errorWidget: (_, __, ___) =>
-                                              const Icon(
+                                          errorWidget: (_, __, ___) => const Icon(
                                             Icons.image_not_supported_outlined,
                                             size: 28,
                                             color: AppTheme.textSecondary,
@@ -267,7 +267,9 @@ class NightMarketSection extends StatelessWidget {
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Text(
-                                  '${offer.originalCost} VP',
+                                  offer.originalCost > 0
+                                      ? '${offer.originalCost} VP'
+                                      : '-- VP',
                                   style: GoogleFonts.rajdhani(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w600,
@@ -284,7 +286,9 @@ class NightMarketSection extends StatelessWidget {
                                     ),
                                     const SizedBox(width: 3),
                                     Text(
-                                      '${offer.discountedCost} VP',
+                                      offer.discountedCost > 0
+                                          ? '${offer.discountedCost} VP'
+                                          : '-- VP',
                                       style: GoogleFonts.rajdhani(
                                         fontSize: 14,
                                         fontWeight: FontWeight.w800,

@@ -212,7 +212,9 @@ class BundleCard extends StatelessWidget {
                           color: AppTheme.accentMagenta.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(4),
                           border: Border.all(
-                            color: AppTheme.accentMagenta.withValues(alpha: 0.4),
+                            color: AppTheme.accentMagenta.withValues(
+                              alpha: 0.4,
+                            ),
                           ),
                         ),
                         child: Row(
@@ -225,7 +227,11 @@ class BundleCard extends StatelessWidget {
                             ),
                             const SizedBox(width: 5),
                             Text(
-                              bundle.price > 0 ? '${bundle.price} VP' : 'FREE',
+                              bundle.price > 0
+                                  ? bundle.price > 0
+                                        ? '${bundle.price} VP'
+                                        : '-- VP'
+                                  : '-- VP',
                               style: GoogleFonts.rajdhani(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w800,
@@ -377,11 +383,13 @@ class BundleCard extends StatelessWidget {
                           color: AppTheme.accentMagenta.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(4),
                           border: Border.all(
-                            color: AppTheme.accentMagenta.withValues(alpha: 0.4),
+                            color: AppTheme.accentMagenta.withValues(
+                              alpha: 0.4,
+                            ),
                           ),
                         ),
                         child: Text(
-                          '${bundle.price} VP',
+                          bundle.price > 0 ? '${bundle.price} VP' : '-- VP',
                           style: GoogleFonts.rajdhani(
                             fontSize: 14,
                             fontWeight: FontWeight.w800,
