@@ -136,14 +136,84 @@ class RiotChatRemoteDataSource {
     }
   }
 
+  static const Map<String, String> defaultChatAffinities = {
+    'as2': 'as2.chat.si.riotgames.com',
+    'asia': 'jp1.chat.si.riotgames.com',
+    'ap': 'jp1.chat.si.riotgames.com',
+    'ap1': 'jp1.chat.si.riotgames.com',
+    'ap2': 'jp1.chat.si.riotgames.com',
+    'ap3': 'jp1.chat.si.riotgames.com',
+    'br1': 'br.chat.si.riotgames.com',
+    'eu': 'ru1.chat.si.riotgames.com',
+    'eu1': 'eu1.chat.si.riotgames.com',
+    'eu2': 'eu2.chat.si.riotgames.com',
+    'eu3': 'eu3.chat.si.riotgames.com',
+    'eun1': 'eun1.chat.si.riotgames.com',
+    'euw1': 'euw1.chat.si.riotgames.com',
+    'jp1': 'jp1.chat.si.riotgames.com',
+    'kr1': 'kr1.chat.si.riotgames.com',
+    'la1': 'la1.chat.si.riotgames.com',
+    'la2': 'la2.chat.si.riotgames.com',
+    'na1': 'na2.chat.si.riotgames.com',
+    'na2': 'na2.chat.si.riotgames.com',
+    'oc1': 'oc1.chat.si.riotgames.com',
+    'pbe1': 'pbe1.chat.si.riotgames.com',
+    'ru1': 'ru1.chat.si.riotgames.com',
+    'sea1': 'sa1.chat.si.riotgames.com',
+    'sea2': 'sa2.chat.si.riotgames.com',
+    'sea3': 'sa3.chat.si.riotgames.com',
+    'sea4': 'sa4.chat.si.riotgames.com',
+    'tr1': 'tr1.chat.si.riotgames.com',
+    'us': 'la1.chat.si.riotgames.com',
+    'us-br1': 'br.chat.si.riotgames.com',
+    'us-la2': 'la2.chat.si.riotgames.com',
+    'us2': 'us2.chat.si.riotgames.com',
+  };
+
+  static const Map<String, String> defaultChatAffinityDomains = {
+    'as2': 'as2',
+    'asia': 'jp1',
+    'ap': 'jp1',
+    'ap1': 'jp1',
+    'ap2': 'jp1',
+    'ap3': 'jp1',
+    'br1': 'br1',
+    'eu': 'ru1',
+    'eu1': 'eu1',
+    'eu2': 'eu2',
+    'eu3': 'eu3',
+    'eun1': 'eu2',
+    'euw1': 'eu1',
+    'jp1': 'jp1',
+    'kr1': 'kr1',
+    'la1': 'la1',
+    'la2': 'la2',
+    'na1': 'na1',
+    'na2': 'na2',
+    'oc1': 'oc1',
+    'pbe1': 'pb1',
+    'ru1': 'ru1',
+    'sea1': 'sa1',
+    'sea2': 'sa2',
+    'sea3': 'sa3',
+    'sea4': 'sa4',
+    'tr1': 'tr1',
+    'us': 'la1',
+    'us-br1': 'br1',
+    'us-la2': 'la2',
+    'us2': 'us2',
+  };
+
   /// Step 2: Fetch clientconfig to resolve official chat hosts and domains.
   Future<Map<String, String>> fetchChatRouting({
     required String accessToken,
     required String affinity,
     String? entitlementToken,
   }) async {
-    String host = '$affinity.chat.si.riotgames.com';
-    String domain = '$affinity.pvp.net';
+    final lowerAffinity = affinity.toLowerCase().trim();
+    String host = defaultChatAffinities[lowerAffinity] ?? '$lowerAffinity.chat.si.riotgames.com';
+    String rawDomain = defaultChatAffinityDomains[lowerAffinity] ?? lowerAffinity;
+    String domain = rawDomain.contains('.') ? rawDomain : '$rawDomain.pvp.net';
 
     if (entitlementToken != null && entitlementToken.isNotEmpty) {
       try {
@@ -162,14 +232,21 @@ class RiotChatRemoteDataSource {
         final data = res.data ?? {};
         if (data['chat.affinities'] is Map) {
           final affinities = Map<String, dynamic>.from(data['chat.affinities'] as Map);
-          if (affinities.containsKey(affinity)) {
+          if (affinities.containsKey(lowerAffinity)) {
+            host = affinities[lowerAffinity].toString();
+          } else if (affinities.containsKey(affinity)) {
             host = affinities[affinity].toString();
           }
         }
         if (data['chat.affinity_domains'] is Map) {
           final domains = Map<String, dynamic>.from(data['chat.affinity_domains'] as Map);
-          if (domains.containsKey(affinity)) {
-            final d = domains[affinity].toString();
+          String? d;
+          if (domains.containsKey(lowerAffinity)) {
+            d = domains[lowerAffinity].toString();
+          } else if (domains.containsKey(affinity)) {
+            d = domains[affinity].toString();
+          }
+          if (d != null && d.isNotEmpty) {
             domain = d.contains('.') ? d : '$d.pvp.net';
           }
         }
@@ -217,7 +294,6 @@ class RiotChatRemoteDataSource {
       final Map<String, RiotPresenceData> presencesMap = {};
       final Map<String, RiotChatMessage> messagesMap = {};
 
-      // Allow 4 seconds to accumulate roster & live presence packets from the server
       Timer? collectionTimer;
 
       void finish() {
@@ -231,15 +307,15 @@ class RiotChatRemoteDataSource {
         }
       }
 
-      final timeoutTimer = Timer(const Duration(seconds: 9), finish);
+      final timeoutTimer = Timer(const Duration(seconds: 8), finish);
 
       socket.listen(
         (data) {
           final str = utf8.decode(data, allowMalformed: true);
           buffer.write(str);
 
-          // Step 0: Server sent features after initial connection -> Send auth
-          if (step == 0 && (str.contains('<stream:features') || str.contains('stream:features'))) {
+          // Step 0: Server sent features after initial connection -> Send SASL auth
+          if (step == 0 && (str.contains('<stream:features') || str.contains('stream:features') || str.contains('X-Riot-RSO-PAS'))) {
             step = 1;
             socket!.write(
               '<auth mechanism="X-Riot-RSO-PAS" xmlns="urn:ietf:params:xml:ns:xmpp-sasl">'
@@ -252,40 +328,61 @@ class RiotChatRemoteDataSource {
           else if (step == 1 && str.contains('<success')) {
             step = 2;
             socket!.write(
-              '<?xml version="1.0"?>'
-              '<stream:stream to="$domain" version="1.0" xmlns="jabber:client" xmlns:stream="http://etherx.jabber.org/streams">',
+              '<?xml version="1.0" encoding="UTF-8"?>'
+              '<stream:stream to="$domain" xml:lang="en" version="1.0" xmlns="jabber:client" xmlns:stream="http://etherx.jabber.org/streams">',
             );
           }
-          // Step 2: Server sent features after stream restart -> Bind resource
+          // Step 2: Server sent features after stream restart -> Bind with PUUID mode enabled
           else if (step == 2 && (str.contains('<stream:features') || str.contains('stream:features') || str.contains('<bind'))) {
             step = 3;
             socket!.write(
-              '<iq type="set" id="bind_1">'
+              '<iq id="_xmpp_bind1" type="set">'
               '<bind xmlns="urn:ietf:params:xml:ns:xmpp-bind">'
-              '<resource>RiotMobile-$randomHex</resource>'
+              '<puuid-mode enabled="true"/>'
+              '<resource>RC-$randomHex</resource>'
               '</bind>'
               '</iq>',
             );
           }
           // Step 3: Server sent bind response -> Setup session
-          else if (step == 3 && str.contains('bind_1')) {
+          else if (step == 3 && str.contains('_xmpp_bind1')) {
             step = 4;
             socket!.write(
-              '<iq type="set" id="session_1">'
+              '<iq id="_xmpp_session1" type="set">'
               '<session xmlns="urn:ietf:params:xml:ns:xmpp-session"/>'
               '</iq>',
             );
           }
-          // Step 4: Server sent session response -> Request roster & send presence
-          else if (step == 4 && str.contains('session_1')) {
+          // Step 4: Server sent session response -> Set entitlements & Request roster & presence
+          else if (step == 4 && str.contains('_xmpp_session1')) {
             step = 5;
-            // Send roster query
+
+            // Set entitlements token if available
+            if (entitlementToken != null && entitlementToken.isNotEmpty) {
+              socket!.write(
+                '<iq id="xmpp_entitlements_0" type="set">'
+                '<entitlements xmlns="urn:riotgames:entitlements">'
+                '<token xmlns="">$entitlementToken</token>'
+                '</entitlements>'
+                '</iq>',
+              );
+            }
+
+            // Send official Riot Games roster query
             socket!.write(
               '<iq type="get" id="roster_1">'
-              '<query xmlns="jabber:iq:roster"/>'
+              '<query xmlns="jabber:iq:riotgames:roster" last_state="true"/>'
               '</iq>',
             );
-            // Send initial availability presence to receive presence updates
+
+            // Send archive list query for recent chats
+            socket.write(
+              '<iq type="get" id="recent_convos_3">'
+              '<query xmlns="jabber:iq:riotgames:archive:list"/>'
+              '</iq>',
+            );
+
+            // Send presence availability to trigger presence broadcasts
             socket.write(
               '<presence>'
               '<show>chat</show>'
@@ -297,7 +394,7 @@ class RiotChatRemoteDataSource {
             collectionTimer = Timer(const Duration(milliseconds: 3500), finish);
           }
 
-          // Step 5: In collecting state, parse any stanzas that arrive
+          // Parse any stanzas that arrive
           if (step >= 4) {
             _parseIncomingChunk(
               chunk: str,
@@ -311,10 +408,10 @@ class RiotChatRemoteDataSource {
         onDone: () => finish(),
       );
 
-      // Send initial XMPP stream initiation addressed to chat domain
+      // Send initial XMPP stream initiation
       socket.write(
-        '<?xml version="1.0"?>'
-        '<stream:stream to="$domain" version="1.0" xmlns="jabber:client" xmlns:stream="http://etherx.jabber.org/streams">',
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        '<stream:stream to="$domain" xml:lang="en" version="1.0" xmlns="jabber:client" xmlns:stream="http://etherx.jabber.org/streams">',
       );
 
       final result = await completer.future;
@@ -339,43 +436,68 @@ class RiotChatRemoteDataSource {
     required Map<String, RiotPresenceData> presencesMap,
     required Map<String, RiotChatMessage> messagesMap,
   }) {
-    // 1. Parse Roster Items: <item jid="puuid@..." name="GameName#Tag" .../>
-    final itemRegex = RegExp(
-      r'<item\s+[^>]*jid=["\x27]([^@"\x27]+)@[^"\x27]+["\x27](?:[^>]*name=["\x27]([^"\x27]*)["\x27])?',
-      caseSensitive: false,
-    );
-    for (final match in itemRegex.allMatches(chunk)) {
-      final rawPuuid = match.group(1)?.trim() ?? '';
-      final rawName = match.group(2)?.trim() ?? '';
+    // 1. Parse Roster Items from <item ...>...</item> or self-closing <item .../>
+    final itemPattern = RegExp(r'<item\b([^>]*?)>(?:([\s\S]*?)<\/item>)?|<item\b([^>]*?)\/>', caseSensitive: false);
 
-      if (rawPuuid.isNotEmpty && !rosterList.any((f) => f.puuid == rawPuuid)) {
-        String name = rawName;
-        String? tag;
+    for (final match in itemPattern.allMatches(chunk)) {
+      final attrs = match.group(1) ?? match.group(3) ?? '';
+      final inner = match.group(2) ?? '';
+
+      // Extract JID -> PUUID
+      final jidMatch = RegExp(r'jid=["\x27]([^@"\x27]+)@', caseSensitive: false).firstMatch(attrs);
+      final rawPuuid = jidMatch?.group(1)?.trim() ?? '';
+      if (rawPuuid.isEmpty || rawPuuid == 'null') continue;
+
+      // Extract subscription
+      final subMatch = RegExp(r'subscription=["\x27]([^"\x27]*)["\x27]', caseSensitive: false).firstMatch(attrs);
+      final subscription = subMatch?.group(1) ?? 'both';
+      if (subscription == 'remove') continue;
+
+      // Extract name & tagline from <id name="..." tagline="..."/> child or attrs
+      String name = '';
+      String? tag;
+
+      final idTagMatch = RegExp(r'<id\b[^>]*name=["\x27]([^"\x27]*)["\x27](?:[^>]*tagline=["\x27]([^"\x27]*)["\x27])?', caseSensitive: false).firstMatch(inner);
+      if (idTagMatch != null) {
+        name = idTagMatch.group(1)?.trim() ?? '';
+        tag = idTagMatch.group(2)?.trim();
+      }
+
+      if (name.isEmpty) {
+        final nameAttrMatch = RegExp(r'name=["\x27]([^"\x27]*)["\x27]', caseSensitive: false).firstMatch(attrs);
+        final rawName = nameAttrMatch?.group(1)?.trim() ?? '';
         if (rawName.contains('#')) {
           final parts = rawName.split('#');
           name = parts[0].trim();
           tag = parts.length > 1 ? parts[1].trim() : null;
+        } else {
+          name = rawName;
         }
+      }
 
+      if (!rosterList.any((f) => f.puuid == rawPuuid)) {
         rosterList.add(RiotFriendRosterItem(
           puuid: rawPuuid,
           name: name,
           tag: tag,
+          subscription: subscription,
         ));
       }
     }
 
-    // 2. Parse Presence Stanzas: <presence from="puuid@.../resource" ...>...</presence>
+    // 2. Parse Presence Stanzas
     final presenceRegex = RegExp(
-      r'<presence\s+[^>]*from=["\x27]([^@"\x27]+)@([^/"\x27]+)/([^"\x27]*)["\x27]([^>]*)>([\s\S]*?)</presence>',
+      r'<presence\b([^>]*?)>(?:([\s\S]*?)<\/presence>)?|<presence\b([^>]*?)\/>',
       caseSensitive: false,
     );
 
     for (final match in presenceRegex.allMatches(chunk)) {
-      final puuid = match.group(1)?.trim() ?? '';
-      final resource = match.group(3)?.toLowerCase().trim() ?? '';
-      final presenceAttrs = match.group(4) ?? '';
-      final body = match.group(5) ?? '';
+      final presenceAttrs = match.group(1) ?? match.group(3) ?? '';
+      final body = match.group(2) ?? '';
+
+      final fromMatch = RegExp(r'from=["\x27]([^@"\x27]+)@[^/"\x27]+(?:\/([^"\x27]*))?["\x27]', caseSensitive: false).firstMatch(presenceAttrs);
+      final puuid = fromMatch?.group(1)?.trim() ?? '';
+      final resource = fromMatch?.group(2)?.toLowerCase().trim() ?? '';
 
       if (puuid.isEmpty) continue;
 
@@ -460,27 +582,19 @@ class RiotChatRemoteDataSource {
         if (aLevel != null) accountLevel = int.tryParse(aLevel.toString());
 
         if (sessionLoopState == 'INGAME') {
-          final mapName = _cleanMapName(matchMap ?? '');
-          final modeName = _cleanModeName(queueId ?? '');
-          if (scoreAlly != null && scoreEnemy != null) {
-            clientActivity = '$modeName · $mapName · $scoreAlly-$scoreEnemy';
-          } else {
-            clientActivity = '$modeName · $mapName';
-          }
+          clientActivity = 'In Game';
         } else if (sessionLoopState == 'PREGAME') {
-          clientActivity = 'In Agent Select';
+          clientActivity = 'Agent Select';
         } else if (isAway) {
           clientActivity = 'Away';
-        } else {
-          clientActivity = 'In Riot Client';
+        } else if (sessionLoopState == 'MENUS') {
+          clientActivity = 'In Lobby';
         }
       } else {
         if (isAway) {
           clientActivity = 'Away';
-        } else if (rawStatus.isNotEmpty) {
-          clientActivity = rawStatus;
-        } else {
-          clientActivity = 'In Riot Client';
+        } else if (isMobile) {
+          clientActivity = 'Riot Mobile';
         }
       }
 
@@ -505,53 +619,26 @@ class RiotChatRemoteDataSource {
       );
     }
 
-    // 3. Parse Message Stanzas: <message from="puuid@..." type="chat"><body>...</body></message>
+    // 3. Parse Chat Messages
     final messageRegex = RegExp(
-      r'<message\s+[^>]*from=["\x27]([^@"\x27]+)@[^"\x27]+["\x27][^>]*>[\s\S]*?<body>([\s\S]*?)</body>',
+      r'<message\b[^>]*from=["\x27]([^@"\x27]+)@[^/"\x27]+[^>]*>([\s\S]*?)<\/message>',
       caseSensitive: false,
     );
     for (final match in messageRegex.allMatches(chunk)) {
       final senderPuuid = match.group(1)?.trim() ?? '';
-      final bodyText = match.group(2)?.trim() ?? '';
-      if (senderPuuid.isNotEmpty && bodyText.isNotEmpty) {
+      final body = match.group(2) ?? '';
+      final textMatch = RegExp(r'<body>([\s\S]*?)<\/body>', caseSensitive: false).firstMatch(body);
+      final text = textMatch?.group(1)?.trim();
+      if (senderPuuid.isNotEmpty && text != null && text.isNotEmpty) {
         messagesMap[senderPuuid] = RiotChatMessage(
           senderPuuid: senderPuuid,
-          body: bodyText,
+          body: text,
           timestamp: DateTime.now(),
         );
       }
     }
   }
 
-  /// Clean internal map paths (e.g. '/Game/Maps/Duality/Duality' -> 'Bind')
-  static String _cleanMapName(String path) {
-    final lower = path.toLowerCase();
-    if (lower.contains('duality')) return 'Bind';
-    if (lower.contains('bonsai')) return 'Split';
-    if (lower.contains('ascent')) return 'Ascent';
-    if (lower.contains('triad')) return 'Haven';
-    if (lower.contains('foxtrot')) return 'Breeze';
-    if (lower.contains('canyon')) return 'Fracture';
-    if (lower.contains('pitt')) return 'Pearl';
-    if (lower.contains('jam')) return 'Lotus';
-    if (lower.contains('jules')) return 'Sunset';
-    if (lower.contains('corrode') || lower.contains('infinity')) return 'Corrode';
-    if (lower.contains('hurm')) return 'Team Deathmatch';
-    final parts = path.split('/');
-    return parts.isNotEmpty ? parts.last : 'Valorant';
-  }
-
-  /// Clean queue / mode ID
-  static String _cleanModeName(String queueId) {
-    final lower = queueId.toLowerCase();
-    if (lower.contains('competitive')) return 'Competitive';
-    if (lower.contains('swiftplay')) return 'Swiftplay';
-    if (lower.contains('spikerush') || lower.contains('spike')) return 'Spike Rush';
-    if (lower.contains('deathmatch')) return 'Deathmatch';
-    if (lower.contains('hurm') || lower.contains('teamdeathmatch')) return 'Team Deathmatch';
-    if (lower.contains('unrated')) return 'Unrated';
-    return queueId.isNotEmpty ? queueId[0].toUpperCase() + queueId.substring(1) : 'Competitive';
-  }
 
   /// Legacy helper for roster fetching
   Future<List<RiotFriendRosterItem>> fetchRemoteRoster({

@@ -37,14 +37,6 @@ class SocialRepositoryImpl implements SocialRepository {
         _localStore = localStore,
         _chatDataSource = chatDataSource ?? RiotChatRemoteDataSource();
 
-  static String _extractMatchId(Map<String, dynamic>? data) {
-    if (data == null) return '';
-    final id = data['MatchID'] ??
-        data['matchId'] ??
-        data['MatchId'] ??
-        data['matchID'];
-    return id?.toString().trim() ?? '';
-  }
 
   static String _cleanModeName(String modeUrl) {
     final lower = modeUrl.toLowerCase();
@@ -104,19 +96,14 @@ class SocialRepositoryImpl implements SocialRepository {
         } catch (_) {}
       }
 
-      // If friends list is empty and user is logged in, attempt syncing real friends
-      if (friends.isEmpty && selfPuuid != null && selfPuuid.isNotEmpty) {
-        final syncResult = await syncRiotFriends(clearMocks: true);
-        if (syncResult.isSuccess &&
-            syncResult.valueOrNull != null &&
-            syncResult.valueOrNull!.isNotEmpty) {
-          return Result.success(syncResult.valueOrNull!);
+      // If user is authenticated, sync real friends from Riot XMPP
+      if (selfPuuid != null && selfPuuid.isNotEmpty) {
+        if (friends.isEmpty || forceRefresh) {
+          final syncResult = await syncRiotFriends(clearMocks: true);
+          if (syncResult.isSuccess && syncResult.valueOrNull != null) {
+            return syncResult;
+          }
         }
-        return const Result.success([]);
-      }
-
-      if (forceRefresh) {
-        return await refreshLivePresence();
       }
 
       return Result.success(friends);
@@ -128,276 +115,36 @@ class SocialRepositoryImpl implements SocialRepository {
   @override
   Future<Result<List<FriendEntity>>> refreshLivePresence() async {
     try {
-      final shard = await _storage.getShard() ?? 'ap';
-      final region = await _storage.getRegion() ?? shard;
       final accessToken = await _storage.getAccessToken();
-      final entitlementToken = await _storage.getEntitlementsToken();
+      final selfPuuid = await _storage.getPuuid();
+
+      // If user is logged in, perform live XMPP sync to refresh real-time presence
+      if (selfPuuid != null && selfPuuid.isNotEmpty && accessToken != null && accessToken.isNotEmpty) {
+        final syncResult = await syncRiotFriends(clearMocks: false);
+        if (syncResult.isSuccess && syncResult.valueOrNull != null) {
+          return syncResult;
+        }
+      }
 
       final rawList = await _localStore.getSavedFriendsJson();
       final List<FriendEntity> friends = [];
-
       for (final raw in rawList) {
         try {
           final map = jsonDecode(raw) as Map<String, dynamic>;
-          friends.add(FriendEntity.fromJson(map));
-        } catch (_) {}
-      }
-
-      if (friends.isEmpty) {
-        return const Result.success([]);
-      }
-
-      // Pre-fetch metadata in parallel
-      final metaResults = await Future.wait([
-        _careerDataSource.fetchMapsMetadata().catchError((_) => <String, Map<String, dynamic>>{}),
-        _careerDataSource.fetchAgentsMetadata().catchError((_) => <String, Map<String, dynamic>>{}),
-        _careerDataSource.fetchCompetitiveTiersMetadata().catchError((_) => <int, Map<String, dynamic>>{}),
-      ]);
-
-      final mapsMeta = metaResults[0] as Map<String, Map<String, dynamic>>;
-      final agentsMeta = metaResults[1] as Map<String, Map<String, dynamic>>;
-      final tiersMeta = metaResults[2] as Map<int, Map<String, dynamic>>;
-
-      // 1. Try real-time XMPP presence fetch from Riot chat service
-      if (accessToken != null && accessToken.isNotEmpty) {
-        try {
-          final socialData = await _chatDataSource.fetchRemoteSocialData(
-            accessToken: accessToken,
-            entitlementToken: entitlementToken,
-          );
-
-          if (socialData.presences.isNotEmpty) {
-            final List<FriendEntity> updatedList = [];
-            for (final friend in friends) {
-              final p = socialData.presences[friend.puuid];
-              if (p != null) {
-                FriendLiveStatus status;
-                FriendLiveActivity? activity = friend.liveActivity;
-
-                if (p.isInGame) {
-                  status = FriendLiveStatus.inGame;
-                  final mapName = mapsMeta[p.matchMap?.toLowerCase()]?['displayName'] ??
-                      _cleanMapName(p.matchMap ?? '');
-                  final modeName = _cleanModeName(p.queueId ?? '');
-                  activity = FriendLiveActivity(
-                    mapName: mapName,
-                    modeName: modeName,
-                    scoreAlly: p.scoreAlly ?? activity?.scoreAlly,
-                    scoreEnemy: p.scoreEnemy ?? activity?.scoreEnemy,
-                    partySize: p.partySize ?? activity?.partySize,
-                    maxPartySize: p.maxPartySize ?? activity?.maxPartySize,
-                    gameStartTime: activity?.gameStartTime ?? DateTime.now(),
-                  );
-                } else if (p.isInPreGame) {
-                  status = FriendLiveStatus.inAgentSelect;
-                } else if (p.isAway) {
-                  status = FriendLiveStatus.away;
-                } else if (p.isOnline) {
-                  status = FriendLiveStatus.inLobby;
-                } else {
-                  status = FriendLiveStatus.offline;
-                }
-
-                int? rankTier = friend.rankTier;
-                String? rankName = friend.rankName;
-                String? rankIcon = friend.rankIcon;
-                if (p.competitiveTier != null && p.competitiveTier! > 0) {
-                  rankTier = p.competitiveTier;
-                  if (tiersMeta.containsKey(rankTier)) {
-                    rankName = tiersMeta[rankTier]?['tierName'];
-                    rankIcon = tiersMeta[rankTier]?['largeIcon'] ?? tiersMeta[rankTier]?['smallIcon'];
-                  }
-                }
-
-                final updated = friend.copyWith(
-                  status: status,
-                  clientActivity: p.clientActivity,
-                  isMobile: p.isMobile,
-                  liveActivity: activity,
-                  rankTier: rankTier,
-                  rankName: rankName,
-                  rankIcon: rankIcon,
-                  lastChatMessage: socialData.recentMessages[friend.puuid]?.body ?? friend.lastChatMessage,
-                  lastChatTimestamp: socialData.recentMessages[friend.puuid]?.timestamp ?? friend.lastChatTimestamp,
-                  lastUpdated: DateTime.now(),
-                );
-                await _localStore.saveFriendJson(updated.puuid, jsonEncode(updated.toJson()));
-                updatedList.add(updated);
-              } else {
-                updatedList.add(friend);
-              }
-            }
-            return Result.success(updatedList);
+          final friend = FriendEntity.fromJson(map);
+          if (!friend.puuid.startsWith('mock-') && !friend.puuid.startsWith('player-')) {
+            friends.add(friend);
           }
         } catch (_) {}
       }
 
-      // 2. Fallback: refresh each friend individually
-      final updatedFriends = await Future.wait(
-        friends.map((friend) => _refreshSingleFriend(
-              friend: friend,
-              shard: shard,
-              region: region,
-              mapsMeta: mapsMeta,
-              agentsMeta: agentsMeta,
-              tiersMeta: tiersMeta,
-            )),
-      );
-
-      // Persist updated list
-      for (final f in updatedFriends) {
-        await _localStore.saveFriendJson(f.puuid, jsonEncode(f.toJson()));
-      }
-
-      return Result.success(updatedFriends);
+      return Result.success(friends);
     } catch (e) {
       return Result.failure(ServerFailure(message: 'Gagal memperbarui status live: $e'));
     }
   }
 
-  Future<FriendEntity> _refreshSingleFriend({
-    required FriendEntity friend,
-    required String shard,
-    required String region,
-    required Map<String, Map<String, dynamic>> mapsMeta,
-    required Map<String, Map<String, dynamic>> agentsMeta,
-    required Map<int, Map<String, dynamic>> tiersMeta,
-  }) async {
-    // Purge any legacy mock friend on refresh
-    if (friend.puuid.startsWith('mock-') || friend.puuid.startsWith('player-')) {
-      await _localStore.deleteSavedFriend(friend.puuid);
-      return friend;
-    }
 
-    try {
-      // 1. Check CoreGame (Live in-match)
-      final corePlayer = await _liveDataSource.fetchCoreGamePlayer(
-        region: region,
-        shard: shard,
-        puuid: friend.puuid,
-      );
-      final coreMatchId = _extractMatchId(corePlayer);
-
-      if (coreMatchId.isNotEmpty) {
-        final match = await _liveDataSource.fetchCoreGameMatch(
-          region: region,
-          shard: shard,
-          matchId: coreMatchId,
-        );
-
-        if (match != null) {
-          final mapUrl = (match['MapID'] ?? '').toString().toLowerCase();
-          final modeUrl = (match['ModeID'] ?? '').toString();
-          final mapInfo = mapsMeta[mapUrl];
-          final mapName = mapInfo?['displayName'] ?? 'Valorant Map';
-          final mapSplash = mapInfo?['splash'];
-          final modeName = _cleanModeName(modeUrl);
-
-          // Find agent played by friend
-          String? agentName;
-          String? agentIcon;
-          final rawPlayers = match['Players'] is List ? (match['Players'] as List) : const [];
-          for (final p in rawPlayers) {
-            if (p is Map && (p['Subject'] ?? '').toString() == friend.puuid) {
-              final charId = (p['CharacterID'] ?? '').toString().toLowerCase();
-              final agentInfo = agentsMeta[charId];
-              agentName = agentInfo?['displayName'];
-              agentIcon = agentInfo?['displayIcon'];
-              break;
-            }
-          }
-
-          // Parse start time / duration
-          DateTime? startTime;
-          final rawStartTime = match['GameStartTime'] ?? match['gameStartTime'];
-          if (rawStartTime != null) {
-            if (rawStartTime is num) {
-              startTime = DateTime.fromMillisecondsSinceEpoch(rawStartTime.toInt());
-            } else {
-              startTime = DateTime.tryParse(rawStartTime.toString());
-            }
-          }
-
-          return friend.copyWith(
-            status: FriendLiveStatus.inGame,
-            liveActivity: FriendLiveActivity(
-              matchId: coreMatchId,
-              mapName: mapName,
-              mapSplash: mapSplash,
-              modeName: modeName,
-              agentName: agentName ?? friend.liveActivity?.agentName,
-              agentIcon: agentIcon ?? friend.liveActivity?.agentIcon,
-              scoreAlly: friend.liveActivity?.scoreAlly,
-              scoreEnemy: friend.liveActivity?.scoreEnemy,
-              roundHistory: friend.liveActivity?.roundHistory ?? const [],
-              lastRoundOutcome: friend.liveActivity?.lastRoundOutcome,
-              lastRoundUpdateTime: friend.liveActivity?.lastRoundUpdateTime,
-              gameStartTime: startTime ?? DateTime.now(),
-              partySize: rawPlayers.length,
-              maxPartySize: 10,
-              partyState: 'IN_GAME',
-            ),
-            lastUpdated: DateTime.now(),
-          );
-        }
-      }
-
-      // 2. Check PreGame (Agent Select)
-      final prePlayer = await _liveDataSource.fetchPreGamePlayer(
-        region: region,
-        shard: shard,
-        puuid: friend.puuid,
-      );
-      final preMatchId = _extractMatchId(prePlayer);
-
-      if (preMatchId.isNotEmpty) {
-        final preMatch = await _liveDataSource.fetchPreGameMatch(
-          region: region,
-          shard: shard,
-          matchId: preMatchId,
-        );
-
-        if (preMatch != null) {
-          final mapUrl = (preMatch['MapID'] ?? '').toString().toLowerCase();
-          final modeUrl = (preMatch['ModeID'] ?? '').toString();
-          final mapInfo = mapsMeta[mapUrl];
-          final mapName = mapInfo?['displayName'] ?? 'Valorant Map';
-          final mapSplash = mapInfo?['splash'];
-          final modeName = _cleanModeName(modeUrl);
-
-          return friend.copyWith(
-            status: FriendLiveStatus.inAgentSelect,
-            liveActivity: FriendLiveActivity(
-              matchId: preMatchId,
-              mapName: mapName,
-              mapSplash: mapSplash,
-              modeName: modeName,
-              agentName: 'Selecting Agent...',
-              gameStartTime: DateTime.now(),
-              partyState: 'AGENT_SELECT',
-            ),
-            lastUpdated: DateTime.now(),
-          );
-        }
-      }
-
-      // 3. Neither CoreGame nor PreGame -> In Lobby or Offline
-      return friend.copyWith(
-        status: FriendLiveStatus.inLobby,
-        liveActivity: const FriendLiveActivity(
-          partyState: 'OPEN',
-          partySize: 1,
-          maxPartySize: 5,
-        ),
-        lastUpdated: DateTime.now(),
-      );
-    } catch (_) {
-      return friend.copyWith(
-        status: FriendLiveStatus.offline,
-        lastUpdated: DateTime.now(),
-      );
-    }
-  }
 
   @override
   Future<Result<FriendEntity>> addFriend({
@@ -789,6 +536,20 @@ class SocialRepositoryImpl implements SocialRepository {
               }
             }
 
+            // If clearMocks is true, purge any friends in local store not in the active Riot roster
+            if (clearMocks) {
+              final rawList = await _localStore.getSavedFriendsJson();
+              for (final raw in rawList) {
+                try {
+                  final map = jsonDecode(raw) as Map<String, dynamic>;
+                  final p = map['puuid']?.toString() ?? '';
+                  if (!rosterMap.containsKey(p)) {
+                    await _localStore.deleteSavedFriend(p);
+                  }
+                } catch (_) {}
+              }
+            }
+
             // Pre-fetch player names via Riot GLZ Name-Service
             Map<String, Map<String, String>> resolvedNames = {};
             try {
@@ -943,23 +704,25 @@ class SocialRepositoryImpl implements SocialRepository {
         } catch (_) {}
       }
 
-      // ─── Method 2: Match Teammates Fallback ────────────────────────────────
-      if (realFriends.isEmpty) {
-        final imported = await importRecentTeammates();
-        if (imported.isSuccess && imported.valueOrNull != null && imported.valueOrNull!.isNotEmpty) {
-          realFriends.addAll(imported.valueOrNull!);
-        }
-      }
-
-      // ─── Method 3: Poll Live Match Presence for all Discovered Friends ────
+      // Return real friends synced from Riot XMPP
       if (realFriends.isNotEmpty) {
-        final refreshed = await refreshLivePresence();
-        if (refreshed.isSuccess && refreshed.valueOrNull != null && refreshed.valueOrNull!.isNotEmpty) {
-          return Result.success(refreshed.valueOrNull!);
-        }
+        return Result.success(realFriends);
       }
 
-      return Result.success(realFriends);
+      // If XMPP returned no friends (e.g. offline/network failure), return cached real friends
+      final rawList = await _localStore.getSavedFriendsJson();
+      final List<FriendEntity> cached = [];
+      for (final raw in rawList) {
+        try {
+          final map = jsonDecode(raw) as Map<String, dynamic>;
+          final friend = FriendEntity.fromJson(map);
+          if (!friend.puuid.startsWith('mock-') && !friend.puuid.startsWith('player-')) {
+            cached.add(friend);
+          }
+        } catch (_) {}
+      }
+
+      return Result.success(cached);
     } catch (e) {
       return Result.failure(ServerFailure(message: 'Gagal menyinkronkan teman: $e'));
     }
