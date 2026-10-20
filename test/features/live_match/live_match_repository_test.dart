@@ -306,6 +306,7 @@ void main() {
             {'SeasonID': tActiveSeasonId.toUpperCase(), 'TierAfterUpdate': 20, 'TierBeforeUpdate': 20, 'RankedRatingEarned': -14},
             {'SeasonID': tActiveSeasonId.toUpperCase(), 'TierAfterUpdate': 20, 'TierBeforeUpdate': 19, 'RankedRatingEarned': 10},
             {'SeasonID': tActiveSeasonId.toUpperCase(), 'TierAfterUpdate': 19, 'TierBeforeUpdate': 20, 'RankedRatingEarned': -25},
+            {'SeasonID': tActiveSeasonId.toUpperCase(), 'TierAfterUpdate': 24, 'TierBeforeUpdate': 24, 'RankedRatingEarned': 0},
           ]);
 
       final result = await repository.checkLiveMatch();
@@ -314,6 +315,7 @@ void main() {
       final player = result.valueOrNull!.blueTeam.first;
       expect(player.currentRankTierName, equals('Diamond 1'));
       expect(player.rankIcon, equals('d1.png'));
+      expect(player.peakRankTierName, equals('Ascendant 2'));
       expect(player.recentWins, equals(3));
       expect(player.recentLosses, equals(2));
       expect(player.recentTotalMatches, equals(5));

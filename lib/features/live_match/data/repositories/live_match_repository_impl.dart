@@ -693,7 +693,8 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
           CompetitiveRankHelper.peakTierFromMmr(mmrData) ?? currentTier;
       for (final update in updates) {
         if (activeSeasonId != null &&
-            CompetitiveRankHelper.updateSeasonId(update) != activeSeasonId) {
+            CompetitiveRankHelper.updateSeasonId(update).toLowerCase() !=
+                activeSeasonId.toLowerCase()) {
           continue;
         }
         final tierAfter = CompetitiveRankHelper.tierAfterUpdate(update) ?? 0;
