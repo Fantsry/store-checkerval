@@ -73,6 +73,28 @@ void main() {
       expect(snapshot.isPlacement, isFalse);
     });
 
+    test('matches seasonal info keys case-insensitively', () {
+      final snapshot = CompetitiveRankHelper.resolveCurrentRank(
+        mmr: {
+          'QueueSkills': {
+            'competitive': {
+              'SeasonalInfoBySeasonID': {
+                activeActId.toUpperCase(): {
+                  'CompetitiveTier': 17,
+                  'RankedRating': 21,
+                },
+              },
+            },
+          },
+        },
+        activeSeasonId: activeActId,
+      );
+
+      expect(snapshot.tier, 17);
+      expect(snapshot.rating, 21);
+      expect(snapshot.isRanked, isTrue);
+    });
+
     test('keeps a real 0 RR instead of treating it as unknown', () {
       final snapshot = CompetitiveRankHelper.resolveCurrentRank(
         mmr: mmrWithSeasonal({
@@ -160,6 +182,25 @@ void main() {
       expect(snapshot.tier, 16);
       expect(snapshot.rating, 30);
       expect(snapshot.isRanked, isTrue);
+    });
+
+    test('matches competitive update season ids case-insensitively', () {
+      final snapshot = CompetitiveRankHelper.resolveCurrentRank(
+        mmr: const {'QueueSkills': {'competitive': {}}},
+        activeSeasonId: activeActId,
+        competitiveUpdates: [
+          {
+            'SeasonID': activeActId.toUpperCase(),
+            'TierAfterUpdate': 14,
+            'RankedRatingAfterUpdate': 12,
+            'MatchStartTime': 1000,
+          },
+        ],
+      );
+
+      expect(snapshot.tier, 14);
+      expect(snapshot.rating, 12);
+      expect(snapshot.hasCurrentActData, isTrue);
     });
   });
 

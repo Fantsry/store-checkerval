@@ -99,8 +99,8 @@ class CompetitiveRankHelper {
             (startUtc.isAfter(active.startTime ?? DateTime(0)))) {
           active = CompetitiveAct(
             id: id,
-            displayName:
-                (season['displayName'] ?? season['DisplayName'] ?? '').toString(),
+            displayName: (season['displayName'] ?? season['DisplayName'] ?? '')
+                .toString(),
             type: type,
             startTime: startUtc,
             endTime: endUtc,
@@ -128,7 +128,17 @@ class CompetitiveRankHelper {
     final queue = competitiveQueue(mmr);
     final seasonal = queue?['SeasonalInfoBySeasonID'];
     if (seasonal is! Map) return null;
-    final entry = seasonal[seasonId];
+
+    dynamic entry = seasonal[seasonId];
+    if (entry is! Map) {
+      final normalized = seasonId.toLowerCase();
+      for (final key in seasonal.keys) {
+        if (key.toString().toLowerCase() == normalized) {
+          entry = seasonal[key];
+          break;
+        }
+      }
+    }
     if (entry is! Map) return null;
     return Map<String, dynamic>.from(entry);
   }
@@ -187,21 +197,24 @@ class CompetitiveRankHelper {
   /// The before/after formula is only used when Riot omits
   /// `RankedRatingEarned`; it must account for a tier boundary (100 RR).
   static int? rrEarnedFromUpdate(Map<String, dynamic> update) {
-    final direct = _asInt(update['RankedRatingEarned']) ??
+    final direct =
+        _asInt(update['RankedRatingEarned']) ??
         _asInt(update['RankRatingEarned']) ??
         _asInt(update['rankedRatingEarned']) ??
         _asInt(update['rankRatingEarned']);
     if (direct != null) return direct;
 
     final ratingAfter = ratingAfterUpdate(update);
-    final ratingBefore = _asInt(update['RankedRatingBeforeUpdate']) ??
+    final ratingBefore =
+        _asInt(update['RankedRatingBeforeUpdate']) ??
         _asInt(update['RankRatingBeforeUpdate']) ??
         _asInt(update['rankedRatingBeforeUpdate']) ??
         _asInt(update['rankRatingBeforeUpdate']);
     if (ratingAfter == null || ratingBefore == null) return null;
 
     final tierAfter = tierAfterUpdate(update);
-    final tierBefore = _asInt(update['TierBeforeUpdate']) ??
+    final tierBefore =
+        _asInt(update['TierBeforeUpdate']) ??
         _asInt(update['tierBeforeUpdate']) ??
         _asInt(update['TierBefore']);
     final tierDiff = (tierAfter != null && tierBefore != null)
@@ -242,10 +255,12 @@ class CompetitiveRankHelper {
       return RankedSnapshot.empty;
     }
 
-    final currentActUpdates = competitiveUpdates
-        .where((u) => updateSeasonId(u) == activeSeasonId)
-        .toList()
-      ..sort((a, b) => _updateTimestamp(b).compareTo(_updateTimestamp(a)));
+    final normalizedSeasonId = activeSeasonId.toLowerCase();
+    final currentActUpdates =
+        competitiveUpdates
+            .where((u) => updateSeasonId(u).toLowerCase() == normalizedSeasonId)
+            .toList()
+          ..sort((a, b) => _updateTimestamp(b).compareTo(_updateTimestamp(a)));
 
     for (final update in currentActUpdates) {
       final tier = tierAfterUpdate(update) ?? 0;
@@ -276,8 +291,7 @@ class CompetitiveRankHelper {
       final data = Map<String, dynamic>.from(entry);
       final tier = tierFromSeasonData(data) ?? 0;
       final badgeInfo = data['SeasonalBadgeInfo'];
-      final badge =
-          badgeInfo is Map ? (_asInt(badgeInfo['Rank']) ?? 0) : 0;
+      final badge = badgeInfo is Map ? (_asInt(badgeInfo['Rank']) ?? 0) : 0;
       if (tier > (peak ?? 0)) peak = tier;
       if (badge > (peak ?? 0)) peak = badge;
     }

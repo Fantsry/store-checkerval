@@ -19,9 +19,9 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
     required LiveMatchRemoteDataSource remoteDataSource,
     required CareerRemoteDataSource careerDataSource,
     required SecureStorageService storage,
-  })  : _remoteDataSource = remoteDataSource,
-        _careerDataSource = careerDataSource,
-        _storage = storage;
+  }) : _remoteDataSource = remoteDataSource,
+       _careerDataSource = careerDataSource,
+       _storage = storage;
 
   String? _extractPuuidFromJwt(String token) {
     try {
@@ -38,7 +38,8 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
 
   String? _extractMatchId(Map<String, dynamic>? data) {
     if (data == null) return null;
-    final id = data['MatchID'] ??
+    final id =
+        data['MatchID'] ??
         data['matchId'] ??
         data['MatchId'] ??
         data['matchID'];
@@ -73,8 +74,7 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
       String? activeSeasonId;
       try {
         final seasons = await _careerDataSource.fetchSeasonsMetadata();
-        activeSeasonId =
-            CompetitiveRankHelper.resolveActiveAct(seasons)?.id;
+        activeSeasonId = CompetitiveRankHelper.resolveActiveAct(seasons)?.id;
       } catch (_) {}
 
       // ── Step 1: Check CoreGame (Live in-match) ──
@@ -196,27 +196,31 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
       }
 
       // Priority 3: Neither CoreGame nor PreGame active -> In Lobby
-      return const Result.success(
-        LiveMatchData(phase: LiveMatchPhase.inLobby),
-      );
+      return const Result.success(LiveMatchData(phase: LiveMatchPhase.inLobby));
     } on DioException catch (e) {
       if (e.response?.statusCode == 401 ||
           (e.response?.statusCode == 400 &&
               (e.response?.data?.toString().contains('BAD_CLAIMS') ?? false))) {
         return const Result.failure(
-          AuthFailure(message: 'Riot session expired or invalid. Please sign in again.'),
+          AuthFailure(
+            message: 'Riot session expired or invalid. Please sign in again.',
+          ),
         );
       }
       if (e.type == DioExceptionType.connectionTimeout ||
           e.type == DioExceptionType.receiveTimeout ||
           e.type == DioExceptionType.connectionError) {
         return const Result.failure(
-          NetworkFailure(message: 'Connection timed out while connecting to Valorant GLZ servers.'),
+          NetworkFailure(
+            message:
+                'Connection timed out while connecting to Valorant GLZ servers.',
+          ),
         );
       }
       return Result.failure(
         ServerFailure(
-          message: 'Failed to contact Valorant servers (${e.response?.statusCode ?? 'Network'}): ${e.message}',
+          message:
+              'Failed to contact Valorant servers (${e.response?.statusCode ?? 'Network'}): ${e.message}',
         ),
       );
     } catch (e) {
@@ -249,15 +253,15 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
     // Parallelize metadata, names, and player MMR + Competitive lookups
     // Fetch 15 competitive updates for extended stats
     final results = await Future.wait([
-      _careerDataSource
-          .fetchMapsMetadata()
-          .catchError((_) => <String, Map<String, dynamic>>{}),
-      _careerDataSource
-          .fetchAgentsMetadata()
-          .catchError((_) => <String, Map<String, dynamic>>{}),
-      _careerDataSource
-          .fetchCompetitiveTiersMetadata()
-          .catchError((_) => <int, Map<String, dynamic>>{}),
+      _careerDataSource.fetchMapsMetadata().catchError(
+        (_) => <String, Map<String, dynamic>>{},
+      ),
+      _careerDataSource.fetchAgentsMetadata().catchError(
+        (_) => <String, Map<String, dynamic>>{},
+      ),
+      _careerDataSource.fetchCompetitiveTiersMetadata().catchError(
+        (_) => <int, Map<String, dynamic>>{},
+      ),
       _remoteDataSource
           .fetchPlayerNames(shard: shard, puuids: puuids)
           .catchError((_) => <Map<String, dynamic>>[]),
@@ -279,7 +283,10 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
               endIndex: 15,
             );
           } catch (_) {}
-          return MapEntry(sub, _PlayerStats(mmr: mmrData, updates: compUpdates));
+          return MapEntry(
+            sub,
+            _PlayerStats(mmr: mmrData, updates: compUpdates),
+          );
         }),
       ),
     ]);
@@ -288,8 +295,7 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
     final agentsMeta = results[1] as Map<String, Map<String, dynamic>>;
     final tiersMeta = results[2] as Map<int, Map<String, dynamic>>;
     final namesList = results[3] as List<Map<String, dynamic>>;
-    final statsEntries =
-        results[4] as List<MapEntry<String, _PlayerStats>>;
+    final statsEntries = results[4] as List<MapEntry<String, _PlayerStats>>;
     final statsMap = Map.fromEntries(statsEntries);
 
     final mapInfo = mapsMeta[mapUrl.toLowerCase()];
@@ -471,15 +477,15 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
 
     // Parallelize metadata, names, and player MMR + Competitive lookups
     final results = await Future.wait([
-      _careerDataSource
-          .fetchMapsMetadata()
-          .catchError((_) => <String, Map<String, dynamic>>{}),
-      _careerDataSource
-          .fetchAgentsMetadata()
-          .catchError((_) => <String, Map<String, dynamic>>{}),
-      _careerDataSource
-          .fetchCompetitiveTiersMetadata()
-          .catchError((_) => <int, Map<String, dynamic>>{}),
+      _careerDataSource.fetchMapsMetadata().catchError(
+        (_) => <String, Map<String, dynamic>>{},
+      ),
+      _careerDataSource.fetchAgentsMetadata().catchError(
+        (_) => <String, Map<String, dynamic>>{},
+      ),
+      _careerDataSource.fetchCompetitiveTiersMetadata().catchError(
+        (_) => <int, Map<String, dynamic>>{},
+      ),
       _remoteDataSource
           .fetchPlayerNames(shard: shard, puuids: puuids)
           .catchError((_) => <Map<String, dynamic>>[]),
@@ -501,7 +507,10 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
               endIndex: 15,
             );
           } catch (_) {}
-          return MapEntry(sub, _PlayerStats(mmr: mmrData, updates: compUpdates));
+          return MapEntry(
+            sub,
+            _PlayerStats(mmr: mmrData, updates: compUpdates),
+          );
         }),
       ),
     ]);
@@ -510,8 +519,7 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
     final agentsMeta = results[1] as Map<String, Map<String, dynamic>>;
     final tiersMeta = results[2] as Map<int, Map<String, dynamic>>;
     final namesList = results[3] as List<Map<String, dynamic>>;
-    final statsEntries =
-        results[4] as List<MapEntry<String, _PlayerStats>>;
+    final statsEntries = results[4] as List<MapEntry<String, _PlayerStats>>;
     final statsMap = Map.fromEntries(statsEntries);
 
     final mapInfo = mapsMeta[mapUrl.toLowerCase()];
@@ -534,8 +542,9 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
       if (p is Map) {
         final sub = (p['Subject'] ?? '').toString();
         final charId = (p['CharacterID'] ?? '').toString().toLowerCase();
-        final charState =
-            (p['CharacterSelectionState'] ?? '').toString().toLowerCase();
+        final charState = (p['CharacterSelectionState'] ?? '')
+            .toString()
+            .toLowerCase();
 
         final nameInfo = namesMap[sub];
         final gameName = nameInfo?['gameName'] ?? 'Teammate';
@@ -624,8 +633,8 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
             averageDamageRound: extendedStats.adr,
             headshotPercentage: extendedStats.hs,
             winPercentage: wl.wins + wl.losses > 0
-              ? (wl.wins / (wl.wins + wl.losses)) * 100
-              : null,
+                ? (wl.wins / (wl.wins + wl.losses)) * 100
+                : null,
             lastNMatchCount: compUpdates.isNotEmpty ? compUpdates.length : null,
             lastNActScore: extendedStats.actScore,
             currentRankEpisodeAct: extendedStats.currentEpisodeAct,
@@ -671,8 +680,8 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
       final rankName = ranked.isPlacement
           ? 'Placement'
           : (!ranked.isRanked
-              ? 'Unranked'
-              : (tierInfo?['tierName'] ?? 'Unranked'));
+                ? 'Unranked'
+                : (tierInfo?['tierName'] ?? 'Unranked'));
       var rankIcon = currentTier == 0
           ? null
           : (tierInfo?['largeIcon'] ?? tierInfo?['smallIcon']);
@@ -687,8 +696,7 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
             CompetitiveRankHelper.updateSeasonId(update) != activeSeasonId) {
           continue;
         }
-        final tierAfter =
-            CompetitiveRankHelper.tierAfterUpdate(update) ?? 0;
+        final tierAfter = CompetitiveRankHelper.tierAfterUpdate(update) ?? 0;
         if (tierAfter > peakTier) peakTier = tierAfter;
       }
 
@@ -728,20 +736,21 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
     final relevant = activeSeasonId == null
         ? updates
         : updates
-            .where((u) =>
-                CompetitiveRankHelper.updateSeasonId(u) == activeSeasonId)
-            .toList();
+              .where(
+                (u) =>
+                    CompetitiveRankHelper.updateSeasonId(u).toLowerCase() ==
+                    activeSeasonId.toLowerCase(),
+              )
+              .toList();
 
     for (final update in relevant.take(10)) {
-      final tierAfter =
-          CompetitiveRankHelper.tierAfterUpdate(update) ?? 0;
+      final tierAfter = CompetitiveRankHelper.tierAfterUpdate(update) ?? 0;
       final tierBefore =
           (update['TierBeforeUpdate'] as num?)?.toInt() ??
-              (update['tierBeforeUpdate'] as num?)?.toInt() ??
-              (update['TierBefore'] as num?)?.toInt() ??
-              0;
-      final rrEarned =
-          CompetitiveRankHelper.rrEarnedFromUpdate(update) ?? 0;
+          (update['tierBeforeUpdate'] as num?)?.toInt() ??
+          (update['TierBefore'] as num?)?.toInt() ??
+          0;
+      final rrEarned = CompetitiveRankHelper.rrEarnedFromUpdate(update) ?? 0;
 
       if (tierAfter > tierBefore) {
         wins++;
@@ -785,16 +794,27 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
 
       // Extract current season episode/act
       final seasonal = compSkill?['SeasonalInfoBySeasonID'] is Map
-          ? Map<String, dynamic>.from(compSkill!['SeasonalInfoBySeasonID'] as Map)
+          ? Map<String, dynamic>.from(
+              compSkill!['SeasonalInfoBySeasonID'] as Map,
+            )
           : null;
 
       if (seasonal != null && seasonal.isNotEmpty) {
         final entries = seasonal.entries.toList();
 
         // Only the active act may be presented as the current act.
-        final currentEntry = activeSeasonId == null
+        dynamic currentEntry = activeSeasonId == null
             ? null
             : seasonal[activeSeasonId];
+        if (activeSeasonId != null && currentEntry is! Map) {
+          final normalized = activeSeasonId.toLowerCase();
+          for (final entry in seasonal.entries) {
+            if (entry.key.toString().toLowerCase() == normalized) {
+              currentEntry = entry.value;
+              break;
+            }
+          }
+        }
         if (currentEntry is Map) {
           final seasonData = Map<String, dynamic>.from(currentEntry);
           actScore =
@@ -810,7 +830,8 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
             final seasonData = Map<String, dynamic>.from(entry.value as Map);
             final tier = seasonData['CompetitiveTier'] as int? ?? 0;
             final badgeRank = (seasonData['SeasonalBadgeInfo'] is Map)
-                ? ((seasonData['SeasonalBadgeInfo'] as Map)['Rank'] as int? ?? 0)
+                ? ((seasonData['SeasonalBadgeInfo'] as Map)['Rank'] as int? ??
+                      0)
                 : 0;
             final bestTier = tier > badgeRank ? tier : badgeRank;
             if (bestTier > peakTier) {
@@ -881,7 +902,7 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
       'f1c85909-4b2f-5a01-cc28-7eab3d7e75b7': 'E9A1',
     };
 
-    return knownSeasons[seasonId];
+    return knownSeasons[seasonId.toLowerCase()];
   }
 
   String _cleanModeName(String raw) {
@@ -891,7 +912,9 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
     if (lower.contains('swiftplay')) return 'Swiftplay';
     if (lower.contains('spikerush')) return 'Spike Rush';
     if (lower.contains('deathmatch')) return 'Deathmatch';
-    if (lower.contains('hurm') || lower.contains('tdm')) return 'Team Deathmatch';
+    if (lower.contains('hurm') || lower.contains('tdm')) {
+      return 'Team Deathmatch';
+    }
     return 'Match';
   }
 }
@@ -900,10 +923,7 @@ class _PlayerStats {
   final Map<String, dynamic>? mmr;
   final List<Map<String, dynamic>> updates;
 
-  const _PlayerStats({
-    this.mmr,
-    this.updates = const [],
-  });
+  const _PlayerStats({this.mmr, this.updates = const []});
 }
 
 class _ExtendedStats {

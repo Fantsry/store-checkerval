@@ -286,7 +286,7 @@ void main() {
             'QueueSkills': {
               'competitive': {
                 'SeasonalInfoBySeasonID': {
-                  tActiveSeasonId: {
+                  tActiveSeasonId.toUpperCase(): {
                     'CompetitiveTier': 20,
                     'RankedRating': 75,
                   },
@@ -301,11 +301,11 @@ void main() {
             startIndex: any(named: 'startIndex'),
             endIndex: any(named: 'endIndex'),
           )).thenAnswer((_) async => [
-            {'SeasonID': tActiveSeasonId, 'TierAfterUpdate': 20, 'TierBeforeUpdate': 20, 'RankedRatingEarned': 21},
-            {'SeasonID': tActiveSeasonId, 'TierAfterUpdate': 20, 'TierBeforeUpdate': 20, 'RankedRatingEarned': 18},
-            {'SeasonID': tActiveSeasonId, 'TierAfterUpdate': 20, 'TierBeforeUpdate': 20, 'RankedRatingEarned': -14},
-            {'SeasonID': tActiveSeasonId, 'TierAfterUpdate': 20, 'TierBeforeUpdate': 19, 'RankedRatingEarned': 10},
-            {'SeasonID': tActiveSeasonId, 'TierAfterUpdate': 19, 'TierBeforeUpdate': 20, 'RankedRatingEarned': -25},
+            {'SeasonID': tActiveSeasonId.toUpperCase(), 'TierAfterUpdate': 20, 'TierBeforeUpdate': 20, 'RankedRatingEarned': 21},
+            {'SeasonID': tActiveSeasonId.toUpperCase(), 'TierAfterUpdate': 20, 'TierBeforeUpdate': 20, 'RankedRatingEarned': 18},
+            {'SeasonID': tActiveSeasonId.toUpperCase(), 'TierAfterUpdate': 20, 'TierBeforeUpdate': 20, 'RankedRatingEarned': -14},
+            {'SeasonID': tActiveSeasonId.toUpperCase(), 'TierAfterUpdate': 20, 'TierBeforeUpdate': 19, 'RankedRatingEarned': 10},
+            {'SeasonID': tActiveSeasonId.toUpperCase(), 'TierAfterUpdate': 19, 'TierBeforeUpdate': 20, 'RankedRatingEarned': -25},
           ]);
 
       final result = await repository.checkLiveMatch();
