@@ -474,6 +474,138 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Share Match'**
   String get shareMatch;
+
+  /// No description provided for @wishlistAdd.
+  ///
+  /// In en, this message translates to:
+  /// **'ADD TO WISHLIST'**
+  String get wishlistAdd;
+
+  /// No description provided for @wishlistAdded.
+  ///
+  /// In en, this message translates to:
+  /// **'WISHLISTED'**
+  String get wishlistAdded;
+
+  /// No description provided for @notificationWishlistTitleOne.
+  ///
+  /// In en, this message translates to:
+  /// **'Wishlist skin in store'**
+  String get notificationWishlistTitleOne;
+
+  /// No description provided for @notificationWishlistTitleMany.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} wishlist skins in store'**
+  String notificationWishlistTitleMany(int count);
+
+  /// No description provided for @notificationWishlistBodyOne.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} is in your store today.'**
+  String notificationWishlistBodyOne(String name);
+
+  /// No description provided for @notificationWishlistBodyMany.
+  ///
+  /// In en, this message translates to:
+  /// **'{names} are in your store today.'**
+  String notificationWishlistBodyMany(String names);
+
+  /// No description provided for @notificationWishlistTicker.
+  ///
+  /// In en, this message translates to:
+  /// **'Wishlist skin'**
+  String get notificationWishlistTicker;
+
+  /// No description provided for @notificationWishlistSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'Daily store'**
+  String get notificationWishlistSummary;
+
+  /// No description provided for @notificationAlertTitleOne.
+  ///
+  /// In en, this message translates to:
+  /// **'1 skin matches your alert'**
+  String get notificationAlertTitleOne;
+
+  /// No description provided for @notificationAlertTitleMany.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} skins match your alerts'**
+  String notificationAlertTitleMany(int count);
+
+  /// No description provided for @notificationAlertTicker.
+  ///
+  /// In en, this message translates to:
+  /// **'Skin alert'**
+  String get notificationAlertTicker;
+
+  /// No description provided for @notificationAlertSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'Alert rules'**
+  String get notificationAlertSummary;
+
+  /// No description provided for @notificationNightMarketTitleOne.
+  ///
+  /// In en, this message translates to:
+  /// **'Night Market is open'**
+  String get notificationNightMarketTitleOne;
+
+  /// No description provided for @notificationNightMarketTitleMany.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} matching skins in Night Market'**
+  String notificationNightMarketTitleMany(int count);
+
+  /// No description provided for @notificationNightMarketSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'Night Market'**
+  String get notificationNightMarketSummary;
+
+  /// No description provided for @notificationAccessoryTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'New accessory store'**
+  String get notificationAccessoryTitle;
+
+  /// No description provided for @notificationAccessoryMore.
+  ///
+  /// In en, this message translates to:
+  /// **'+{count} more'**
+  String notificationAccessoryMore(int count);
+
+  /// No description provided for @notificationAccessorySummary.
+  ///
+  /// In en, this message translates to:
+  /// **'Accessory store'**
+  String get notificationAccessorySummary;
+
+  /// No description provided for @notificationChatTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'New message from {sender}'**
+  String notificationChatTitle(String sender);
+
+  /// No description provided for @notificationChatSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'Riot chat'**
+  String get notificationChatSummary;
+
+  /// No description provided for @notificationTestTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications active'**
+  String get notificationTestTitle;
+
+  /// No description provided for @notificationTestBody.
+  ///
+  /// In en, this message translates to:
+  /// **'You will be notified when a wishlist skin appears in your store.'**
+  String get notificationTestBody;
 }
 
 class _AppLocalizationsDelegate

@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:valorant_store_tracker/features/daily_store/domain/entities/skin_item.dart';
 import 'package:valorant_store_tracker/features/wishlist/presentation/cubit/wishlist_cubit.dart';
 import 'package:valorant_store_tracker/features/wishlist/presentation/cubit/wishlist_state.dart';
+import 'package:valorant_store_tracker/l10n/l10n.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_radius.dart';
 import '../theme/app_spacing.dart';
@@ -271,7 +272,9 @@ class _SkinPreviewSheetState extends State<SkinPreviewSheet> {
                                 size: 18,
                               ),
                               label: Text(
-                                inWishlist ? 'WISHLISTED' : 'ADD TO WISHLIST',
+                                inWishlist
+                                    ? context.l10n.wishlistAdded
+                                    : context.l10n.wishlistAdd,
                                 style: AppTextStyles.statValue(color: AppColors.onAccent, fontSize: 14),
                               ),
                               style: ElevatedButton.styleFrom(

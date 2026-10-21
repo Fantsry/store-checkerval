@@ -219,4 +219,85 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get shareMatch => 'Bagikan Match';
+
+  @override
+  String get wishlistAdd => 'TAMBAH KE WISHLIST';
+
+  @override
+  String get wishlistAdded => 'SUDAH DI WISHLIST';
+
+  @override
+  String get notificationWishlistTitleOne => 'Skin wishlist ada di store';
+
+  @override
+  String notificationWishlistTitleMany(int count) {
+    return '$count skin wishlist ada di store';
+  }
+
+  @override
+  String notificationWishlistBodyOne(String name) {
+    return '$name ada di store hari ini.';
+  }
+
+  @override
+  String notificationWishlistBodyMany(String names) {
+    return '$names ada di store hari ini.';
+  }
+
+  @override
+  String get notificationWishlistTicker => 'Skin wishlist';
+
+  @override
+  String get notificationWishlistSummary => 'Toko harian';
+
+  @override
+  String get notificationAlertTitleOne => '1 skin cocok dengan alert';
+
+  @override
+  String notificationAlertTitleMany(int count) {
+    return '$count skin cocok dengan alert';
+  }
+
+  @override
+  String get notificationAlertTicker => 'Alert skin';
+
+  @override
+  String get notificationAlertSummary => 'Aturan alert';
+
+  @override
+  String get notificationNightMarketTitleOne => 'Night Market sudah buka';
+
+  @override
+  String notificationNightMarketTitleMany(int count) {
+    return '$count skin cocok di Night Market';
+  }
+
+  @override
+  String get notificationNightMarketSummary => 'Night Market';
+
+  @override
+  String get notificationAccessoryTitle => 'Accessory store baru';
+
+  @override
+  String notificationAccessoryMore(int count) {
+    return '+$count lainnya';
+  }
+
+  @override
+  String get notificationAccessorySummary => 'Accessory store';
+
+  @override
+  String notificationChatTitle(String sender) {
+    return 'Pesan baru dari $sender';
+  }
+
+  @override
+  String get notificationChatSummary => 'Chat Riot';
+
+  @override
+  String get notificationTestTitle => 'Notifikasi aktif';
+
+  @override
+  String get notificationTestBody =>
+      'Kamu akan dapat notifikasi saat skin wishlist muncul di store.';
 }

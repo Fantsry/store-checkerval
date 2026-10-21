@@ -6,6 +6,7 @@ import 'package:valorant_store_tracker/features/daily_store/domain/entities/skin
 import 'package:valorant_store_tracker/features/daily_store/domain/repositories/store_repository.dart';
 import 'package:valorant_store_tracker/features/wishlist/presentation/cubit/wishlist_cubit.dart';
 import 'package:valorant_store_tracker/features/wishlist/presentation/cubit/wishlist_state.dart';
+import 'package:valorant_store_tracker/l10n/l10n.dart';
 import 'package:valorant_store_tracker/ui/theme/app_colors.dart';
 import 'package:valorant_store_tracker/ui/theme/app_radius.dart';
 import 'package:valorant_store_tracker/ui/theme/app_spacing.dart';
@@ -254,7 +255,9 @@ class _SkinDetailPageState extends State<SkinDetailPage> {
                                 size: 16,
                               ),
                               label: Text(
-                                isWishlisted ? 'WISHLISTED' : 'ADD TO WISHLIST',
+                                isWishlisted
+                                    ? context.l10n.wishlistAdded
+                                    : context.l10n.wishlistAdd,
                               ),
                               style: FilledButton.styleFrom(
                                 backgroundColor: isWishlisted

@@ -217,4 +217,85 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get shareMatch => 'Share Match';
+
+  @override
+  String get wishlistAdd => 'ADD TO WISHLIST';
+
+  @override
+  String get wishlistAdded => 'WISHLISTED';
+
+  @override
+  String get notificationWishlistTitleOne => 'Wishlist skin in store';
+
+  @override
+  String notificationWishlistTitleMany(int count) {
+    return '$count wishlist skins in store';
+  }
+
+  @override
+  String notificationWishlistBodyOne(String name) {
+    return '$name is in your store today.';
+  }
+
+  @override
+  String notificationWishlistBodyMany(String names) {
+    return '$names are in your store today.';
+  }
+
+  @override
+  String get notificationWishlistTicker => 'Wishlist skin';
+
+  @override
+  String get notificationWishlistSummary => 'Daily store';
+
+  @override
+  String get notificationAlertTitleOne => '1 skin matches your alert';
+
+  @override
+  String notificationAlertTitleMany(int count) {
+    return '$count skins match your alerts';
+  }
+
+  @override
+  String get notificationAlertTicker => 'Skin alert';
+
+  @override
+  String get notificationAlertSummary => 'Alert rules';
+
+  @override
+  String get notificationNightMarketTitleOne => 'Night Market is open';
+
+  @override
+  String notificationNightMarketTitleMany(int count) {
+    return '$count matching skins in Night Market';
+  }
+
+  @override
+  String get notificationNightMarketSummary => 'Night Market';
+
+  @override
+  String get notificationAccessoryTitle => 'New accessory store';
+
+  @override
+  String notificationAccessoryMore(int count) {
+    return '+$count more';
+  }
+
+  @override
+  String get notificationAccessorySummary => 'Accessory store';
+
+  @override
+  String notificationChatTitle(String sender) {
+    return 'New message from $sender';
+  }
+
+  @override
+  String get notificationChatSummary => 'Riot chat';
+
+  @override
+  String get notificationTestTitle => 'Notifications active';
+
+  @override
+  String get notificationTestBody =>
+      'You will be notified when a wishlist skin appears in your store.';
 }
