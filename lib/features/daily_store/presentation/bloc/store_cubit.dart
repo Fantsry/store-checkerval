@@ -79,6 +79,7 @@ class StoreCubit extends Cubit<StoreState> {
         localStore: localStore,
         deduplicate: true,
         notificationsEnabled: notificationsEnabled,
+        languageCode: await localStore.getLocale(),
         nightMarketAlertsEnabled: await localStore
             .areNightMarketAlertsEnabled(),
         accessoryAlertsEnabled: await localStore.areAccessoryAlertsEnabled(),

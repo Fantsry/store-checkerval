@@ -16,18 +16,22 @@ class FakeNotificationService extends NotificationService {
   final List<Map<String, List<String>>> customAlertsNotified = [];
   final List<List<NightMarketItem>> nightMarketNotified = [];
   final List<List<AccessoryStoreItem>> accessoryNotified = [];
+  String? lastWishlistLanguageCode;
 
   @override
   Future<void> showWishlistMatchNotification({
     required List<String> matchedSkinNames,
     String? skinUuid,
+    String? languageCode,
   }) async {
     wishlistMatchesNotified.add(matchedSkinNames);
+    lastWishlistLanguageCode = languageCode;
   }
 
   @override
   Future<void> showCustomAlertNotification({
     required Map<String, List<String>> ruleMatches,
+    String? languageCode,
   }) async {
     customAlertsNotified.add(ruleMatches);
   }
@@ -35,6 +39,7 @@ class FakeNotificationService extends NotificationService {
   @override
   Future<void> showNightMarketNotification({
     required List<NightMarketItem> matches,
+    String? languageCode,
   }) async {
     nightMarketNotified.add(matches);
   }
@@ -42,6 +47,7 @@ class FakeNotificationService extends NotificationService {
   @override
   Future<void> showAccessoryNotification({
     required List<AccessoryStoreItem> items,
+    String? languageCode,
   }) async {
     accessoryNotified.add(items);
   }
@@ -374,6 +380,34 @@ void main() {
       expect(notificationService.wishlistMatchesNotified, isEmpty);
       expect(notificationService.customAlertsNotified, isEmpty);
       verifyNever(() => mockLocalStore.setLastNotifiedStoreDate(any()));
+    });
+
+    test('forwards the app language to notification copy', () async {
+      when(() => mockLocalStore.getLastNotifiedStoreDate())
+          .thenAnswer((_) async => null);
+      when(() => mockLocalStore.setLastNotifiedStoreDate(any()))
+          .thenAnswer((_) async => {});
+
+      final wishlist = [
+        WishlistItem(
+          uuid: 'vandal-prime-uuid',
+          displayName: 'Prime Vandal',
+          cost: 1775,
+          addedAt: DateTime.now(),
+        ),
+      ];
+
+      await notificationService.evaluateStoreOffers(
+        store: tStore,
+        wishlist: wishlist,
+        alertRules: const [],
+        localStore: mockLocalStore,
+        deduplicate: true,
+        notificationsEnabled: true,
+        languageCode: 'id',
+      );
+
+      expect(notificationService.lastWishlistLanguageCode, 'id');
     });
   });
 }

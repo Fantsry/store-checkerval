@@ -4,6 +4,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:valorant_store_tracker/core/storage/local_store_service.dart';
 import 'package:valorant_store_tracker/features/daily_store/domain/entities/daily_store.dart';
 import 'package:valorant_store_tracker/features/daily_store/domain/entities/skin_item.dart';
+import 'package:valorant_store_tracker/features/notifications/data/notification_copy.dart';
 import 'package:valorant_store_tracker/features/notifications/domain/entities/store_alert_rule.dart';
 import 'package:valorant_store_tracker/features/wishlist/domain/entities/wishlist_item.dart';
 
@@ -110,16 +111,13 @@ class NotificationService {
   Future<void> showWishlistMatchNotification({
     required List<String> matchedSkinNames,
     String? skinUuid,
+    String? languageCode,
   }) async {
     if (matchedSkinNames.isEmpty) return;
 
-    final title = matchedSkinNames.length == 1
-        ? 'Skin incaranmu ada di store!'
-        : 'Ada ${matchedSkinNames.length} skin wishlist kamu di store!';
-
-    final body = matchedSkinNames.length == 1
-        ? '${matchedSkinNames.first} tersedia di daily store kamu hari ini. Cek sebelum reset!'
-        : '${matchedSkinNames.join(", ")} tersedia di daily store kamu hari ini. Cek sebelum reset!';
+    final copy = NotificationCopy.forLanguage(languageCode);
+    final title = copy.wishlistTitle(matchedSkinNames.length);
+    final body = copy.wishlistBody(matchedSkinNames);
 
     final androidDetails = AndroidNotificationDetails(
       storeChannelId,
@@ -134,11 +132,11 @@ class NotificationService {
       ledColor: const Color(0xFFFF4655),
       ledOnMs: 1000,
       ledOffMs: 500,
-      ticker: 'Skin Wishlist Muncul',
+      ticker: copy.wishlistTicker,
       styleInformation: BigTextStyleInformation(
         body,
         contentTitle: title,
-        summaryText: 'Toko Valorant Hari Ini',
+        summaryText: copy.wishlistSummary,
       ),
     );
 
@@ -165,21 +163,17 @@ class NotificationService {
   /// Sends a notification when custom alert rules (e.g. any Melee, Vandal Premium+) match.
   Future<void> showCustomAlertNotification({
     required Map<String, List<String>> ruleMatches,
+    String? languageCode,
   }) async {
     if (ruleMatches.isEmpty) return;
 
+    final copy = NotificationCopy.forLanguage(languageCode);
     final totalItems =
         ruleMatches.values.fold<int>(0, (prev, list) => prev + list.length);
-    final title = totalItems == 1
-        ? 'Masuk radar! Ada skin incaranmu'
-        : 'Masuk radar! Ada $totalItems skin incaran kamu';
-
-    final buffer = StringBuffer();
-    for (final entry in ruleMatches.entries) {
-      buffer.writeln('${entry.key}: ${entry.value.join(", ")}');
-    }
-    buffer.write('Silakan cek store kamu sekarang sebelum rotasi berganti.');
-    final body = buffer.toString().trim();
+    final title = copy.alertTitle(totalItems);
+    final body = ruleMatches.entries
+        .map((entry) => '${entry.key}: ${entry.value.join(", ")}')
+        .join('\n');
 
     final androidDetails = AndroidNotificationDetails(
       storeChannelId,
@@ -194,11 +188,11 @@ class NotificationService {
       ledColor: const Color(0xFFFF4655),
       ledOnMs: 1000,
       ledOffMs: 500,
-      ticker: 'Radar Skin Valorant',
+      ticker: copy.alertTicker,
       styleInformation: BigTextStyleInformation(
         body,
         contentTitle: title,
-        summaryText: 'Alert Toko Valorant',
+        summaryText: copy.alertSummary,
       ),
     );
 
@@ -224,21 +218,19 @@ class NotificationService {
 
   Future<void> showNightMarketNotification({
     required List<NightMarketItem> matches,
+    String? languageCode,
   }) async {
     if (matches.isEmpty) return;
 
-    final title = matches.length == 1
-        ? 'Night Market: skin incaranmu muncul!'
-        : 'Night Market: ${matches.length} skin incaranmu muncul!';
-    final lines = matches
+    final copy = NotificationCopy.forLanguage(languageCode);
+    final title = copy.nightMarketTitle(matches.length);
+    final body = matches
         .map(
           (item) =>
               '${item.skin.displayName} - ${item.discountPercent}% OFF '
               '(${item.discountedCost} VP)',
         )
         .join('\n');
-    final body =
-        '$lines\nBuka aplikasi sebelum Night Market berganti.';
 
     const iosDetails = DarwinNotificationDetails(
       presentAlert: true,
@@ -265,7 +257,7 @@ class NotificationService {
           styleInformation: BigTextStyleInformation(
             body,
             contentTitle: title,
-            summaryText: 'Night Market',
+            summaryText: copy.nightMarketSummary,
           ),
         ),
         iOS: iosDetails,
@@ -276,14 +268,17 @@ class NotificationService {
 
   Future<void> showAccessoryNotification({
     required List<AccessoryStoreItem> items,
+    String? languageCode,
   }) async {
     if (items.isEmpty) return;
 
-    final title = 'Accessory store minggu ini sudah tersedia';
+    final copy = NotificationCopy.forLanguage(languageCode);
+    final title = copy.accessoryTitle;
     final preview = items.take(5).map((item) => item.displayName).join(', ');
-    final remaining = items.length > 5 ? ' +${items.length - 5} lainnya' : '';
-    final body =
-        '$preview$remaining\nCek koleksi Kingdom Credits kamu sekarang.';
+    final remaining = items.length > 5
+        ? ' ${copy.accessoryMore(items.length - 5)}'
+        : '';
+    final body = '$preview$remaining';
 
     const iosDetails = DarwinNotificationDetails(
       presentAlert: true,
@@ -310,7 +305,7 @@ class NotificationService {
           styleInformation: BigTextStyleInformation(
             body,
             contentTitle: title,
-            summaryText: 'Accessory Store',
+            summaryText: copy.accessorySummary,
           ),
         ),
         iOS: iosDetails,
@@ -323,8 +318,10 @@ class NotificationService {
     required String senderName,
     required String body,
     String? senderPuuid,
+    String? languageCode,
   }) async {
-    final title = 'Pesan baru dari $senderName';
+    final copy = NotificationCopy.forLanguage(languageCode);
+    final title = copy.chatTitle(senderName);
     final preview = body.length > 140 ? '${body.substring(0, 140)}...' : body;
     const iosDetails = DarwinNotificationDetails(
       presentAlert: true,
@@ -347,7 +344,7 @@ class NotificationService {
           styleInformation: BigTextStyleInformation(
             preview,
             contentTitle: title,
-            summaryText: 'Riot Chat',
+            summaryText: copy.chatSummary,
           ),
         ),
         iOS: iosDetails,
@@ -359,22 +356,21 @@ class NotificationService {
   }
 
   /// Sends a test notification to verify sounds, banners, and vibration.
-  Future<void> showTestNotification() async {
-    const title = 'Notifikasi toko sudah aktif';
-    const body =
-        'Tes sukses! Saat skin incaranmu muncul di store, kamu akan langsung mendapatkan notifikasi.';
+  Future<void> showTestNotification({String? languageCode}) async {
+    final copy = NotificationCopy.forLanguage(languageCode);
+    final title = copy.testTitle;
+    final body = copy.testBody;
 
-    const androidDetails = AndroidNotificationDetails(
+    final androidDetails = AndroidNotificationDetails(
       storeChannelId,
       storeChannelName,
       channelDescription: storeChannelDescription,
       importance: Importance.high,
       priority: Priority.high,
-      ticker: 'Tes Notifikasi Berhasil',
+      ticker: title,
       styleInformation: BigTextStyleInformation(
         body,
         contentTitle: title,
-        summaryText: 'Status Toko Valorant',
       ),
     );
 
@@ -409,6 +405,7 @@ class NotificationService {
     required List<StoreAlertRule> alertRules,
     required LocalStoreService localStore,
     required bool notificationsEnabled,
+    String? languageCode,
     bool nightMarketAlertsEnabled = true,
     bool accessoryAlertsEnabled = true,
     bool deduplicate = true,
@@ -452,11 +449,15 @@ class NotificationService {
         await showWishlistMatchNotification(
           matchedSkinNames: matchedWishlistNames,
           skinUuid: firstWishlistUuid,
+          languageCode: languageCode,
         );
         hasNotified = true;
       }
       if (ruleMatches.isNotEmpty) {
-        await showCustomAlertNotification(ruleMatches: ruleMatches);
+        await showCustomAlertNotification(
+          ruleMatches: ruleMatches,
+          languageCode: languageCode,
+        );
         hasNotified = true;
       }
 
@@ -486,7 +487,10 @@ class NotificationService {
         }).toList();
 
         if (matches.isNotEmpty) {
-          await showNightMarketNotification(matches: matches);
+          await showNightMarketNotification(
+            matches: matches,
+            languageCode: languageCode,
+          );
           if (deduplicate) {
             await localStore.setLastNotifiedNightMarketRotation(rotationKey);
           }
@@ -507,7 +511,10 @@ class NotificationService {
           await localStore.getLastNotifiedAccessoryRotation() == rotationKey;
 
       if (!alreadyNotified) {
-        await showAccessoryNotification(items: store.accessoryOffers);
+        await showAccessoryNotification(
+          items: store.accessoryOffers,
+          languageCode: languageCode,
+        );
         if (deduplicate) {
           await localStore.setLastNotifiedAccessoryRotation(rotationKey);
         }

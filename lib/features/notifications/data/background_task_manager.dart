@@ -282,6 +282,7 @@ class BackgroundTaskManager {
         localStore: localStore,
         deduplicate: deduplicate,
         notificationsEnabled: notificationsEnabled,
+        languageCode: await localStore.getLocale(),
         nightMarketAlertsEnabled: await localStore
             .areNightMarketAlertsEnabled(),
         accessoryAlertsEnabled: await localStore.areAccessoryAlertsEnabled(),
@@ -382,6 +383,7 @@ class BackgroundTaskManager {
       senderName: senderName,
       body: latest.body,
       senderPuuid: latest.senderPuuid,
+      languageCode: await localStore.getLocale(),
     );
     await localStore.setLastNotifiedChatAt(selfPuuid, newest.timestamp);
     return true;
