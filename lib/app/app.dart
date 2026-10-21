@@ -13,7 +13,9 @@ import 'package:valorant_store_tracker/features/wishlist/presentation/cubit/wish
 import 'package:valorant_store_tracker/features/inventory/presentation/cubit/inventory_cubit.dart';
 import 'package:valorant_store_tracker/features/battlepass/presentation/cubit/battlepass_cubit.dart';
 import 'package:valorant_store_tracker/features/live_match/presentation/cubit/live_match_cubit.dart';
+import 'package:valorant_store_tracker/features/settings/presentation/cubit/app_settings_cubit.dart';
 import 'package:valorant_store_tracker/features/social/presentation/cubit/social_cubit.dart';
+import 'package:valorant_store_tracker/l10n/l10n.dart';
 
 class ValorantStoreApp extends StatelessWidget {
   const ValorantStoreApp({super.key});
@@ -52,20 +54,34 @@ class ValorantStoreApp extends StatelessWidget {
         BlocProvider<SocialCubit>(
           create: (_) => getIt<SocialCubit>()..loadFriends(),
         ),
+        BlocProvider<AppSettingsCubit>(
+          create: (_) => getIt<AppSettingsCubit>()..load(),
+        ),
       ],
       child: _buildRoot(),
     );
   }
 
-  Widget _buildRoot() {
-    final routerApp = MaterialApp.router(
-      title: 'Valorant Store Tracker',
+  Widget _routerApp({Locale? locale}) {
+    return MaterialApp.router(
+      onGenerateTitle: (context) => context.l10n.appTitle,
       debugShowCheckedModeBanner: false,
       theme: AppTheme.darkTheme,
+      locale: locale,
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
       routerConfig: AppRouter.router,
     );
+  }
 
-    if (!getIt.isRegistered<AuthCubit>()) return routerApp;
+  Widget _buildRoot() {
+    final settingsApp = getIt.isRegistered<AppSettingsCubit>()
+        ? BlocBuilder<AppSettingsCubit, AppSettingsState>(
+            builder: (context, state) => _routerApp(locale: state.locale),
+          )
+        : _routerApp();
+
+    if (!getIt.isRegistered<AuthCubit>()) return settingsApp;
 
     return BlocListener<AuthCubit, AuthState>(
       listenWhen: (previous, current) =>
@@ -80,7 +96,7 @@ class ValorantStoreApp extends StatelessWidget {
         context.read<LiveMatchCubit>().reset();
         context.read<SocialCubit>().reset();
       },
-      child: routerApp,
+      child: settingsApp,
     );
   }
 }

@@ -23,7 +23,7 @@ Future<void> main() async {
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
       statusBarIconBrightness: Brightness.light,
-      systemNavigationBarColor: Color(0xFF0F1923),
+      systemNavigationBarColor: Color(0xFF111412),
       systemNavigationBarIconBrightness: Brightness.light,
     ),
   );
@@ -61,6 +61,7 @@ Future<void> main() async {
   if (await secureStorage.areNotificationsEnabled()) {
     await BackgroundTaskManager.scheduleNextResetCheck();
     await BackgroundTaskManager.registerPeriodicStoreCheck();
+    await BackgroundTaskManager.registerPeriodicChatCheck();
   }
 
   runApp(const ValorantStoreApp());

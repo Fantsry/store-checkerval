@@ -9,9 +9,8 @@ import 'package:valorant_store_tracker/features/inventory/presentation/cubit/inv
 import 'package:valorant_store_tracker/features/inventory/presentation/cubit/inventory_state.dart';
 import 'package:valorant_store_tracker/features/profile/presentation/cubit/profile_cubit.dart';
 import 'package:valorant_store_tracker/features/profile/presentation/cubit/profile_state.dart';
+import 'package:valorant_store_tracker/l10n/l10n.dart';
 import 'package:valorant_store_tracker/ui/theme/app_colors.dart';
-import 'package:valorant_store_tracker/ui/theme/app_radius.dart';
-import 'package:valorant_store_tracker/ui/theme/app_spacing.dart';
 import 'package:valorant_store_tracker/ui/theme/app_text_styles.dart';
 
 class ShellPage extends StatelessWidget {
@@ -35,9 +34,16 @@ class ShellPage extends StatelessWidget {
     final location = GoRouterState.of(context).matchedLocation;
     if (location.startsWith('/home')) return 0;
     if (location.startsWith('/store')) return 1;
-    if (location.startsWith('/tracker') || location.startsWith('/career')) return 2;
-    if (location.startsWith('/collection') || location.startsWith('/inventory')) return 3;
-    if (location.startsWith('/profile') || location.startsWith('/settings')) return 4;
+    if (location.startsWith('/tracker') || location.startsWith('/career')) {
+      return 2;
+    }
+    if (location.startsWith('/collection') ||
+        location.startsWith('/inventory')) {
+      return 3;
+    }
+    if (location.startsWith('/profile') || location.startsWith('/settings')) {
+      return 4;
+    }
     return 0;
   }
 
@@ -52,7 +58,8 @@ class ShellPage extends StatelessWidget {
         context.goNamed('store');
         final storeState = context.read<StoreCubit>().state;
         if (storeState is StoreInitial ||
-            (storeState is StoreLoaded && storeState.store.remainingDurationSeconds <= 0)) {
+            (storeState is StoreLoaded &&
+                storeState.store.remainingDurationSeconds <= 0)) {
           context.read<StoreCubit>().fetchStore();
         }
       case 2:
@@ -80,62 +87,50 @@ class _EsportsBottomNav extends StatelessWidget {
   final int currentIndex;
   final ValueChanged<int> onTap;
 
-  const _EsportsBottomNav({
-    required this.currentIndex,
-    required this.onTap,
-  });
+  const _EsportsBottomNav({required this.currentIndex, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return DecoratedBox(
       decoration: const BoxDecoration(
         color: AppColors.surface,
-        border: Border(
-          top: BorderSide(color: AppColors.border, width: 1),
-        ),
+        border: Border(top: BorderSide(color: AppColors.border, width: 1)),
       ),
       child: SafeArea(
         top: false,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.sm,
-            vertical: AppSpacing.xs + 2,
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildNavItem(
-                index: 0,
-                label: 'HOME',
-                icon: Icons.dashboard_outlined,
-                activeIcon: Icons.dashboard_rounded,
-              ),
-              _buildNavItem(
-                index: 1,
-                label: 'STORE',
-                icon: Icons.storefront_outlined,
-                activeIcon: Icons.storefront_rounded,
-              ),
-              _buildNavItem(
-                index: 2,
-                label: 'TRACKER',
-                icon: Icons.analytics_outlined,
-                activeIcon: Icons.analytics_rounded,
-              ),
-              _buildNavItem(
-                index: 3,
-                label: 'COLLECTION',
-                icon: Icons.shield_outlined,
-                activeIcon: Icons.shield_rounded,
-              ),
-              _buildNavItem(
-                index: 4,
-                label: 'PROFILE',
-                icon: Icons.person_outline_rounded,
-                activeIcon: Icons.person_rounded,
-              ),
-            ],
-          ),
+        child: Row(
+          children: [
+            _buildNavItem(
+              index: 0,
+              label: context.l10n.navHome,
+              icon: Icons.dashboard_outlined,
+              activeIcon: Icons.dashboard_rounded,
+            ),
+            _buildNavItem(
+              index: 1,
+              label: context.l10n.navStore,
+              icon: Icons.storefront_outlined,
+              activeIcon: Icons.storefront_rounded,
+            ),
+            _buildNavItem(
+              index: 2,
+              label: context.l10n.navTracker,
+              icon: Icons.analytics_outlined,
+              activeIcon: Icons.analytics_rounded,
+            ),
+            _buildNavItem(
+              index: 3,
+              label: context.l10n.navCollection,
+              icon: Icons.shield_outlined,
+              activeIcon: Icons.shield_rounded,
+            ),
+            _buildNavItem(
+              index: 4,
+              label: context.l10n.navProfile,
+              icon: Icons.person_outline_rounded,
+              activeIcon: Icons.person_rounded,
+            ),
+          ],
         ),
       ),
     );
@@ -149,35 +144,55 @@ class _EsportsBottomNav extends StatelessWidget {
   }) {
     final isSelected = index == currentIndex;
 
-    return GestureDetector(
-      onTap: () => onTap(index),
-      behavior: HitTestBehavior.opaque,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: isSelected ? AppColors.red.withValues(alpha: 0.12) : Colors.transparent,
-          borderRadius: AppRadius.roundedPill,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              isSelected ? activeIcon : icon,
-              size: 22,
-              color: isSelected ? AppColors.red : AppColors.textSecondary,
+    return Expanded(
+      child: Semantics(
+        selected: isSelected,
+        button: true,
+        label: label,
+        child: InkWell(
+          onTap: () => onTap(index),
+          splashColor: AppColors.accent.withValues(alpha: 0.06),
+          highlightColor: Colors.transparent,
+          child: SizedBox(
+            height: 58,
+            child: Column(
+              children: [
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 140),
+                  curve: Curves.easeOut,
+                  height: 2,
+                  color: isSelected
+                      ? AppColors.accent
+                      : Colors.transparent,
+                ),
+                const Spacer(),
+                Icon(
+                  isSelected ? activeIcon : icon,
+                  size: 20,
+                  color: isSelected
+                      ? AppColors.accent
+                      : AppColors.textMuted,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  label.toUpperCase(),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTextStyles.label(
+                    color: isSelected
+                        ? AppColors.accent
+                        : AppColors.textMuted,
+                  ).copyWith(
+                    fontSize: 9,
+                    letterSpacing: 0.8,
+                    fontWeight:
+                        isSelected ? FontWeight.w600 : FontWeight.w500,
+                  ),
+                ),
+                const Spacer(),
+              ],
             ),
-            const SizedBox(height: 3),
-            Text(
-              label,
-              style: AppTextStyles.badge(
-                color: isSelected ? AppColors.red : AppColors.textSecondary,
-              ).copyWith(
-                fontSize: 10,
-                fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );

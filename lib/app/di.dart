@@ -10,6 +10,7 @@ import 'package:valorant_store_tracker/features/auth/data/repositories/auth_repo
 import 'package:valorant_store_tracker/features/auth/domain/repositories/auth_repository.dart';
 import 'package:valorant_store_tracker/features/auth/presentation/cubit/auth_cubit.dart';
 import 'package:valorant_store_tracker/features/daily_store/data/datasources/riot_store_remote_datasource.dart';
+import 'package:valorant_store_tracker/features/daily_store/data/store_widget_service.dart';
 import 'package:valorant_store_tracker/features/daily_store/data/datasources/valorant_api_remote_datasource.dart';
 import 'package:valorant_store_tracker/features/daily_store/data/repositories/store_repository_impl.dart';
 import 'package:valorant_store_tracker/features/daily_store/domain/repositories/store_repository.dart';
@@ -21,6 +22,8 @@ import 'package:valorant_store_tracker/features/profile/data/datasources/profile
 import 'package:valorant_store_tracker/features/profile/data/repositories/profile_repository_impl.dart';
 import 'package:valorant_store_tracker/features/profile/domain/repositories/profile_repository.dart';
 import 'package:valorant_store_tracker/features/profile/presentation/cubit/profile_cubit.dart';
+import 'package:valorant_store_tracker/features/settings/data/backup_service.dart';
+import 'package:valorant_store_tracker/features/settings/presentation/cubit/app_settings_cubit.dart';
 import 'package:valorant_store_tracker/features/career/data/datasources/career_remote_datasource.dart';
 import 'package:valorant_store_tracker/features/career/data/repositories/career_repository_impl.dart';
 import 'package:valorant_store_tracker/features/career/domain/repositories/career_repository.dart';
@@ -57,13 +60,9 @@ Future<void> setupDI() async {
   await localStore.init();
   getIt.registerSingleton<LocalStoreService>(localStore);
 
-  getIt.registerLazySingleton<ConnectivityChecker>(
-    () => ConnectivityChecker(),
-  );
+  getIt.registerLazySingleton<ConnectivityChecker>(() => ConnectivityChecker());
 
-  getIt.registerLazySingleton<NotificationService>(
-    () => NotificationService(),
-  );
+  getIt.registerLazySingleton<NotificationService>(() => NotificationService());
 
   getIt.registerLazySingleton<AuthInterceptor>(
     () => AuthInterceptor(storage: getIt<SecureStorageService>()),
@@ -208,12 +207,15 @@ Future<void> setupDI() async {
     () => CareerCubit(careerRepository: getIt<CareerRepository>()),
   );
 
+  getIt.registerLazySingleton<StoreWidgetService>(() => StoreWidgetService());
+
   getIt.registerFactory<StoreCubit>(
     () => StoreCubit(
       storeRepository: getIt<StoreRepository>(),
       notificationService: getIt<NotificationService>(),
       localStore: getIt<LocalStoreService>(),
       secureStorage: getIt<SecureStorageService>(),
+      widgetService: getIt<StoreWidgetService>(),
     ),
   );
 
@@ -239,5 +241,14 @@ Future<void> setupDI() async {
 
   getIt.registerFactory<SocialCubit>(
     () => SocialCubit(socialRepository: getIt<SocialRepository>()),
+  );
+  getIt.registerFactory<AppSettingsCubit>(
+    () => AppSettingsCubit(getIt<LocalStoreService>()),
+  );
+  getIt.registerLazySingleton<BackupService>(
+    () => BackupService(
+      localStore: getIt<LocalStoreService>(),
+      secureStorage: getIt<SecureStorageService>(),
+    ),
   );
 }
