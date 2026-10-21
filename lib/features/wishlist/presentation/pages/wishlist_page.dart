@@ -2,13 +2,18 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:valorant_store_tracker/app/theme.dart';
 import 'package:valorant_store_tracker/features/daily_store/presentation/bloc/store_cubit.dart';
 import 'package:valorant_store_tracker/features/daily_store/presentation/bloc/store_state.dart';
 import 'package:valorant_store_tracker/features/wishlist/domain/entities/wishlist_item.dart';
 import 'package:valorant_store_tracker/features/wishlist/presentation/cubit/wishlist_cubit.dart';
 import 'package:valorant_store_tracker/features/wishlist/presentation/cubit/wishlist_state.dart';
+import 'package:valorant_store_tracker/ui/theme/app_colors.dart';
+import 'package:valorant_store_tracker/ui/theme/app_radius.dart';
+import 'package:valorant_store_tracker/ui/theme/app_spacing.dart';
+import 'package:valorant_store_tracker/ui/theme/app_text_styles.dart';
+import 'package:valorant_store_tracker/ui/widgets/ascend_card.dart';
+import 'package:valorant_store_tracker/ui/widgets/empty_state_view.dart';
+import 'package:valorant_store_tracker/ui/widgets/error_state_view.dart';
 
 class WishlistPage extends StatefulWidget {
   const WishlistPage({super.key});
@@ -30,259 +35,210 @@ class _WishlistPageState extends State<WishlistPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(gradient: AppTheme.backgroundGradient),
-        child: SafeArea(
-          child: BlocBuilder<WishlistCubit, WishlistState>(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        title: Text(
+          'Wishlist',
+          style: AppTextStyles.h2(color: AppColors.textPrimary),
+        ),
+        actions: [
+          BlocBuilder<WishlistCubit, WishlistState>(
             builder: (context, state) {
-              final storeState = context.watch<StoreCubit>().state;
-              final currentStoreUuids = <String>{};
-
-              if (storeState is StoreLoaded) {
-                for (final skin in storeState.store.featuredOffers) {
-                  currentStoreUuids.add(skin.uuid.toLowerCase());
-                }
-              }
-
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              final hasItems =
+                  state is WishlistLoaded && state.items.isNotEmpty;
+              return Row(
                 children: [
-                  // ─── Header ─────────────────────────────────
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Row(
-                          children: [
-                            Container(
-                              width: 3,
-                              height: 38,
-                              margin: const EdgeInsets.only(right: 12),
-                              decoration: BoxDecoration(
-                                color: AppTheme.accentMagenta,
-                                borderRadius: BorderRadius.circular(1.5),
-                              ),
-                            ),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'WISHLIST',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .headlineLarge
-                                      ?.copyWith(
-                                        letterSpacing: 2.5,
-                                        fontWeight: FontWeight.w900,
-                                      ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  state is WishlistLoaded
-                                      ? '${state.items.length} skins tracked'
-                                      : 'TRACKING YOUR DREAM SKINS',
-                                  style: Theme.of(context).textTheme.bodyMedium
-                                      ?.copyWith(
-                                        letterSpacing: 0.8,
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                        Row(
-                          children: [
-                            if (state is WishlistLoaded &&
-                                state.items.isNotEmpty)
-                              Container(
-                                margin: const EdgeInsets.only(right: 8),
-                                decoration: BoxDecoration(
-                                  color: AppTheme.cardDark,
-                                  borderRadius: BorderRadius.circular(6),
-                                  border: Border.all(
-                                    color: Colors.white.withValues(alpha: 0.08),
-                                  ),
-                                ),
-                                child: IconButton(
-                                  onPressed: () {
-                                    _showClearConfirmation(context);
-                                  },
-                                  icon: const Icon(
-                                    Icons.delete_outline_rounded,
-                                    size: 18,
-                                    color: AppTheme.textMuted,
-                                  ),
-                                  tooltip: 'Clear Wishlist',
-                                ),
-                              ),
-                            Container(
-                              decoration: BoxDecoration(
-                                color: AppTheme.cardDark,
-                                borderRadius: BorderRadius.circular(6),
-                                border: Border.all(
-                                  color: Colors.white.withValues(alpha: 0.08),
-                                ),
-                              ),
-                              child: IconButton(
-                                onPressed: () => context.goNamed('catalog'),
-                                icon: const Icon(
-                                  Icons.add_rounded,
-                                  size: 18,
-                                  color: AppTheme.accentMagenta,
-                                ),
-                                tooltip: 'Browse Catalog',
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
+                  if (hasItems)
+                    IconButton(
+                      onPressed: () => _showClearConfirmation(context),
+                      icon: const Icon(
+                        Icons.delete_outline_rounded,
+                        color: AppColors.textSecondary,
+                      ),
+                      tooltip: 'Clear wishlist',
                     ),
+                  IconButton(
+                    onPressed: () => context.goNamed('catalog'),
+                    icon: const Icon(
+                      Icons.add_rounded,
+                      color: AppColors.accent,
+                    ),
+                    tooltip: 'Browse catalog',
                   ),
-
-                  // ─── Content ────────────────────────────────
-                  if (state is WishlistLoading)
-                    const Expanded(
-                      child: Center(
-                        child: CircularProgressIndicator(
-                          color: AppTheme.accentMagenta,
-                        ),
-                      ),
-                    )
-                  else if (state is WishlistError)
-                    Expanded(
-                      child: Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(32),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(
-                                Icons.error_outline_rounded,
-                                size: 48,
-                                color: AppTheme.valorantRed,
-                              ),
-                              const SizedBox(height: 16),
-                              Text(
-                                state.message,
-                                textAlign: TextAlign.center,
-                                style: const TextStyle(
-                                  color: AppTheme.textSecondary,
-                                ),
-                              ),
-                              const SizedBox(height: 20),
-                              ElevatedButton.icon(
-                                onPressed: () {
-                                  context.read<WishlistCubit>().loadWishlist(
-                                    forceRefresh: true,
-                                  );
-                                },
-                                icon: const Icon(Icons.refresh_rounded),
-                                label: const Text('RETRY'),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    )
-                  else if (state is WishlistLoaded && state.items.isEmpty)
-                    Expanded(
-                      child: RefreshIndicator(
-                        color: AppTheme.valorantRed,
-                        onRefresh: () => context
-                            .read<WishlistCubit>()
-                            .loadWishlist(forceRefresh: true),
-                        child: ListView(
-                          children: [
-                            SizedBox(
-                              height: MediaQuery.of(context).size.height * 0.6,
-                              child: Center(
-                                child: Padding(
-                                  padding: const EdgeInsets.all(32),
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Container(
-                                        padding: const EdgeInsets.all(24),
-                                        decoration: BoxDecoration(
-                                          color: AppTheme.surfaceLight
-                                              .withValues(alpha: 0.5),
-                                          shape: BoxShape.circle,
-                                        ),
-                                        child: Icon(
-                                          Icons.favorite_rounded,
-                                          size: 48,
-                                          color: AppTheme.valorantRed
-                                              .withValues(alpha: 0.3),
-                                        ),
-                                      ),
-                                      const SizedBox(height: 24),
-                                      Text(
-                                        'No Skins in Wishlist',
-                                        style: Theme.of(
-                                          context,
-                                        ).textTheme.titleLarge,
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Text(
-                                        'Add skins from the catalog to get\nnotified when they appear in your store.',
-                                        textAlign: TextAlign.center,
-                                        style: Theme.of(
-                                          context,
-                                        ).textTheme.bodyMedium,
-                                      ),
-                                      const SizedBox(height: 24),
-                                      ElevatedButton.icon(
-                                        onPressed: () =>
-                                            context.goNamed('catalog'),
-                                        icon: const Icon(Icons.search_rounded),
-                                        label: const Text('BROWSE CATALOG'),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    )
-                  else if (state is WishlistLoaded)
-                    Expanded(
-                      child: RefreshIndicator(
-                        color: AppTheme.accentMagenta,
-                        backgroundColor: AppTheme.surfaceDark,
-                        onRefresh: () => context
-                            .read<WishlistCubit>()
-                            .loadWishlist(forceRefresh: true),
-                        child: ListView.separated(
-                          physics: const AlwaysScrollableScrollPhysics(),
-                          padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-                          itemCount: state.items.length,
-                          separatorBuilder: (_, __) =>
-                              const SizedBox(height: 10),
-                          itemBuilder: (context, index) {
-                            final item = state.items[index];
-                            final isInStore = currentStoreUuids.contains(
-                              item.uuid.toLowerCase(),
-                            );
-
-                            return _WishlistItemCard(
-                              item: item,
-                              isInStoreNow: isInStore,
-                            );
-                          },
-                        ),
-                      ),
-                    ),
+                  const SizedBox(width: AppSpacing.sm),
                 ],
               );
             },
           ),
+        ],
+      ),
+      body: SafeArea(
+        child: BlocBuilder<WishlistCubit, WishlistState>(
+          builder: (context, state) {
+            final storeState = context.watch<StoreCubit>().state;
+            final currentStoreUuids = <String>{};
+            final nightMarketUuids = <String>{};
+
+            if (storeState is StoreLoaded) {
+              for (final skin in storeState.store.featuredOffers) {
+                currentStoreUuids.add(skin.uuid.toLowerCase());
+              }
+              for (final item
+                  in storeState.store.nightMarket?.offers ?? const []) {
+                nightMarketUuids.add(item.skin.uuid.toLowerCase());
+              }
+            }
+
+            if (state is WishlistLoading) {
+              return const Center(
+                child: CircularProgressIndicator(color: AppColors.accent),
+              );
+            }
+
+            if (state is WishlistError) {
+              return ErrorStateView(
+                message: state.message,
+                onRetry: () => context.read<WishlistCubit>().loadWishlist(
+                  forceRefresh: true,
+                ),
+              );
+            }
+
+            if (state is WishlistLoaded && state.items.isEmpty) {
+              return RefreshIndicator(
+                color: AppColors.accent,
+                backgroundColor: AppColors.card,
+                onRefresh: () => context.read<WishlistCubit>().loadWishlist(
+                  forceRefresh: true,
+                ),
+                child: ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.all(AppSpacing.lg),
+                  children: [
+                    SizedBox(
+                      height: MediaQuery.of(context).size.height * 0.6,
+                      child: EmptyStateView(
+                        icon: Icons.favorite_border_rounded,
+                        title: 'No Skins in Wishlist',
+                        description:
+                            'Add skins from the catalog to get notified when they appear in your store.',
+                        buttonText: 'BROWSE CATALOG',
+                        onButtonPressed: () => context.goNamed('catalog'),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }
+
+            if (state is! WishlistLoaded) {
+              return const SizedBox.shrink();
+            }
+
+            final inStoreCount = state.items
+                .where((i) => currentStoreUuids.contains(i.uuid.toLowerCase()))
+                .length;
+            final nightMarketCount = state.items
+                .where((i) => nightMarketUuids.contains(i.uuid.toLowerCase()))
+                .length;
+
+            return RefreshIndicator(
+              color: AppColors.accent,
+              backgroundColor: AppColors.card,
+              onRefresh: () => context.read<WishlistCubit>().loadWishlist(
+                forceRefresh: true,
+              ),
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.lg,
+                  AppSpacing.sm,
+                  AppSpacing.lg,
+                  AppSpacing.xxl,
+                ),
+                children: [
+                  _buildSummary(
+                    state.items.length,
+                    inStoreCount,
+                    nightMarketCount,
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                  for (var i = 0; i < state.items.length; i++) ...[
+                    if (i > 0) const SizedBox(height: AppSpacing.sm),
+                    _WishlistItemCard(
+                      item: state.items[i],
+                      isInStoreNow: currentStoreUuids.contains(
+                        state.items[i].uuid.toLowerCase(),
+                      ),
+                      isInNightMarket: nightMarketUuids.contains(
+                        state.items[i].uuid.toLowerCase(),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            );
+          },
         ),
       ),
+    );
+  }
+
+  Widget _buildSummary(int total, int inStore, int nightMarket) {
+    return DataPanel(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      child: Row(
+        children: [
+          Expanded(child: _summaryCell('TRACKED', '$total')),
+          Container(width: 1, height: 30, color: AppColors.border),
+          Expanded(
+            child: _summaryCell(
+              'IN STORE',
+              '$inStore',
+              color: inStore > 0 ? AppColors.accent : null,
+              alignEnd: true,
+            ),
+          ),
+          Container(width: 1, height: 30, color: AppColors.border),
+          Expanded(
+            child: _summaryCell(
+              'NIGHT MARKET',
+              '$nightMarket',
+              color: nightMarket > 0 ? AppColors.drawAmber : null,
+              alignEnd: true,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _summaryCell(
+    String label,
+    String value, {
+    Color? color,
+    bool alignEnd = false,
+  }) {
+    return Column(
+      crossAxisAlignment: alignEnd
+          ? CrossAxisAlignment.end
+          : CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: AppTextStyles.statLabel(color: AppColors.textMuted),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          value,
+          style: AppTextStyles.statValue(
+            color: color ?? AppColors.textPrimary,
+            fontSize: 16,
+          ),
+        ),
+      ],
     );
   }
 
@@ -290,36 +246,44 @@ class _WishlistPageState extends State<WishlistPage> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: AppTheme.cardDark,
+        backgroundColor: AppColors.card,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-          side: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
+          borderRadius: AppRadius.roundedLg,
+          side: const BorderSide(color: AppColors.border),
         ),
-        title: const Text('CLEAR WISHLIST'),
-        content: const Text(
-          'Are you sure you want to remove all skins from your wishlist?',
+        title: Text(
+          'Clear wishlist',
+          style: AppTextStyles.h3(color: AppColors.textPrimary),
+        ),
+        content: Text(
+          'Remove all skins from your wishlist?',
+          style: AppTextStyles.bodyMedium(color: AppColors.textSecondary),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text(
+            child: Text(
               'CANCEL',
-              style: TextStyle(color: AppTheme.textMuted),
+              style: AppTextStyles.statLabel(color: AppColors.textMuted),
             ),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.accentMagenta,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(6),
-              ),
+              backgroundColor: AppColors.lossRed,
+              foregroundColor: AppColors.background,
+              shape: RoundedRectangleBorder(borderRadius: AppRadius.roundedSm),
             ),
             onPressed: () {
               Navigator.of(ctx).pop();
               context.read<WishlistCubit>().clearAll();
             },
-            child: const Text('CLEAR ALL'),
+            child: Text(
+              'CLEAR ALL',
+              style: AppTextStyles.statValue(
+                color: AppColors.background,
+                fontSize: 11,
+              ),
+            ),
           ),
         ],
       ),
@@ -330,175 +294,186 @@ class _WishlistPageState extends State<WishlistPage> {
 class _WishlistItemCard extends StatelessWidget {
   final WishlistItem item;
   final bool isInStoreNow;
+  final bool isInNightMarket;
 
-  const _WishlistItemCard({required this.item, required this.isInStoreNow});
+  const _WishlistItemCard({
+    required this.item,
+    required this.isInStoreNow,
+    this.isInNightMarket = false,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final tierColor = AppColors.getTierColor(item.tierName);
+
     return Dismissible(
       key: Key(item.uuid),
       direction: DismissDirection.endToStart,
       background: Container(
         alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 20),
+        padding: const EdgeInsets.only(right: AppSpacing.lg),
         decoration: BoxDecoration(
-          color: AppTheme.accentMagenta.withValues(alpha: 0.8),
-          borderRadius: BorderRadius.circular(6),
+          color: AppColors.lossRed.withValues(alpha: 0.85),
+          borderRadius: AppRadius.roundedLg,
         ),
-        child: const Icon(Icons.delete_rounded, color: Colors.white),
+        child: const Icon(Icons.delete_rounded, color: AppColors.background),
       ),
       onDismissed: (_) {
         context.read<WishlistCubit>().toggleWishlist(item.toSkinItem());
       },
-      child: GestureDetector(
+      child: DataPanel(
+        padding: const EdgeInsets.all(AppSpacing.sm),
         onTap: () {
           context.pushNamed(
             'skinDetail',
             pathParameters: {'skinId': item.uuid},
           );
         },
-        child: Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: AppTheme.cardDark,
-            borderRadius: BorderRadius.circular(6),
-            border: Border.all(
-              color: isInStoreNow
-                  ? AppTheme.accentMagenta
-                  : Colors.white.withValues(alpha: 0.08),
-              width: isInStoreNow ? 1.5 : 1.0,
-            ),
-            boxShadow: [
-              if (isInStoreNow)
-                BoxShadow(
-                  color: AppTheme.accentMagenta.withValues(alpha: 0.2),
-                  blurRadius: 12,
-                  offset: const Offset(0, 3),
-                ),
-            ],
-          ),
-          child: Row(
-            children: [
-              // Skin Icon
-              Container(
-                width: 72,
-                height: 52,
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: AppTheme.surfaceDark,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: item.displayIcon != null
-                    ? CachedNetworkImage(
-                        imageUrl: item.displayIcon!,
-                        fit: BoxFit.contain,
-                        placeholder: (_, __) => const Center(
-                          child: SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: AppTheme.accentMagenta,
-                            ),
-                          ),
-                        ),
-                        errorWidget: (_, __, ___) => const Icon(
-                          Icons.image_not_supported_outlined,
-                          color: AppTheme.textMuted,
-                        ),
-                      )
-                    : const Icon(
-                        Icons.sports_esports_outlined,
-                        color: AppTheme.textMuted,
-                      ),
+        child: Row(
+          children: [
+            Container(
+              width: 72,
+              height: 56,
+              padding: const EdgeInsets.all(AppSpacing.xs),
+              decoration: BoxDecoration(
+                color: AppColors.background,
+                borderRadius: AppRadius.roundedSm,
+                border: Border.all(color: AppColors.border),
               ),
-              const SizedBox(width: 14),
-
-              // Details
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (isInStoreNow) ...[
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 2,
-                        ),
-                        margin: const EdgeInsets.only(bottom: 4),
-                        decoration: BoxDecoration(
-                          color: AppTheme.accentMagenta,
-                          borderRadius: BorderRadius.circular(3),
-                        ),
-                        child: const Text(
-                          'IN STORE TODAY!',
-                          style: TextStyle(
-                            fontSize: 8,
-                            fontWeight: FontWeight.w900,
-                            color: Colors.white,
-                            letterSpacing: 0.8,
+              child: item.displayIcon != null
+                  ? CachedNetworkImage(
+                      imageUrl: item.displayIcon!,
+                      fit: BoxFit.contain,
+                      placeholder: (_, __) => const Center(
+                        child: SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: AppColors.accent,
                           ),
+                        ),
+                      ),
+                      errorWidget: (_, __, ___) => const Icon(
+                        Icons.image_not_supported_outlined,
+                        size: 20,
+                        color: AppColors.textMuted,
+                      ),
+                    )
+                  : const Icon(
+                      Icons.sports_esports_outlined,
+                      size: 22,
+                      color: AppColors.textMuted,
+                    ),
+            ),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          item.displayName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTextStyles.h4(color: AppColors.textPrimary),
+                        ),
+                      ),
+                      Text(
+                        item.cost > 0 ? '${item.cost} VP' : '-- VP',
+                        style: AppTextStyles.statValue(
+                          color: AppColors.vpGold,
+                          fontSize: 12,
                         ),
                       ),
                     ],
-                    Text(
-                      item.displayName,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.textPrimary,
+                  ),
+                  const SizedBox(height: 2),
+                  Row(
+                    children: [
+                      Text(
+                        (item.weaponName ?? 'SKIN').toUpperCase(),
+                        style: AppTextStyles.statLabel(color: tierColor),
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.monetization_on_outlined,
-                          size: 13,
-                          color: Color(0xFFE5B94E),
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          item.cost > 0 ? '${item.cost} VP' : '-- VP',
-                          style: GoogleFonts.rajdhani(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w800,
-                            color: const Color(0xFFE5B94E),
-                          ),
-                        ),
-                        if (item.tierName != null) ...[
-                          const SizedBox(width: 8),
-                          Text(
-                            '•  ${item.tierName}',
-                            style: const TextStyle(
-                              fontSize: 11,
-                              color: AppTheme.textMuted,
+                      if (item.tierName != null) ...[
+                        const SizedBox(width: AppSpacing.sm),
+                        Container(width: 1, height: 8, color: AppColors.border),
+                        const SizedBox(width: AppSpacing.sm),
+                        Flexible(
+                          child: Text(
+                            item.tierName!,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTextStyles.statLabel(
+                              color: AppColors.textMuted,
                             ),
                           ),
-                        ],
+                        ),
+                      ],
+                    ],
+                  ),
+                  if (isInStoreNow || isInNightMarket) ...[
+                    const SizedBox(height: 5),
+                    Wrap(
+                      spacing: AppSpacing.sm,
+                      runSpacing: 2,
+                      children: [
+                        if (isInStoreNow)
+                          const _StatusTag(
+                            label: 'IN STORE',
+                            color: AppColors.accent,
+                          ),
+                        if (isInNightMarket)
+                          const _StatusTag(
+                            label: 'NIGHT MARKET',
+                            color: AppColors.drawAmber,
+                          ),
                       ],
                     ),
                   ],
-                ),
+                ],
               ),
-
-              // Delete button
-              IconButton(
-                onPressed: () {
-                  context.read<WishlistCubit>().toggleWishlist(
-                    item.toSkinItem(),
-                  );
-                },
-                icon: const Icon(
-                  Icons.favorite_rounded,
-                  color: AppTheme.accentMagenta,
-                  size: 20,
-                ),
+            ),
+            const SizedBox(width: AppSpacing.xs),
+            IconButton(
+              onPressed: () => context.read<WishlistCubit>().toggleWishlist(
+                item.toSkinItem(),
               ),
-            ],
-          ),
+              icon: const Icon(
+                Icons.favorite_rounded,
+                color: AppColors.accent,
+                size: 18,
+              ),
+              visualDensity: VisualDensity.compact,
+            ),
+          ],
         ),
       ),
+    );
+  }
+}
+
+class _StatusTag extends StatelessWidget {
+  final String label;
+  final Color color;
+
+  const _StatusTag({required this.label, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 4,
+          height: 4,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 4),
+        Text(label, style: AppTextStyles.statLabel(color: color)),
+      ],
     );
   }
 }

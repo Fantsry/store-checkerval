@@ -146,8 +146,7 @@ void main() {
       await tester.pumpWidget(buildTestWidget(const WishlistPage()));
       await tester.pumpAndSettle();
 
-      expect(find.text('WISHLIST'), findsOneWidget);
-      expect(find.text('2 skins tracked'), findsOneWidget);
+      expect(find.text('Wishlist'), findsOneWidget);
       expect(find.text('Prime Vandal'), findsOneWidget);
       expect(find.text('1775 VP'), findsOneWidget);
       expect(find.text('Kuronami No Yaiba'), findsOneWidget);
@@ -208,10 +207,10 @@ void main() {
       await tester.pumpWidget(buildTestWidget(const CatalogPage()));
       await tester.pumpAndSettle();
 
-      expect(find.text('SKIN CATALOG'), findsOneWidget);
+      expect(find.text('Catalog'), findsOneWidget);
       expect(find.text('Prime Vandal'), findsOneWidget);
       expect(find.text('1775 VP'), findsOneWidget);
-      expect(find.text('Vandal'), findsWidgets);
+      expect(find.text('VANDAL'), findsWidgets);
     });
 
     testWidgets('renders No skins found with RESET FILTERS button when catalog is empty', (tester) async {

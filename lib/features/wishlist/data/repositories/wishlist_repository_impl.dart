@@ -13,8 +13,8 @@ class WishlistRepositoryImpl implements WishlistRepository {
   WishlistRepositoryImpl({
     required LocalStoreService localStore,
     required StoreRepository storeRepository,
-  })  : _localStore = localStore,
-        _storeRepository = storeRepository;
+  }) : _localStore = localStore,
+       _storeRepository = storeRepository;
 
   @override
   Future<Result<List<WishlistItem>>> getWishlist() async {
@@ -22,7 +22,9 @@ class WishlistRepositoryImpl implements WishlistRepository {
       final items = await _localStore.getWishlist();
       return Result.success(items);
     } catch (e) {
-      return Result.failure(CacheFailure(message: 'Failed to load wishlist: $e'));
+      return Result.failure(
+        CacheFailure(message: 'Failed to load wishlist: $e'),
+      );
     }
   }
 
@@ -32,7 +34,9 @@ class WishlistRepositoryImpl implements WishlistRepository {
       await _localStore.addToWishlist(item);
       return const Result.success(null);
     } catch (e) {
-      return Result.failure(CacheFailure(message: 'Failed to add to wishlist: $e'));
+      return Result.failure(
+        CacheFailure(message: 'Failed to add to wishlist: $e'),
+      );
     }
   }
 
@@ -85,7 +89,9 @@ class WishlistRepositoryImpl implements WishlistRepository {
       // Query filter
       if (query != null && query.trim().isNotEmpty) {
         final q = query.trim().toLowerCase();
-        list = list.where((s) => s.displayName.toLowerCase().contains(q)).toList();
+        list = list
+            .where((s) => s.displayName.toLowerCase().contains(q))
+            .toList();
       }
 
       // Weapon filter

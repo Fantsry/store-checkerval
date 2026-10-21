@@ -52,41 +52,41 @@ class WishlistItem extends Equatable {
   }
 
   Map<String, dynamic> toJson() => {
-        'uuid': uuid,
-        'displayName': displayName,
-        'displayIcon': displayIcon,
-        'weaponName': weaponName,
-        'cost': cost,
-        'tierName': tierName,
-        'tierColor': tierColor,
-        'tierIcon': tierIcon,
-        'addedAt': addedAt.toIso8601String(),
-      };
+    'uuid': uuid,
+    'displayName': displayName,
+    'displayIcon': displayIcon,
+    'weaponName': weaponName,
+    'cost': cost,
+    'tierName': tierName,
+    'tierColor': tierColor,
+    'tierIcon': tierIcon,
+    'addedAt': addedAt.toIso8601String(),
+  };
 
   factory WishlistItem.fromJson(Map<String, dynamic> json) => WishlistItem(
-        uuid: json['uuid'] as String? ?? '',
-        displayName: json['displayName'] as String? ?? '',
-        displayIcon: json['displayIcon'] as String?,
-        weaponName: json['weaponName'] as String?,
-        cost: json['cost'] as int? ?? 0,
-        tierName: json['tierName'] as String?,
-        tierColor: json['tierColor'] as String?,
-        tierIcon: json['tierIcon'] as String?,
-        addedAt: json['addedAt'] != null
-            ? DateTime.tryParse(json['addedAt'] as String) ?? DateTime.now()
-            : DateTime.now(),
-      );
+    uuid: json['uuid'] as String? ?? '',
+    displayName: json['displayName'] as String? ?? '',
+    displayIcon: json['displayIcon'] as String?,
+    weaponName: json['weaponName'] as String?,
+    cost: json['cost'] as int? ?? 0,
+    tierName: json['tierName'] as String?,
+    tierColor: json['tierColor'] as String?,
+    tierIcon: json['tierIcon'] as String?,
+    addedAt: json['addedAt'] != null
+        ? DateTime.tryParse(json['addedAt'] as String) ?? DateTime.now()
+        : DateTime.now(),
+  );
 
   @override
   List<Object?> get props => [
-        uuid,
-        displayName,
-        displayIcon,
-        weaponName,
-        cost,
-        tierName,
-        tierColor,
-        tierIcon,
-        addedAt,
-      ];
+    uuid,
+    displayName,
+    displayIcon,
+    weaponName,
+    cost,
+    tierName,
+    tierColor,
+    tierIcon,
+    addedAt,
+  ];
 }

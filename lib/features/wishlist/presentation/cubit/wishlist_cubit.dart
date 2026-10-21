@@ -8,8 +8,8 @@ class WishlistCubit extends Cubit<WishlistState> {
   final WishlistRepository _wishlistRepository;
 
   WishlistCubit({required WishlistRepository wishlistRepository})
-      : _wishlistRepository = wishlistRepository,
-        super(const WishlistInitial());
+    : _wishlistRepository = wishlistRepository,
+      super(const WishlistInitial());
 
   Future<void> loadWishlist({bool forceRefresh = false}) async {
     final currentState = state;
@@ -29,7 +29,8 @@ class WishlistCubit extends Cubit<WishlistState> {
         emit(
           WishlistLoaded(
             items: items,
-            catalog: catalogResult.valueOrNull ??
+            catalog:
+                catalogResult.valueOrNull ??
                 (existingCatalog.isNotEmpty ? existingCatalog : []),
           ),
         );
@@ -70,11 +71,13 @@ class WishlistCubit extends Cubit<WishlistState> {
   }) async {
     final currentState = state;
     if (currentState is WishlistLoaded) {
-      emit(currentState.copyWith(
-        isSearching: true,
-        searchQuery: query ?? currentState.searchQuery,
-        selectedWeapon: weapon ?? currentState.selectedWeapon,
-      ));
+      emit(
+        currentState.copyWith(
+          isSearching: true,
+          searchQuery: query ?? currentState.searchQuery,
+          selectedWeapon: weapon ?? currentState.selectedWeapon,
+        ),
+      );
 
       final result = forceRefresh
           ? await _wishlistRepository.searchCatalog(

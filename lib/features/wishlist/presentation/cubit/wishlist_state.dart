@@ -54,12 +54,12 @@ class WishlistLoaded extends WishlistState {
 
   @override
   List<Object?> get props => [
-        items,
-        catalog,
-        searchQuery,
-        selectedWeapon,
-        isSearching,
-      ];
+    items,
+    catalog,
+    searchQuery,
+    selectedWeapon,
+    isSearching,
+  ];
 }
 
 class WishlistError extends WishlistState {
