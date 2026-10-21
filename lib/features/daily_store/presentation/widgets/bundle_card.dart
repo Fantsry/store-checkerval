@@ -1,9 +1,12 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:valorant_store_tracker/app/theme.dart';
 import 'package:valorant_store_tracker/core/utils/timezone_helper.dart';
 import 'package:valorant_store_tracker/features/daily_store/domain/entities/daily_store.dart';
+import 'package:valorant_store_tracker/ui/theme/app_colors.dart';
+import 'package:valorant_store_tracker/ui/theme/app_radius.dart';
+import 'package:valorant_store_tracker/ui/theme/app_spacing.dart';
+import 'package:valorant_store_tracker/ui/theme/app_text_styles.dart';
+import 'package:valorant_store_tracker/ui/widgets/ascend_card.dart';
 
 class BundleCard extends StatelessWidget {
   final FeaturedBundle bundle;
@@ -14,31 +17,16 @@ class BundleCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final banner = bundle.bannerImageUrl;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: AppTheme.cardDark,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: AppTheme.accentMagenta.withValues(alpha: 0.35),
-          width: 1.0,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: AppTheme.accentMagenta.withValues(alpha: 0.08),
-            blurRadius: 14,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
+    return DataPanel(
+      padding: EdgeInsets.zero,
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: AppRadius.roundedLg,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Wide Promo Banner or Fallback Header
             if (banner != null && banner.isNotEmpty)
               AspectRatio(
-                aspectRatio: 16 / 9,
+                aspectRatio: 16 / 8,
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
@@ -46,24 +34,27 @@ class BundleCard extends StatelessWidget {
                       imageUrl: banner,
                       fit: BoxFit.cover,
                       placeholder: (_, __) => Container(
-                        color: AppTheme.surfaceLight,
+                        color: AppColors.card,
                         child: const Center(
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: AppTheme.valorantRed,
+                          child: SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: AppColors.accent,
+                            ),
                           ),
                         ),
                       ),
                       errorWidget: (_, __, ___) => Container(
-                        color: AppTheme.surfaceLight,
+                        color: AppColors.card,
                         child: const Icon(
-                          Icons.collections_rounded,
-                          color: AppTheme.textSecondary,
-                          size: 40,
+                          Icons.collections_outlined,
+                          color: AppColors.textMuted,
+                          size: 36,
                         ),
                       ),
                     ),
-                    // Gradient overlay at bottom
                     Positioned.fill(
                       child: DecoratedBox(
                         decoration: BoxDecoration(
@@ -72,104 +63,65 @@ class BundleCard extends StatelessWidget {
                             end: Alignment.bottomCenter,
                             colors: [
                               Colors.transparent,
-                              AppTheme.surfaceDark.withValues(alpha: 0.85),
+                              AppColors.surface.withValues(alpha: 0.9),
                             ],
-                            stops: const [0.6, 1.0],
+                            stops: const [0.45, 1.0],
                           ),
                         ),
                       ),
                     ),
-                    // Featured Pill tag
                     Positioned(
-                      top: 12,
-                      left: 12,
+                      top: AppSpacing.md,
+                      left: AppSpacing.md,
                       child: Container(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
+                          horizontal: AppSpacing.sm,
+                          vertical: 3,
                         ),
                         decoration: BoxDecoration(
-                          color: AppTheme.accentMagenta,
-                          borderRadius: BorderRadius.circular(4),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.4),
-                              blurRadius: 4,
-                            ),
-                          ],
+                          color: AppColors.background.withValues(alpha: 0.7),
+                          borderRadius: AppRadius.roundedSm,
+                          border: Border.all(color: AppColors.accent),
                         ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.star_rounded,
-                              size: 13,
-                              color: Colors.white,
-                            ),
-                            SizedBox(width: 4),
-                            Text(
-                              'COLLECTION',
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: 1.2,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ],
+                        child: Text(
+                          'FEATURED COLLECTION',
+                          style: AppTextStyles.statLabel(
+                            color: AppColors.accent,
+                          ),
                         ),
                       ),
                     ),
-                    // Bundle Remaining Timer (if available)
                     if (bundle.remainingDurationSeconds > 0)
                       Positioned(
-                        top: 12,
-                        right: 12,
+                        top: AppSpacing.md,
+                        right: AppSpacing.md,
                         child: Container(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
+                            horizontal: AppSpacing.sm,
+                            vertical: 3,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.8),
-                            borderRadius: BorderRadius.circular(4),
-                            border: Border.all(
-                              color: Colors.white.withValues(alpha: 0.15),
-                            ),
+                            color: AppColors.background.withValues(alpha: 0.7),
+                            borderRadius: AppRadius.roundedSm,
+                            border: Border.all(color: AppColors.border),
                           ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(
-                                Icons.access_time_rounded,
-                                size: 12,
-                                color: AppTheme.accentMagenta,
+                          child: Text(
+                            TimezoneHelper.formatDuration(
+                              Duration(
+                                seconds: bundle.remainingDurationSeconds,
                               ),
-                              const SizedBox(width: 4),
-                              Text(
-                                TimezoneHelper.formatDuration(
-                                  Duration(
-                                    seconds: bundle.remainingDurationSeconds,
-                                  ),
-                                ),
-                                style: GoogleFonts.rajdhani(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: 1.0,
-                                  color: AppTheme.textPrimary,
-                                ),
-                              ),
-                            ],
+                            ),
+                            style: AppTextStyles.statLabel(
+                              color: AppColors.textPrimary,
+                            ),
                           ),
                         ),
                       ),
                   ],
                 ),
               ),
-
-            // Bundle Details
             Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(AppSpacing.lg),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -181,92 +133,54 @@ class BundleCard extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              bundle.displayName.toUpperCase(),
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: 1.1,
-                                color: AppTheme.textPrimary,
+                              bundle.displayName,
+                              style: AppTextStyles.h2(
+                                color: AppColors.textPrimary,
                               ),
                             ),
-                            const SizedBox(height: 4),
+                            const SizedBox(height: 2),
                             Text(
                               bundle.items.isNotEmpty
                                   ? '${bundle.items.length} items in collection'
-                                  : 'Featured Store Collection',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: AppTheme.textSecondary,
+                                  : 'Featured store collection',
+                              style: AppTextStyles.caption(
+                                color: AppColors.textSecondary,
                               ),
                             ),
                           ],
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 5,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppTheme.accentMagenta.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(4),
-                          border: Border.all(
-                            color: AppTheme.accentMagenta.withValues(
-                              alpha: 0.4,
-                            ),
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(
-                              Icons.monetization_on_outlined,
-                              size: 15,
-                              color: AppTheme.accentMagenta,
-                            ),
-                            const SizedBox(width: 5),
-                            Text(
-                              bundle.price > 0
-                                  ? bundle.price > 0
-                                        ? '${bundle.price} VP'
-                                        : '-- VP'
-                                  : '-- VP',
-                              style: GoogleFonts.rajdhani(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w800,
-                                color: AppTheme.accentMagenta,
-                              ),
-                            ),
-                          ],
+                      const SizedBox(width: AppSpacing.md),
+                      Text(
+                        bundle.price > 0 ? '${bundle.price} VP' : '-- VP',
+                        style: AppTextStyles.statValue(
+                          color: AppColors.accent,
+                          fontSize: 16,
                         ),
                       ),
                     ],
                   ),
-
-                  // Items Preview Carousel / Chips
                   if (bundle.items.isNotEmpty) ...[
-                    const SizedBox(height: 14),
+                    const SizedBox(height: AppSpacing.lg),
                     SizedBox(
-                      height: 52,
+                      height: 54,
                       child: ListView.separated(
                         scrollDirection: Axis.horizontal,
                         itemCount: bundle.items.length,
-                        separatorBuilder: (_, __) => const SizedBox(width: 8),
+                        separatorBuilder: (_, __) =>
+                            const SizedBox(width: AppSpacing.sm),
                         itemBuilder: (context, index) {
                           final item = bundle.items[index];
                           return InkWell(
                             onTap: () => _showBundleItemsModal(context),
-                            borderRadius: BorderRadius.circular(6),
+                            borderRadius: AppRadius.roundedSm,
                             child: Container(
-                              width: 80,
-                              padding: const EdgeInsets.all(4),
+                              width: 78,
+                              padding: const EdgeInsets.all(AppSpacing.xs),
                               decoration: BoxDecoration(
-                                color: AppTheme.surfaceDark,
-                                borderRadius: BorderRadius.circular(6),
-                                border: Border.all(
-                                  color: Colors.white.withValues(alpha: 0.08),
-                                ),
+                                color: AppColors.background,
+                                borderRadius: AppRadius.roundedSm,
+                                border: Border.all(color: AppColors.border),
                               ),
                               child: item.displayIcon != null
                                   ? CachedNetworkImage(
@@ -275,7 +189,7 @@ class BundleCard extends StatelessWidget {
                                       errorWidget: (_, __, ___) => const Icon(
                                         Icons.image_not_supported_outlined,
                                         size: 16,
-                                        color: AppTheme.textSecondary,
+                                        color: AppColors.textMuted,
                                       ),
                                     )
                                   : Center(
@@ -283,9 +197,8 @@ class BundleCard extends StatelessWidget {
                                         item.displayName,
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(
-                                          fontSize: 10,
-                                          color: AppTheme.textSecondary,
+                                        style: AppTextStyles.caption(
+                                          color: AppColors.textMuted,
                                         ),
                                       ),
                                     ),
@@ -294,27 +207,30 @@ class BundleCard extends StatelessWidget {
                         },
                       ),
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: AppSpacing.sm),
                     Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton.icon(
-                        onPressed: () => _showBundleItemsModal(context),
-                        style: TextButton.styleFrom(
-                          padding: EdgeInsets.zero,
-                          minimumSize: const Size(50, 30),
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        ),
-                        icon: const Icon(
-                          Icons.visibility_outlined,
-                          size: 14,
-                          color: AppTheme.accentMagenta,
-                        ),
-                        label: const Text(
-                          'View Collection Details',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: AppTheme.accentMagenta,
+                      alignment: Alignment.centerLeft,
+                      child: GestureDetector(
+                        onTap: () => _showBundleItemsModal(context),
+                        behavior: HitTestBehavior.opaque,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'VIEW COLLECTION',
+                                style: AppTextStyles.label(
+                                  color: AppColors.accent,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              const Icon(
+                                Icons.arrow_forward_rounded,
+                                size: 14,
+                                color: AppColors.accent,
+                              ),
+                            ],
                           ),
                         ),
                       ),
@@ -332,10 +248,10 @@ class BundleCard extends StatelessWidget {
   void _showBundleItemsModal(BuildContext context) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: AppTheme.cardDark,
+      backgroundColor: AppColors.card,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(10)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
       ),
       builder: (sheetContext) {
         return DraggableScrollableSheet(
@@ -345,93 +261,80 @@ class BundleCard extends StatelessWidget {
           expand: false,
           builder: (_, scrollController) {
             return Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.lg,
+                AppSpacing.md,
+                AppSpacing.lg,
+                AppSpacing.xl,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Center(
                     child: Container(
-                      width: 40,
-                      height: 4,
+                      width: 34,
+                      height: 3,
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.2),
+                        color: AppColors.border,
                         borderRadius: BorderRadius.circular(2),
                       ),
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: AppSpacing.lg),
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Expanded(
-                        child: Text(
-                          bundle.displayName.toUpperCase(),
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 1,
-                            color: AppTheme.textPrimary,
-                          ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              bundle.displayName,
+                              style: AppTextStyles.h2(
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              '${bundle.items.length} items included',
+                              style: AppTextStyles.caption(
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppTheme.accentMagenta.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(4),
-                          border: Border.all(
-                            color: AppTheme.accentMagenta.withValues(
-                              alpha: 0.4,
-                            ),
-                          ),
-                        ),
-                        child: Text(
-                          bundle.price > 0 ? '${bundle.price} VP' : '-- VP',
-                          style: GoogleFonts.rajdhani(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w800,
-                            color: AppTheme.accentMagenta,
-                          ),
+                      Text(
+                        bundle.price > 0 ? '${bundle.price} VP' : '-- VP',
+                        style: AppTextStyles.statValue(
+                          color: AppColors.accent,
+                          fontSize: 15,
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${bundle.items.length} Items Included',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppTheme.textSecondary,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: AppSpacing.lg),
                   Expanded(
                     child: ListView.separated(
                       controller: scrollController,
                       itemCount: bundle.items.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 10),
+                      separatorBuilder: (_, __) =>
+                          const Divider(height: 1, color: AppColors.border),
                       itemBuilder: (context, index) {
                         final item = bundle.items[index];
-                        return Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: AppTheme.surfaceDark,
-                            borderRadius: BorderRadius.circular(6),
-                            border: Border.all(
-                              color: Colors.white.withValues(alpha: 0.06),
-                            ),
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(
+                            vertical: AppSpacing.sm,
                           ),
                           child: Row(
                             children: [
                               Container(
-                                width: 70,
-                                height: 45,
+                                width: 64,
+                                height: 40,
                                 decoration: BoxDecoration(
-                                  color: Colors.black.withValues(alpha: 0.25),
-                                  borderRadius: BorderRadius.circular(8),
+                                  color: AppColors.background,
+                                  borderRadius: AppRadius.roundedSm,
+                                  border: Border.all(color: AppColors.border),
                                 ),
                                 child: item.displayIcon != null
                                     ? CachedNetworkImage(
@@ -440,29 +343,29 @@ class BundleCard extends StatelessWidget {
                                       )
                                     : const Icon(
                                         Icons.image_outlined,
-                                        color: AppTheme.textSecondary,
+                                        size: 18,
+                                        color: AppColors.textMuted,
                                       ),
                               ),
-                              const SizedBox(width: 14),
+                              const SizedBox(width: AppSpacing.md),
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
                                       item.displayName,
-                                      style: const TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.bold,
-                                        color: AppTheme.textPrimary,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: AppTextStyles.bodyMedium(
+                                        color: AppColors.textPrimary,
                                       ),
                                     ),
                                     if (item.tierName != null) ...[
                                       const SizedBox(height: 2),
                                       Text(
                                         item.tierName!,
-                                        style: const TextStyle(
-                                          fontSize: 11,
-                                          color: AppTheme.textSecondary,
+                                        style: AppTextStyles.statLabel(
+                                          color: AppColors.textMuted,
                                         ),
                                       ),
                                     ],
@@ -472,10 +375,9 @@ class BundleCard extends StatelessWidget {
                               if (item.cost > 0)
                                 Text(
                                   '${item.cost} VP',
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppTheme.textPrimary,
+                                  style: AppTextStyles.statValue(
+                                    color: AppColors.textSecondary,
+                                    fontSize: 11,
                                   ),
                                 ),
                             ],

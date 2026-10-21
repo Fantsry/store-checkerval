@@ -130,13 +130,6 @@ class _SkinPreviewSheetState extends State<SkinPreviewSheet> {
                       color: AppColors.card,
                       borderRadius: AppRadius.roundedXl,
                       border: Border.all(color: AppColors.border),
-                      boxShadow: [
-                        BoxShadow(
-                          color: tierColor.withValues(alpha: 0.15),
-                          blurRadius: 30,
-                          spreadRadius: 2,
-                        ),
-                      ],
                     ),
                     child: Center(
                       child: currentImage != null && currentImage.isNotEmpty
@@ -190,7 +183,7 @@ class _SkinPreviewSheetState extends State<SkinPreviewSheet> {
                                 color: isSelected ? AppColors.cardElevated : AppColors.card,
                                 borderRadius: AppRadius.roundedMd,
                                 border: Border.all(
-                                  color: isSelected ? AppColors.red : AppColors.border,
+                                  color: isSelected ? AppColors.accent : AppColors.border,
                                   width: isSelected ? 2 : 1,
                                 ),
                               ),
@@ -203,7 +196,7 @@ class _SkinPreviewSheetState extends State<SkinPreviewSheet> {
                                       child: Text(
                                         '${index + 1}',
                                         style: AppTextStyles.statValue(
-                                          color: isSelected ? AppColors.red : AppColors.textSecondary,
+                                          color: isSelected ? AppColors.accent : AppColors.textSecondary,
                                         ),
                                       ),
                                     ),
@@ -237,7 +230,7 @@ class _SkinPreviewSheetState extends State<SkinPreviewSheet> {
                           ),
                           child: Row(
                             children: [
-                              const Icon(Icons.flash_on_rounded, size: 16, color: AppColors.cyan),
+                              const Icon(Icons.flash_on_rounded, size: 16, color: AppColors.accentSoft),
                               const SizedBox(width: AppSpacing.sm),
                               Expanded(
                                 child: Text(
@@ -248,7 +241,7 @@ class _SkinPreviewSheetState extends State<SkinPreviewSheet> {
                               if (lvl.levelItem != null)
                                 Text(
                                   lvl.levelItem!,
-                                  style: AppTextStyles.caption(color: AppColors.cyan),
+                                  style: AppTextStyles.caption(color: AppColors.accentSoft),
                                 ),
                             ],
                           ),
@@ -274,15 +267,15 @@ class _SkinPreviewSheetState extends State<SkinPreviewSheet> {
                               },
                               icon: Icon(
                                 inWishlist ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                                color: Colors.white,
+                                color: AppColors.onAccent,
                                 size: 18,
                               ),
                               label: Text(
                                 inWishlist ? 'WISHLISTED' : 'ADD TO WISHLIST',
-                                style: AppTextStyles.statValue(color: Colors.white, fontSize: 14),
+                                style: AppTextStyles.statValue(color: AppColors.onAccent, fontSize: 14),
                               ),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: inWishlist ? AppColors.redDark : AppColors.red,
+                                backgroundColor: inWishlist ? AppColors.accentStrong : AppColors.accent,
                                 shape: RoundedRectangleBorder(borderRadius: AppRadius.roundedMd),
                                 padding: const EdgeInsets.symmetric(vertical: 14),
                               ),

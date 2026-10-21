@@ -2,6 +2,8 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:valorant_store_tracker/app/di.dart';
+import 'package:valorant_store_tracker/features/auth/domain/repositories/auth_repository.dart';
 import 'package:valorant_store_tracker/features/daily_store/domain/entities/daily_store.dart';
 import 'package:valorant_store_tracker/features/daily_store/domain/entities/skin_item.dart';
 import 'package:valorant_store_tracker/features/daily_store/presentation/bloc/store_cubit.dart';
@@ -19,13 +21,10 @@ import 'package:valorant_store_tracker/ui/theme/app_spacing.dart';
 import 'package:valorant_store_tracker/ui/theme/app_text_styles.dart';
 import 'package:valorant_store_tracker/ui/widgets/ascend_card.dart';
 import 'package:valorant_store_tracker/ui/widgets/countdown_timer_widget.dart';
-import 'package:valorant_store_tracker/app/di.dart';
-import 'package:valorant_store_tracker/features/auth/domain/repositories/auth_repository.dart';
 import 'package:valorant_store_tracker/ui/widgets/error_state_view.dart';
 import 'package:valorant_store_tracker/ui/widgets/section_header.dart';
 import 'package:valorant_store_tracker/ui/widgets/shimmer_loading.dart';
 import 'package:valorant_store_tracker/ui/widgets/skin_preview_dialog.dart';
-import 'package:valorant_store_tracker/ui/widgets/stat_badge.dart';
 import 'package:valorant_store_tracker/ui/widgets/vp_chip.dart';
 
 class StorePage extends StatefulWidget {
@@ -36,7 +35,7 @@ class StorePage extends StatefulWidget {
 }
 
 class _StorePageState extends State<StorePage> {
-  final PageController _pageController = PageController(viewportFraction: 0.88);
+  final PageController _pageController = PageController(viewportFraction: 0.9);
   int _currentSkinIndex = 0;
 
   @override
@@ -61,36 +60,44 @@ class _StorePageState extends State<StorePage> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: Text('STORE', style: AppTextStyles.h2(color: AppColors.textPrimary)),
+        title: Text(
+          'Store',
+          style: AppTextStyles.h2(color: AppColors.textPrimary),
+        ),
         actions: [
-          // Wishlist Shortcut with Badge
           BlocBuilder<WishlistCubit, WishlistState>(
             builder: (context, state) {
               final count = state is WishlistLoaded ? state.items.length : 0;
               return Stack(
-                alignment: Alignment.center,
+                clipBehavior: Clip.none,
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.favorite_rounded, color: AppColors.red),
+                    icon: const Icon(
+                      Icons.favorite_border_rounded,
+                      color: AppColors.textSecondary,
+                    ),
                     onPressed: () => context.push('/wishlist'),
                     tooltip: 'Wishlist',
                   ),
                   if (count > 0)
                     Positioned(
                       top: 8,
-                      right: 8,
+                      right: 7,
                       child: Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: const BoxDecoration(
-                          color: AppColors.cyan,
-                          shape: BoxShape.circle,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 4,
+                          vertical: 1,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.accent,
+                          borderRadius: BorderRadius.circular(3),
                         ),
                         child: Text(
                           '$count',
-                          style: const TextStyle(
-                            color: Colors.black,
-                            fontSize: 9,
-                            fontWeight: FontWeight.bold,
+                          style: AppTextStyles.mono(
+                            fontSize: 8,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.onAccent,
                           ),
                         ),
                       ),
@@ -100,9 +107,12 @@ class _StorePageState extends State<StorePage> {
             },
           ),
           IconButton(
-            icon: const Icon(Icons.refresh_rounded, color: AppColors.textSecondary),
+            icon: const Icon(
+              Icons.refresh_rounded,
+              color: AppColors.textSecondary,
+            ),
             onPressed: () => _fetchStoreData(forceRefresh: true),
-            tooltip: 'Refresh Store',
+            tooltip: 'Refresh store',
           ),
           const SizedBox(width: AppSpacing.sm),
         ],
@@ -110,7 +120,7 @@ class _StorePageState extends State<StorePage> {
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: () async => _fetchStoreData(forceRefresh: true),
-          color: AppColors.red,
+          color: AppColors.accent,
           backgroundColor: AppColors.card,
           child: BlocBuilder<StoreCubit, StoreState>(
             builder: (context, state) {
@@ -119,7 +129,8 @@ class _StorePageState extends State<StorePage> {
               }
 
               if (state is StoreError) {
-                final isAuthError = state.message.toLowerCase().contains('session') ||
+                final isAuthError =
+                    state.message.toLowerCase().contains('session') ||
                     state.message.toLowerCase().contains('unauthorized') ||
                     state.message.toLowerCase().contains('sign in') ||
                     state.message.toLowerCase().contains('login') ||
@@ -133,14 +144,12 @@ class _StorePageState extends State<StorePage> {
                   actionLabel: isAuthError ? 'PERBARUI SESI' : null,
                   onAction: isAuthError
                       ? () async {
-                          final reauthResult =
-                              await getIt<AuthRepository>().silentReauth();
+                          final reauthResult = await getIt<AuthRepository>()
+                              .silentReauth();
                           if (reauthResult.isSuccess) {
                             _fetchStoreData(forceRefresh: true);
-                          } else {
-                            if (context.mounted) {
-                              context.push('/login');
-                            }
+                          } else if (context.mounted) {
+                            context.push('/login');
                           }
                         }
                       : null,
@@ -164,11 +173,11 @@ class _StorePageState extends State<StorePage> {
       padding: const EdgeInsets.all(AppSpacing.lg),
       child: Column(
         children: const [
-          ShimmerBox(height: 180, borderRadius: AppRadius.xl),
+          ShimmerBox(height: 56, borderRadius: AppRadius.lg),
           SizedBox(height: AppSpacing.lg),
-          ShimmerBox(height: 320, borderRadius: AppRadius.xl),
+          ShimmerBox(height: 220, borderRadius: AppRadius.lg),
           SizedBox(height: AppSpacing.lg),
-          ShimmerBox(height: 200, borderRadius: AppRadius.xl),
+          ShimmerBox(height: 300, borderRadius: AppRadius.lg),
         ],
       ),
     );
@@ -185,24 +194,32 @@ class _StorePageState extends State<StorePage> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _buildWalletAndTimerBar(store),
-          const SizedBox(height: AppSpacing.lg),
+          const SizedBox(height: AppSpacing.xl),
           if (store.bundle != null) ...[
-            SectionHeader(
-              title: 'FEATURED BUNDLE',
-              subtitle: store.bundle!.displayName,
-            ),
+            const SectionHeader(index: '01', title: 'FEATURED BUNDLE'),
             const SizedBox(height: AppSpacing.sm),
             BundleCard(bundle: store.bundle!),
-            const SizedBox(height: AppSpacing.xl),
+            const SizedBox(height: AppSpacing.xxl),
           ],
-          _buildDailyOffersSection(store.featuredOffers, store.remainingDurationSeconds),
-          if (store.nightMarket != null && store.nightMarket!.offers.isNotEmpty) ...[
-            const SizedBox(height: AppSpacing.xl),
-            NightMarketSection(nightMarket: store.nightMarket!),
+          _buildDailyOffersSection(store.featuredOffers),
+          if (store.nightMarket != null &&
+              store.nightMarket!.offers.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.xxl),
+            NightMarketSection(
+              index: store.bundle != null ? '03' : '02',
+              nightMarket: store.nightMarket!,
+            ),
           ],
           if (store.accessoryOffers.isNotEmpty) ...[
-            const SizedBox(height: AppSpacing.xl),
-            AccessoryStoreSection(items: store.accessoryOffers),
+            const SizedBox(height: AppSpacing.xxl),
+            AccessoryStoreSection(
+              index:
+                  store.nightMarket != null &&
+                      store.nightMarket!.offers.isNotEmpty
+                  ? '04'
+                  : (store.bundle != null ? '03' : '02'),
+              items: store.accessoryOffers,
+            ),
           ],
           const SizedBox(height: AppSpacing.xxxl),
         ],
@@ -215,34 +232,36 @@ class _StorePageState extends State<StorePage> {
       builder: (context, state) {
         final profile = state is ProfileLoaded ? state.profile : null;
 
-        return AscendCard(
+        return DataPanel(
           padding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.md,
             vertical: AppSpacing.sm,
           ),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              CountdownTimerWidget(
-                initialRemainingSeconds: store.currentRemainingSeconds,
-                onTimerExpired: () => _fetchStoreData(forceRefresh: true),
+              Expanded(
+                child: CountdownTimerWidget(
+                  initialRemainingSeconds: store.currentRemainingSeconds,
+                  onTimerExpired: () => _fetchStoreData(forceRefresh: true),
+                  compact: true,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              VpChip(
+                amount: profile?.walletAvailable == true
+                    ? profile!.valorantPoints
+                    : null,
+                fontSize: 11,
                 compact: true,
               ),
-              Row(
-                children: [
-                  VpChip(
-                    amount: profile?.walletAvailable == true ? profile!.valorantPoints : null,
-                    fontSize: 13,
-                    compact: true,
-                  ),
-                  const SizedBox(width: AppSpacing.sm),
-                  VpChip(
-                    amount: profile?.walletAvailable == true ? profile!.radianitePoints : null,
-                    isRadianite: true,
-                    fontSize: 13,
-                    compact: true,
-                  ),
-                ],
+              const SizedBox(width: AppSpacing.xs),
+              VpChip(
+                amount: profile?.walletAvailable == true
+                    ? profile!.radianitePoints
+                    : null,
+                isRadianite: true,
+                fontSize: 11,
+                compact: true,
               ),
             ],
           ),
@@ -251,7 +270,7 @@ class _StorePageState extends State<StorePage> {
     );
   }
 
-  Widget _buildDailyOffersSection(List<SkinItem> skins, int remainingSeconds) {
+  Widget _buildDailyOffersSection(List<SkinItem> skins) {
     if (skins.isEmpty) {
       return const SizedBox.shrink();
     }
@@ -260,12 +279,18 @@ class _StorePageState extends State<StorePage> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         SectionHeader(
+          index: '02',
           title: 'DAILY ROTATION',
-          subtitle: '${skins.length} Skins Available Today',
+          subtitle: '${skins.length} skins available today',
+          trailing: Text(
+            '${(_currentSkinIndex + 1).toString().padLeft(2, '0')} / '
+            '${skins.length.toString().padLeft(2, '0')}',
+            style: AppTextStyles.statLabel(color: AppColors.textMuted),
+          ),
         ),
         const SizedBox(height: AppSpacing.sm),
         SizedBox(
-          height: 380,
+          height: 356,
           child: PageView.builder(
             controller: _pageController,
             itemCount: skins.length,
@@ -282,14 +307,13 @@ class _StorePageState extends State<StorePage> {
                   double value = 1.0;
                   if (_pageController.position.haveDimensions) {
                     value = (_pageController.page! - index);
-                    value = (1 - (value.abs() * 0.12)).clamp(0.0, 1.0);
+                    value = (1 - (value.abs() * 0.06)).clamp(0.0, 1.0);
                   } else {
-                    value = index == 0 ? 1.0 : 0.88;
+                    value = index == 0 ? 1.0 : 0.94;
                   }
                   return Center(
                     child: SizedBox(
-                      height: Curves.easeOut.transform(value) * 380,
-                      width: Curves.easeOut.transform(value) * 340,
+                      height: Curves.easeOut.transform(value) * 356,
                       child: child,
                     ),
                   );
@@ -300,19 +324,18 @@ class _StorePageState extends State<StorePage> {
           ),
         ),
         const SizedBox(height: AppSpacing.md),
-        // Indicators
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: List.generate(skins.length, (index) {
             final isSelected = index == _currentSkinIndex;
             return AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              margin: const EdgeInsets.symmetric(horizontal: 4),
-              width: isSelected ? 24 : 8,
-              height: 4,
+              duration: const Duration(milliseconds: 180),
+              margin: const EdgeInsets.symmetric(horizontal: 3),
+              width: isSelected ? 26 : 6,
+              height: 2,
               decoration: BoxDecoration(
-                color: isSelected ? AppColors.red : AppColors.border,
-                borderRadius: AppRadius.roundedPill,
+                color: isSelected ? AppColors.accent : AppColors.border,
+                borderRadius: BorderRadius.circular(1),
               ),
             );
           }),
@@ -324,122 +347,147 @@ class _StorePageState extends State<StorePage> {
   Widget _buildFeaturedSkinCard(SkinItem skin) {
     final tierColor = AppColors.getTierColor(skin.tierName);
 
-    return AscendCard(
-      onTap: () => SkinPreviewSheet.show(context, skin),
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      borderRadius: AppRadius.xl,
-      hasGlow: true,
-      glowColor: tierColor,
-      borderColor: tierColor.withValues(alpha: 0.4),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Top Row: Tier badge, Weapon category, Wishlist button
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  if (skin.tierName != null) ...[
-                    StatBadge(
-                      text: skin.tierName!,
-                      color: tierColor,
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                  ],
-                  if (skin.weaponName != null)
-                    Text(
-                      skin.weaponName!.toUpperCase(),
-                      style: AppTextStyles.statLabel(color: AppColors.textSecondary),
-                    ),
-                ],
-              ),
-              BlocBuilder<WishlistCubit, WishlistState>(
-                builder: (context, state) {
-                  final inWishlist = state is WishlistLoaded && state.isInWishlist(skin.uuid);
-                  return GestureDetector(
-                    onTap: () {
-                      context.read<WishlistCubit>().toggleWishlist(skin);
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: inWishlist
-                            ? AppColors.red.withValues(alpha: 0.2)
-                            : AppColors.surface,
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: inWishlist ? AppColors.red : AppColors.border,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+      child: DataPanel(
+        onTap: () => SkinPreviewSheet.show(context, skin),
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Row(
+                    children: [
+                      Text(
+                        skin.tierName ?? 'SELECT',
+                        style: AppTextStyles.statLabel(color: tierColor),
+                      ),
+                      if (skin.weaponName != null) ...[
+                        const SizedBox(width: AppSpacing.sm),
+                        Container(
+                          width: 1,
+                          height: 10,
+                          color: AppColors.border,
+                        ),
+                        const SizedBox(width: AppSpacing.sm),
+                        Flexible(
+                          child: Text(
+                            skin.weaponName!,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTextStyles.statLabel(
+                              color: AppColors.textMuted,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                BlocBuilder<WishlistCubit, WishlistState>(
+                  builder: (context, state) {
+                    final inWishlist =
+                        state is WishlistLoaded &&
+                        state.isInWishlist(skin.uuid);
+                    return GestureDetector(
+                      onTap: () =>
+                          context.read<WishlistCubit>().toggleWishlist(skin),
+                      child: Container(
+                        width: 30,
+                        height: 30,
+                        decoration: BoxDecoration(
+                          color: inWishlist
+                              ? AppColors.accent.withValues(alpha: 0.1)
+                              : Colors.transparent,
+                          borderRadius: AppRadius.roundedSm,
+                          border: Border.all(
+                            color: inWishlist
+                                ? AppColors.accent
+                                : AppColors.border,
+                          ),
+                        ),
+                        child: Icon(
+                          inWishlist
+                              ? Icons.favorite_rounded
+                              : Icons.favorite_border_rounded,
+                          size: 15,
+                          color: inWishlist
+                              ? AppColors.accent
+                              : AppColors.textMuted,
                         ),
                       ),
-                      child: Icon(
-                        inWishlist ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                        size: 18,
-                        color: inWishlist ? AppColors.red : AppColors.textSecondary,
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ],
-          ),
-
-          // Central Weapon Display Art with Glow
-          Expanded(
-            child: Center(
-              child: Hero(
-                tag: 'skin_${skin.uuid}',
-                child: skin.displayIcon != null && skin.displayIcon!.isNotEmpty
-                    ? CachedNetworkImage(
-                        imageUrl: skin.displayIcon!,
-                        fit: BoxFit.contain,
-                        placeholder: (context, url) => const Center(
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
-                        errorWidget: (context, url, error) => const Icon(
+                    );
+                  },
+                ),
+              ],
+            ),
+            Expanded(
+              child: Center(
+                child: Hero(
+                  tag: 'skin_${skin.uuid}',
+                  child:
+                      skin.displayIcon != null && skin.displayIcon!.isNotEmpty
+                      ? CachedNetworkImage(
+                          imageUrl: skin.displayIcon!,
+                          fit: BoxFit.contain,
+                          placeholder: (context, url) => const Center(
+                            child: SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: AppColors.accent,
+                              ),
+                            ),
+                          ),
+                          errorWidget: (context, url, error) => const Icon(
+                            Icons.shield_outlined,
+                            size: 58,
+                            color: AppColors.textMuted,
+                          ),
+                        )
+                      : const Icon(
                           Icons.shield_outlined,
-                          size: 64,
+                          size: 58,
                           color: AppColors.textMuted,
                         ),
-                      )
-                    : const Icon(
-                        Icons.shield_outlined,
-                        size: 64,
-                        color: AppColors.textMuted,
-                      ),
-              ),
-            ),
-          ),
-
-          // Bottom Info: Title & VP Price
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      skin.displayName.toUpperCase(),
-                      style: AppTextStyles.h3(color: AppColors.textPrimary).copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'TAP TO PREVIEW VARIANTS',
-                      style: AppTextStyles.caption(color: AppColors.textMuted),
-                    ),
-                  ],
                 ),
               ),
-              VpChip(amount: skin.cost, fontSize: 16),
-            ],
-          ),
-        ],
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Container(height: 1, color: AppColors.border),
+            const SizedBox(height: AppSpacing.md),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        skin.displayName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTextStyles.h2(color: AppColors.textPrimary),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'TAP TO PREVIEW VARIANTS',
+                        style: AppTextStyles.statLabel(
+                          color: AppColors.textMuted,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.md),
+                VpChip(amount: skin.cost, fontSize: 14),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

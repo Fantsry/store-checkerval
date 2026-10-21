@@ -1,15 +1,20 @@
 import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:valorant_store_tracker/app/theme.dart';
 import 'package:valorant_store_tracker/core/utils/timezone_helper.dart';
 import 'package:valorant_store_tracker/features/daily_store/domain/entities/daily_store.dart';
+import 'package:valorant_store_tracker/ui/theme/app_colors.dart';
+import 'package:valorant_store_tracker/ui/theme/app_radius.dart';
+import 'package:valorant_store_tracker/ui/theme/app_spacing.dart';
+import 'package:valorant_store_tracker/ui/theme/app_text_styles.dart';
+import 'package:valorant_store_tracker/ui/widgets/ascend_card.dart';
+import 'package:valorant_store_tracker/ui/widgets/section_header.dart';
 
 class AccessoryStoreSection extends StatefulWidget {
   final List<AccessoryStoreItem> items;
+  final String? index;
 
-  const AccessoryStoreSection({super.key, required this.items});
+  const AccessoryStoreSection({super.key, required this.items, this.index});
 
   @override
   State<AccessoryStoreSection> createState() => _AccessoryStoreSectionState();
@@ -82,182 +87,70 @@ class _AccessoryStoreSectionState extends State<AccessoryStoreSection> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Accessory Store Header
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          decoration: BoxDecoration(
-            color: AppTheme.cardDark,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: const Color(0xFF00E5FF).withValues(alpha: 0.3),
-            ),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(7),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF00E5FF).withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: const Icon(
-                        Icons.storefront_rounded,
-                        color: Color(0xFF00E5FF),
-                        size: 18,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    const Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'ACCESSORY STORE',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: 1.0,
-                              color: AppTheme.textPrimary,
-                            ),
-                          ),
-                          Text(
-                            'Weekly Kingdom Credits rotation',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 10.5,
-                              color: AppTheme.textSecondary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              if (_remainingSeconds > 0)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
+        SectionHeader(
+          index: widget.index,
+          title: 'ACCESSORY STORE',
+          subtitle: 'Weekly Kingdom Credits rotation',
+          trailing: _remainingSeconds > 0
+              ? Text(
+                  TimezoneHelper.formatWeeklyDuration(
+                    Duration(seconds: _remainingSeconds),
                   ),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.6),
-                    borderRadius: BorderRadius.circular(4),
-                    border: Border.all(
-                      color: const Color(0xFF00E5FF).withValues(alpha: 0.3),
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.access_time_rounded,
-                        size: 11,
-                        color: Color(0xFF00E5FF),
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        TimezoneHelper.formatWeeklyDuration(
-                          Duration(seconds: _remainingSeconds),
-                        ),
-                        style: GoogleFonts.rajdhani(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.8,
-                          color: const Color(0xFF00E5FF),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-            ],
-          ),
+                  style: AppTextStyles.statLabel(color: AppColors.accentSoft),
+                )
+              : null,
         ),
-        const SizedBox(height: 12),
-
-        // Grid of 4 accessory items
+        const SizedBox(height: AppSpacing.sm),
         GridView.builder(
           physics: const NeverScrollableScrollPhysics(),
           shrinkWrap: true,
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: 2,
-            mainAxisSpacing: 12,
-            crossAxisSpacing: 12,
-            childAspectRatio: 0.85,
+            mainAxisSpacing: AppSpacing.sm,
+            crossAxisSpacing: AppSpacing.sm,
+            childAspectRatio: 0.86,
           ),
           itemCount: widget.items.length,
           itemBuilder: (context, index) {
             final item = widget.items[index];
 
-            return Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppTheme.cardDark,
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
-              ),
+            return DataPanel(
+              padding: const EdgeInsets.all(AppSpacing.sm),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Top Type pill tag
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Container(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
+                          horizontal: 5,
                           vertical: 2,
                         ),
                         decoration: BoxDecoration(
-                          color: const Color(
-                            0xFF00E5FF,
-                          ).withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(4),
+                          color: AppColors.accentSoft.withValues(alpha: 0.1),
+                          borderRadius: AppRadius.roundedSm,
+                          border: Border.all(
+                            color: AppColors.accentSoft.withValues(alpha: 0.35),
+                          ),
                         ),
                         child: Text(
                           item.itemType.toUpperCase(),
-                          style: const TextStyle(
-                            fontSize: 9,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 0.8,
-                            color: Color(0xFF00E5FF),
+                          style: AppTextStyles.statLabel(
+                            color: AppColors.accentSoft,
                           ),
                         ),
                       ),
-                      // KC badge
-                      Row(
-                        children: [
-                          Container(
-                            width: 7,
-                            height: 7,
-                            decoration: const BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: Color(0xFF00E5FF),
-                            ),
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            item.kcCost > 0 ? '${item.kcCost} KC' : '-- KC',
-                            style: GoogleFonts.rajdhani(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w800,
-                              color: const Color(0xFF00E5FF),
-                            ),
-                          ),
-                        ],
+                      const Spacer(),
+                      Text(
+                        item.kcCost > 0 ? '${item.kcCost} KC' : '-- KC',
+                        style: AppTextStyles.statValue(
+                          color: AppColors.accentSoft,
+                          fontSize: 11,
+                        ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 8),
-
-                  // Accessory Icon / Art
+                  const SizedBox(height: AppSpacing.sm),
                   Expanded(
                     child: Center(
                       child:
@@ -268,57 +161,50 @@ class _AccessoryStoreSectionState extends State<AccessoryStoreSection> {
                               fit: BoxFit.contain,
                               placeholder: (_, __) => const Center(
                                 child: SizedBox(
-                                  width: 18,
-                                  height: 18,
+                                  width: 16,
+                                  height: 16,
                                   child: CircularProgressIndicator(
                                     strokeWidth: 2,
-                                    color: Color(0xFF00E5FF),
+                                    color: AppColors.accentSoft,
                                   ),
                                 ),
                               ),
                               errorWidget: (_, __, ___) => const Icon(
                                 Icons.image_outlined,
-                                size: 28,
-                                color: AppTheme.textSecondary,
+                                size: 26,
+                                color: AppColors.textMuted,
                               ),
                             )
                           : Container(
                               width: double.infinity,
-                              margin: const EdgeInsets.symmetric(horizontal: 4),
+                              margin: const EdgeInsets.symmetric(
+                                horizontal: AppSpacing.sm,
+                              ),
                               padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 12,
+                                horizontal: AppSpacing.sm,
+                                vertical: AppSpacing.md,
                               ),
                               decoration: BoxDecoration(
-                                color: const Color(
-                                  0xFF00E5FF,
-                                ).withValues(alpha: 0.08),
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(
-                                  color: const Color(
-                                    0xFF00E5FF,
-                                  ).withValues(alpha: 0.25),
-                                ),
+                                color: AppColors.background,
+                                borderRadius: AppRadius.roundedSm,
+                                border: Border.all(color: AppColors.border),
                               ),
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   const Icon(
-                                    Icons.badge_rounded,
-                                    size: 24,
-                                    color: Color(0xFF00E5FF),
+                                    Icons.badge_outlined,
+                                    size: 22,
+                                    color: AppColors.accentSoft,
                                   ),
-                                  const SizedBox(height: 6),
+                                  const SizedBox(height: 4),
                                   Text(
-                                    item.displayName.toUpperCase(),
+                                    item.displayName,
                                     textAlign: TextAlign.center,
                                     maxLines: 2,
                                     overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w800,
-                                      letterSpacing: 1.0,
-                                      color: Color(0xFF00E5FF),
+                                    style: AppTextStyles.statLabel(
+                                      color: AppColors.accentSoft,
                                     ),
                                   ),
                                 ],
@@ -326,17 +212,13 @@ class _AccessoryStoreSectionState extends State<AccessoryStoreSection> {
                             ),
                     ),
                   ),
-                  const SizedBox(height: 8),
-
-                  // Accessory Display Name
+                  const SizedBox(height: AppSpacing.xs),
                   Text(
                     item.displayName,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: AppTheme.textPrimary,
+                    style: AppTextStyles.bodySmall(
+                      color: AppColors.textPrimary,
                     ),
                   ),
                 ],

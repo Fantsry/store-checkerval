@@ -1,13 +1,20 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:valorant_store_tracker/app/di.dart';
-import 'package:valorant_store_tracker/app/theme.dart';
 import 'package:valorant_store_tracker/features/daily_store/domain/entities/skin_item.dart';
 import 'package:valorant_store_tracker/features/daily_store/domain/repositories/store_repository.dart';
 import 'package:valorant_store_tracker/features/wishlist/presentation/cubit/wishlist_cubit.dart';
 import 'package:valorant_store_tracker/features/wishlist/presentation/cubit/wishlist_state.dart';
+import 'package:valorant_store_tracker/ui/theme/app_colors.dart';
+import 'package:valorant_store_tracker/ui/theme/app_radius.dart';
+import 'package:valorant_store_tracker/ui/theme/app_spacing.dart';
+import 'package:valorant_store_tracker/ui/theme/app_text_styles.dart';
+import 'package:valorant_store_tracker/ui/widgets/ascend_card.dart';
+import 'package:valorant_store_tracker/ui/widgets/error_state_view.dart';
+import 'package:valorant_store_tracker/ui/widgets/section_header.dart';
+import 'package:valorant_store_tracker/ui/widgets/stat_badge.dart';
+import 'package:valorant_store_tracker/ui/widgets/shimmer_loading.dart';
 
 class SkinDetailPage extends StatefulWidget {
   final String skinId;
@@ -39,69 +46,62 @@ class _SkinDetailPageState extends State<SkinDetailPage> {
     final repo = getIt<StoreRepository>();
     final result = await repo.getSkinDetail(widget.skinId);
 
-    if (mounted) {
-      result.when(
-        success: (skin) {
-          setState(() {
-            _skin = skin;
-            _isLoading = false;
-          });
-        },
-        failure: (failure) {
-          setState(() {
-            _errorMessage = failure.message;
-            _isLoading = false;
-          });
-        },
-      );
-    }
+    if (!mounted) return;
+
+    result.when(
+      success: (skin) {
+        setState(() {
+          _skin = skin;
+          _isLoading = false;
+        });
+      },
+      failure: (failure) {
+        setState(() {
+          _errorMessage = failure.message;
+          _isLoading = false;
+        });
+      },
+    );
   }
 
   Color _parseTierColor(String? hex) {
-    if (hex == null || hex.isEmpty) return const Color(0xFF5A9FE2);
+    if (hex == null || hex.isEmpty) return AppColors.accent;
     try {
       final clean = hex.replaceAll('#', '');
       return Color(int.parse('FF$clean', radix: 16));
     } catch (_) {
-      return const Color(0xFF5A9FE2);
+      return AppColors.accent;
     }
   }
 
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Scaffold(
-        backgroundColor: AppTheme.backgroundDark,
-        body: Center(
-          child: CircularProgressIndicator(color: AppTheme.valorantRed),
+      return Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: AppBar(title: Text('Skin detail')),
+        body: const Padding(
+          padding: EdgeInsets.all(AppSpacing.lg),
+          child: Column(
+            children: [
+              ShimmerBox(height: 240, borderRadius: AppRadius.lg),
+              SizedBox(height: AppSpacing.lg),
+              ShimmerBox(height: 24),
+              SizedBox(height: AppSpacing.sm),
+              ShimmerBox(height: 80, borderRadius: AppRadius.lg),
+            ],
+          ),
         ),
       );
     }
 
     if (_skin == null) {
       return Scaffold(
-        backgroundColor: AppTheme.backgroundDark,
-        appBar: AppBar(
-          title: const Text('Skin Detail'),
-        ),
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.error_outline_rounded,
-                  size: 48, color: AppTheme.valorantRed),
-              const SizedBox(height: 16),
-              Text(
-                _errorMessage ?? 'Skin not found',
-                style: const TextStyle(color: AppTheme.textSecondary),
-              ),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: _loadSkinDetail,
-                child: const Text('RETRY'),
-              ),
-            ],
-          ),
+        backgroundColor: AppColors.background,
+        appBar: AppBar(title: Text('Skin detail')),
+        body: ErrorStateView(
+          message: _errorMessage ?? 'Skin not found.',
+          onRetry: _loadSkinDetail,
         ),
       );
     }
@@ -109,12 +109,11 @@ class _SkinDetailPageState extends State<SkinDetailPage> {
     final skin = _skin!;
     final tierColor = _parseTierColor(skin.tierColor);
 
-    // Current selected image (chroma full render or default displayIcon)
     String? currentImage = skin.displayIcon;
     if (skin.chromas.isNotEmpty &&
         _selectedChromaIndex < skin.chromas.length) {
-      final c = skin.chromas[_selectedChromaIndex];
-      currentImage = c.fullRender ?? c.displayIcon ?? currentImage;
+      final chroma = skin.chromas[_selectedChromaIndex];
+      currentImage = chroma.fullRender ?? chroma.displayIcon ?? currentImage;
     }
 
     return BlocBuilder<WishlistCubit, WishlistState>(
@@ -123,79 +122,36 @@ class _SkinDetailPageState extends State<SkinDetailPage> {
             wishlistState.isInWishlist(skin.uuid);
 
         return Scaffold(
-          backgroundColor: AppTheme.backgroundDark,
+          backgroundColor: AppColors.background,
           body: CustomScrollView(
             slivers: [
-              // ─── App Bar with Skin Image ─────────────────────
               SliverAppBar(
-                expandedHeight: 320,
+                expandedHeight: 300,
                 pinned: true,
-                backgroundColor: AppTheme.surfaceDark,
-                flexibleSpace: FlexibleSpaceBar(
-                  background: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      // Radial background glow matching tier color
-                      Container(
-                        decoration: BoxDecoration(
-                          gradient: RadialGradient(
-                            center: Alignment.center,
-                            radius: 0.8,
-                            colors: [
-                              tierColor.withValues(alpha: 0.25),
-                              AppTheme.backgroundDark,
-                            ],
-                          ),
-                        ),
-                      ),
-
-                      // Image
-                      if (currentImage != null)
-                        Padding(
-                          padding: const EdgeInsets.all(32),
-                          child: CachedNetworkImage(
-                            imageUrl: currentImage,
-                            fit: BoxFit.contain,
-                            placeholder: (_, __) => const Center(
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: AppTheme.valorantRed,
-                              ),
-                            ),
-                            errorWidget: (_, __, ___) => const Icon(
-                              Icons.broken_image_rounded,
-                              size: 48,
-                              color: AppTheme.textMuted,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-                leading: Container(
-                  margin: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: AppTheme.surfaceDark.withValues(alpha: 0.8),
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.08),
-                    ),
-                  ),
+                backgroundColor: AppColors.background,
+                surfaceTintColor: Colors.transparent,
+                leadingWidth: 56,
+                leading: Padding(
+                  padding: const EdgeInsets.only(left: AppSpacing.sm),
                   child: IconButton(
                     onPressed: () => Navigator.of(context).pop(),
-                    icon: const Icon(Icons.arrow_back_rounded, size: 20),
+                    icon: const Icon(
+                      Icons.arrow_back_rounded,
+                      color: AppColors.textPrimary,
+                      size: 20,
+                    ),
+                    style: IconButton.styleFrom(
+                      backgroundColor: AppColors.surface,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: AppRadius.roundedSm,
+                        side: const BorderSide(color: AppColors.border),
+                      ),
+                    ),
                   ),
                 ),
                 actions: [
-                  Container(
-                    margin: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: AppTheme.surfaceDark.withValues(alpha: 0.8),
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.08),
-                      ),
-                    ),
+                  Padding(
+                    padding: const EdgeInsets.only(right: AppSpacing.sm),
                     child: IconButton(
                       onPressed: () {
                         context.read<WishlistCubit>().toggleWishlist(skin);
@@ -204,121 +160,93 @@ class _SkinDetailPageState extends State<SkinDetailPage> {
                         isWishlisted
                             ? Icons.favorite_rounded
                             : Icons.favorite_border_rounded,
-                        size: 20,
+                        size: 19,
                         color: isWishlisted
-                            ? AppTheme.accentMagenta
-                            : AppTheme.textPrimary,
+                            ? AppColors.accent
+                            : AppColors.textSecondary,
+                      ),
+                      style: IconButton.styleFrom(
+                        backgroundColor: AppColors.surface,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: AppRadius.roundedSm,
+                          side: const BorderSide(color: AppColors.border),
+                        ),
                       ),
                     ),
                   ),
                 ],
+                flexibleSpace: FlexibleSpaceBar(
+                  background: _buildHero(
+                    skin,
+                    tierColor,
+                    currentImage,
+                  ),
+                ),
               ),
-
-              // ─── Details Content ─────────────────────────────
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.all(20),
+                  padding: const EdgeInsets.all(AppSpacing.lg),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Weapon & Tier badge
                       Row(
                         children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 3,
-                            ),
-                            decoration: BoxDecoration(
-                              color: tierColor.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(4),
-                              border: Border.all(
-                                color: tierColor.withValues(alpha: 0.35),
-                              ),
-                            ),
-                            child: Text(
-                              skin.weaponName?.toUpperCase() ?? 'WEAPON',
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                                color: tierColor,
-                                letterSpacing: 1,
-                              ),
-                            ),
+                          StatBadge(
+                            text: skin.weaponName ?? 'Weapon',
+                            color: tierColor,
+                            outlined: true,
+                            fontSize: 9,
                           ),
-                          const SizedBox(width: 8),
-                          if (skin.tierName != null)
+                          if (skin.tierName != null) ...[
+                            const SizedBox(width: AppSpacing.sm),
                             Text(
                               skin.tierName!,
-                              style: TextStyle(
-                                fontSize: 12,
+                              style: AppTextStyles.statLabel(
                                 color: tierColor,
-                                fontWeight: FontWeight.w600,
                               ),
                             ),
+                          ],
                         ],
                       ),
-                      const SizedBox(height: 12),
-
-                      // Skin Full Display Name
+                      const SizedBox(height: AppSpacing.sm),
                       Text(
                         skin.displayName,
-                        style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                              fontWeight: FontWeight.w900,
-                            ),
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Price Card
-                      Container(
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: AppTheme.cardDark,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.08),
-                          ),
+                        style: AppTextStyles.h1(
+                          color: AppColors.textPrimary,
                         ),
+                      ),
+                      const SizedBox(height: AppSpacing.lg),
+                      DataPanel(
+                        padding: const EdgeInsets.all(AppSpacing.md),
                         child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Row(
-                              children: [
-                                const Icon(
-                                  Icons.shield_outlined,
-                                  size: 20,
-                                  color: AppTheme.accentMagenta,
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  '${skin.cost} VP',
-                                  style: GoogleFonts.rajdhani(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.w800,
-                                    letterSpacing: 1,
-                                    color: AppTheme.textPrimary,
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'PRICE',
+                                    style: AppTextStyles.statLabel(
+                                      color: AppColors.textMuted,
+                                    ),
                                   ),
-                                ),
-                              ],
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    '${skin.cost} VP',
+                                    style: AppTextStyles.statValue(
+                                      color: AppColors.textPrimary,
+                                      fontSize: 22,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                            ElevatedButton.icon(
+                            FilledButton.icon(
                               onPressed: () {
                                 context
                                     .read<WishlistCubit>()
                                     .toggleWishlist(skin);
                               },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: isWishlisted
-                                    ? AppTheme.surfaceLight
-                                    : AppTheme.accentMagenta,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 14,
-                                  vertical: 10,
-                                ),
-                              ),
                               icon: Icon(
                                 isWishlisted
                                     ? Icons.favorite_rounded
@@ -326,54 +254,35 @@ class _SkinDetailPageState extends State<SkinDetailPage> {
                                 size: 16,
                               ),
                               label: Text(
-                                isWishlisted
-                                    ? 'IN WISHLIST'
-                                    : 'ADD TO WISHLIST',
-                                style: const TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w800,
-                                  letterSpacing: 0.8,
-                                ),
+                                isWishlisted ? 'WISHLISTED' : 'ADD TO WISHLIST',
+                              ),
+                              style: FilledButton.styleFrom(
+                                backgroundColor: isWishlisted
+                                    ? AppColors.cardElevated
+                                    : AppColors.accent,
+                                foregroundColor: isWishlisted
+                                    ? AppColors.accent
+                                    : AppColors.onAccent,
                               ),
                             ),
                           ],
                         ),
                       ),
-                      const SizedBox(height: 24),
-
-                      // ─── Chromas Variants ────────────────────
                       if (skin.chromas.length > 1) ...[
-                        Row(
-                          children: [
-                            Container(
-                              width: 3,
-                              height: 14,
-                              margin: const EdgeInsets.only(right: 8),
-                              decoration: BoxDecoration(
-                                color: AppTheme.accentMagenta,
-                                borderRadius: BorderRadius.circular(2),
-                              ),
-                            ),
-                            Text(
-                              'VARIANTS & CHROMAS',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleMedium
-                                  ?.copyWith(
-                                    letterSpacing: 1.5,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                            ),
-                          ],
+                        const SizedBox(height: AppSpacing.xxl),
+                        SectionHeader(
+                          index: '01',
+                          title: 'VARIANTS',
+                          subtitle: '${skin.chromas.length} chromas',
                         ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: AppSpacing.sm),
                         SizedBox(
-                          height: 70,
+                          height: 72,
                           child: ListView.separated(
                             scrollDirection: Axis.horizontal,
                             itemCount: skin.chromas.length,
                             separatorBuilder: (_, __) =>
-                                const SizedBox(width: 10),
+                                const SizedBox(width: AppSpacing.sm),
                             itemBuilder: (context, index) {
                               final chroma = skin.chromas[index];
                               final isSelected = index == _selectedChromaIndex;
@@ -385,19 +294,15 @@ class _SkinDetailPageState extends State<SkinDetailPage> {
                                   });
                                 },
                                 child: Container(
-                                  width: 80,
-                                  padding: const EdgeInsets.all(6),
+                                  width: 72,
+                                  padding: const EdgeInsets.all(AppSpacing.xs),
                                   decoration: BoxDecoration(
-                                    color: isSelected
-                                        ? AppTheme.accentMagenta
-                                            .withValues(alpha: 0.15)
-                                        : AppTheme.surfaceDark,
-                                    borderRadius: BorderRadius.circular(6),
+                                    color: AppColors.surface,
+                                    borderRadius: AppRadius.roundedSm,
                                     border: Border.all(
                                       color: isSelected
-                                          ? AppTheme.accentMagenta
-                                          : Colors.white.withValues(alpha: 0.08),
-                                      width: isSelected ? 1.5 : 1,
+                                          ? AppColors.accent
+                                          : AppColors.border,
                                     ),
                                   ),
                                   child: chroma.displayIcon != null
@@ -408,9 +313,9 @@ class _SkinDetailPageState extends State<SkinDetailPage> {
                                       : Center(
                                           child: Text(
                                             'V${index + 1}',
-                                            style: GoogleFonts.rajdhani(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 13,
+                                            style: AppTextStyles.statValue(
+                                              color: AppColors.textSecondary,
+                                              fontSize: 12,
                                             ),
                                           ),
                                         ),
@@ -419,109 +324,32 @@ class _SkinDetailPageState extends State<SkinDetailPage> {
                             },
                           ),
                         ),
-                        const SizedBox(height: 24),
                       ],
-
-                      // ─── Upgrade Levels ──────────────────────
                       if (skin.levels.isNotEmpty) ...[
-                        Row(
-                          children: [
-                            Container(
-                              width: 3,
-                              height: 14,
-                              margin: const EdgeInsets.only(right: 8),
-                              decoration: BoxDecoration(
-                                color: AppTheme.accentMagenta,
-                                borderRadius: BorderRadius.circular(2),
-                              ),
-                            ),
-                            Text(
-                              'UPGRADE LEVELS',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleMedium
-                                  ?.copyWith(
-                                    letterSpacing: 1.5,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                            ),
-                          ],
+                        const SizedBox(height: AppSpacing.xxl),
+                        SectionHeader(
+                          index: skin.chromas.length > 1 ? '02' : '01',
+                          title: 'UPGRADE LEVELS',
+                          subtitle: '${skin.levels.length} levels',
                         ),
-                        const SizedBox(height: 12),
-                        ...List.generate(skin.levels.length, (index) {
-                          final level = skin.levels[index];
-                          return Container(
-                            margin: const EdgeInsets.only(bottom: 8),
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: AppTheme.cardDark,
-                              borderRadius: BorderRadius.circular(6),
-                              border: Border.all(
-                                color: Colors.white.withValues(alpha: 0.05),
-                              ),
-                            ),
-                            child: Row(
-                              children: [
-                                Container(
-                                  width: 24,
-                                  height: 24,
-                                  decoration: BoxDecoration(
-                                    color: AppTheme.surfaceDark,
-                                    borderRadius: BorderRadius.circular(4),
-                                    border: Border.all(
-                                      color: AppTheme.accentMagenta
-                                          .withValues(alpha: 0.4),
-                                    ),
+                        const SizedBox(height: AppSpacing.sm),
+                        DataPanel(
+                          padding: EdgeInsets.zero,
+                          child: Column(
+                            children: [
+                              for (var i = 0; i < skin.levels.length; i++) ...[
+                                if (i > 0)
+                                  const Divider(
+                                    height: 1,
+                                    color: AppColors.border,
                                   ),
-                                  child: Center(
-                                    child: Text(
-                                      '${index + 1}',
-                                      style: GoogleFonts.rajdhani(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.bold,
-                                        color: AppTheme.accentMagenta,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Text(
-                                    level.displayName,
-                                    style: const TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
-                                      color: AppTheme.textPrimary,
-                                    ),
-                                  ),
-                                ),
-                                if (level.levelItem != null)
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 6,
-                                      vertical: 2,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: AppTheme.surfaceDark,
-                                      borderRadius: BorderRadius.circular(4),
-                                      border: Border.all(
-                                        color: Colors.white.withValues(alpha: 0.06),
-                                      ),
-                                    ),
-                                    child: Text(
-                                      level.levelItem!
-                                          .replaceAll('EEquippableSkinLevelItem::', ''),
-                                      style: const TextStyle(
-                                        fontSize: 9,
-                                        color: AppTheme.textSecondary,
-                                      ),
-                                    ),
-                                  ),
+                                _buildLevelRow(skin.levels[i], i),
                               ],
-                            ),
-                          );
-                        }),
+                            ],
+                          ),
+                        ),
                       ],
+                      const SizedBox(height: AppSpacing.xxl),
                     ],
                   ),
                 ),
@@ -530,6 +358,106 @@ class _SkinDetailPageState extends State<SkinDetailPage> {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildHero(
+    SkinItem skin,
+    Color tierColor,
+    String? currentImage,
+  ) {
+    return Container(
+      color: AppColors.surface,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Positioned(
+            right: -60,
+            top: 40,
+            child: Container(
+              width: 220,
+              height: 220,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: tierColor.withValues(alpha: 0.14),
+                  width: 28,
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            left: AppSpacing.lg,
+            bottom: AppSpacing.lg,
+            child: Text(
+              'SKIN DETAIL',
+              style: AppTextStyles.statLabel(color: AppColors.textMuted),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.xxl,
+              64,
+              AppSpacing.xxl,
+              36,
+            ),
+            child: currentImage != null
+                ? CachedNetworkImage(
+                    imageUrl: currentImage,
+                    fit: BoxFit.contain,
+                    errorWidget: (_, __, ___) => const Icon(
+                      Icons.broken_image_rounded,
+                      size: 48,
+                      color: AppColors.textMuted,
+                    ),
+                  )
+                : const Icon(
+                    Icons.shield_outlined,
+                    size: 56,
+                    color: AppColors.textMuted,
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLevelRow(SkinLevel level, int index) {
+    final item = level.levelItem
+        ?.replaceAll('EEquippableSkinLevelItem::', '')
+        .replaceAll('::', ' ');
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.sm,
+      ),
+      child: Row(
+        children: [
+          Text(
+            '${index + 1}'.padLeft(2, '0'),
+            style: AppTextStyles.statLabel(color: AppColors.accent),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Text(
+              level.displayName,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppTextStyles.bodySmall(
+                color: AppColors.textPrimary,
+              ),
+            ),
+          ),
+          if (item != null && item.isNotEmpty) ...[
+            const SizedBox(width: AppSpacing.sm),
+            Text(
+              item,
+              style: AppTextStyles.caption(color: AppColors.textMuted),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }
