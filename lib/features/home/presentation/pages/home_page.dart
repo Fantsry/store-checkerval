@@ -2,8 +2,11 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import 'package:valorant_store_tracker/features/battlepass/presentation/cubit/battlepass_cubit.dart';
+import 'package:valorant_store_tracker/features/battlepass/domain/entities/mission_item.dart';
 import 'package:valorant_store_tracker/features/battlepass/presentation/cubit/battlepass_state.dart';
+import 'package:valorant_store_tracker/features/career/domain/entities/career_overview.dart';
 import 'package:valorant_store_tracker/features/career/domain/entities/match_summary.dart';
 import 'package:valorant_store_tracker/features/career/presentation/cubit/career_cubit.dart';
 import 'package:valorant_store_tracker/features/career/presentation/cubit/career_state.dart';
@@ -12,11 +15,12 @@ import 'package:valorant_store_tracker/features/daily_store/presentation/bloc/st
 import 'package:valorant_store_tracker/features/daily_store/presentation/bloc/store_state.dart';
 import 'package:valorant_store_tracker/features/live_match/presentation/cubit/live_match_cubit.dart';
 import 'package:valorant_store_tracker/features/live_match/presentation/cubit/live_match_state.dart';
-import 'package:valorant_store_tracker/features/social/presentation/cubit/social_cubit.dart';
-import 'package:valorant_store_tracker/features/social/presentation/cubit/social_state.dart';
+import 'package:valorant_store_tracker/features/live_match/presentation/widgets/gem_rank_icon.dart';
 import 'package:valorant_store_tracker/features/profile/domain/entities/user_profile.dart';
 import 'package:valorant_store_tracker/features/profile/presentation/cubit/profile_cubit.dart';
 import 'package:valorant_store_tracker/features/profile/presentation/cubit/profile_state.dart';
+import 'package:valorant_store_tracker/features/social/presentation/cubit/social_cubit.dart';
+import 'package:valorant_store_tracker/features/social/presentation/cubit/social_state.dart';
 import 'package:valorant_store_tracker/ui/theme/app_colors.dart';
 import 'package:valorant_store_tracker/ui/theme/app_radius.dart';
 import 'package:valorant_store_tracker/ui/theme/app_spacing.dart';
@@ -24,13 +28,10 @@ import 'package:valorant_store_tracker/ui/theme/app_text_styles.dart';
 import 'package:valorant_store_tracker/ui/widgets/agent_avatar.dart';
 import 'package:valorant_store_tracker/ui/widgets/ascend_card.dart';
 import 'package:valorant_store_tracker/ui/widgets/countdown_timer_widget.dart';
-import 'package:valorant_store_tracker/ui/widgets/rank_badge.dart';
-import 'package:valorant_store_tracker/features/live_match/presentation/widgets/gem_rank_icon.dart';
 import 'package:valorant_store_tracker/ui/widgets/section_header.dart';
 import 'package:valorant_store_tracker/ui/widgets/shimmer_loading.dart';
 import 'package:valorant_store_tracker/ui/widgets/skin_preview_dialog.dart';
-import 'package:valorant_store_tracker/ui/widgets/stat_badge.dart';
-import 'package:valorant_store_tracker/ui/widgets/stat_box.dart';
+import 'package:valorant_store_tracker/ui/widgets/stat_rail.dart';
 import 'package:valorant_store_tracker/ui/widgets/vp_chip.dart';
 
 class HomePage extends StatefulWidget {
@@ -63,7 +64,7 @@ class _HomePageState extends State<HomePage> {
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: _refreshData,
-          color: AppColors.red,
+          color: AppColors.accent,
           backgroundColor: AppColors.card,
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
@@ -74,16 +75,16 @@ class _HomePageState extends State<HomePage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                _buildProfileHero(),
-                const SizedBox(height: AppSpacing.xl),
-                _buildLiveMatchBanner(),
+                _buildPageHeader(),
                 const SizedBox(height: AppSpacing.md),
-                _buildSocialFriendsBanner(),
-                const SizedBox(height: AppSpacing.xl),
+                _buildProfileHero(),
+                const SizedBox(height: AppSpacing.md),
+                _buildStatusRail(),
+                const SizedBox(height: AppSpacing.xxl),
                 _buildDailyStoreSpotlight(),
-                const SizedBox(height: AppSpacing.xl),
-                _buildRecentFormAndMatch(),
-                const SizedBox(height: AppSpacing.xl),
+                const SizedBox(height: AppSpacing.xxl),
+                _buildCareerSnapshot(),
+                const SizedBox(height: AppSpacing.xxl),
                 _buildMissionsPreview(),
                 const SizedBox(height: AppSpacing.xxxl),
               ],
@@ -94,202 +95,99 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  Widget _buildPageHeader() {
+    return Row(
+      children: [
+        Text(
+          'OVERVIEW',
+          style: AppTextStyles.sectionLabel(color: AppColors.textMuted),
+        ),
+        const Spacer(),
+        Text(
+          DateFormat('EEE, d MMM').format(DateTime.now()).toUpperCase(),
+          style: AppTextStyles.statLabel(color: AppColors.textMuted),
+        ),
+      ],
+    );
+  }
+
   Widget _buildProfileHero() {
     return BlocBuilder<ProfileCubit, ProfileState>(
       builder: (context, profileState) {
         if (profileState is ProfileLoading) {
-          return const ShimmerBox(height: 180, borderRadius: AppRadius.xl);
+          return const ShimmerBox(height: 220, borderRadius: AppRadius.lg);
         }
 
-        final UserProfile? profile =
-            profileState is ProfileLoaded ? profileState.profile : null;
+        final UserProfile? profile = profileState is ProfileLoaded
+            ? profileState.profile
+            : null;
 
         return BlocBuilder<CareerCubit, CareerState>(
           builder: (context, careerState) {
-            final career = careerState is CareerLoaded ? careerState.overview : null;
+            final career = careerState is CareerLoaded
+                ? careerState.overview
+                : null;
             final rankName = career?.currentTierName ?? 'Unrated';
             final currentRR = career?.currentRankRating ?? 0;
             final tier = career?.currentTier;
             final tierIcon = career?.currentTierIcon;
+            final art = profile?.cardWideArt?.isNotEmpty == true
+                ? profile!.cardWideArt
+                : profile?.cardLargeArt;
+            final matches = career?.matches ?? const <MatchSummary>[];
 
-            return AscendCard(
+            return DataPanel(
               padding: EdgeInsets.zero,
-              borderRadius: AppRadius.xl,
-              child: Stack(
-                children: [
-                  // Wide Art Background
-                  if (profile?.cardWideArt != null && profile!.cardWideArt!.isNotEmpty)
+              child: ClipRRect(
+                borderRadius: AppRadius.roundedLg,
+                child: Stack(
+                  children: [
+                    if (art != null && art.isNotEmpty)
+                      Positioned.fill(
+                        child: CachedNetworkImage(
+                          imageUrl: art,
+                          fit: BoxFit.cover,
+                          errorWidget: (_, __, ___) =>
+                              Container(color: AppColors.card),
+                        ),
+                      ),
                     Positioned.fill(
-                      child: ClipRRect(
-                        borderRadius: AppRadius.roundedXl,
-                        child: ShaderMask(
-                          shaderCallback: (rect) => LinearGradient(
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
                             begin: Alignment.topCenter,
                             end: Alignment.bottomCenter,
                             colors: [
-                              Colors.transparent,
-                              AppColors.card.withValues(alpha: 0.95),
+                              AppColors.background.withValues(alpha: 0.42),
+                              AppColors.surface.withValues(alpha: 0.94),
                             ],
-                          ).createShader(rect),
-                          blendMode: BlendMode.darken,
-                          child: CachedNetworkImage(
-                            imageUrl: profile.cardWideArt!,
-                            fit: BoxFit.cover,
                           ),
                         ),
                       ),
                     ),
-
-                  // Overlay Gradient
-                  Positioned.fill(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        borderRadius: AppRadius.roundedXl,
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            AppColors.background.withValues(alpha: 0.5),
-                            AppColors.card.withValues(alpha: 0.92),
-                          ],
-                        ),
+                    Padding(
+                      padding: const EdgeInsets.all(AppSpacing.lg),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildIdentityRow(profile),
+                          const SizedBox(height: AppSpacing.xl),
+                          _buildRankRow(
+                            rankName: rankName,
+                            currentRR: currentRR,
+                            tier: tier,
+                            tierIcon: tierIcon,
+                            career: career,
+                          ),
+                          const SizedBox(height: AppSpacing.md),
+                          _buildFormTape(matches),
+                          const SizedBox(height: AppSpacing.md),
+                          _buildWalletStrip(profile),
+                        ],
                       ),
                     ),
-                  ),
-
-                  // Content
-                  Padding(
-                    padding: const EdgeInsets.all(AppSpacing.lg),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Top row: ID, Level, Region
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Small Player Card Avatar
-                            if (profile?.cardSmallArt != null)
-                              Container(
-                                width: 44,
-                                height: 44,
-                                decoration: BoxDecoration(
-                                  borderRadius: AppRadius.roundedMd,
-                                  border: Border.all(color: AppColors.border, width: 1.5),
-                                ),
-                                child: ClipRRect(
-                                  borderRadius: AppRadius.roundedMd,
-                                  child: CachedNetworkImage(
-                                    imageUrl: profile!.cardSmallArt!,
-                                    fit: BoxFit.cover,
-                                  ),
-                                ),
-                              ),
-                            const SizedBox(width: AppSpacing.md),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Flexible(
-                                        child: Text(
-                                          profile?.gameName.toUpperCase() ?? 'VALORANT AGENT',
-                                          style: AppTextStyles.h3(color: AppColors.textPrimary),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ),
-                                      if (profile?.tagLine != null && profile!.tagLine.isNotEmpty)
-                                        Text(
-                                          ' #${profile.tagLine}',
-                                          style: AppTextStyles.h4(color: AppColors.textSecondary),
-                                        ),
-                                    ],
-                                  ),
-                                  if (profile?.titleText != null && profile!.titleText!.isNotEmpty)
-                                    Text(
-                                      profile.titleText!.toUpperCase(),
-                                      style: AppTextStyles.caption(color: AppColors.cyan),
-                                    ),
-                                ],
-                              ),
-                            ),
-                            // Region & Level Pill
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                StatBadge(
-                                  text: profile?.region.toUpperCase() ?? 'AP',
-                                  color: AppColors.cyan,
-                                  outlined: true,
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  'LVL ${profile?.accountLevel ?? 1}',
-                                  style: AppTextStyles.statLabel(color: AppColors.textSecondary),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-
-                        const SizedBox(height: AppSpacing.lg),
-
-                        // Middle row: Rank badge + RR progress
-                        RankBadge(
-                          tierName: rankName,
-                          rankedRating: currentRR,
-                          tier: tier,
-                          iconUrl: tierIcon,
-                          iconSize: 42,
-                          isPlacement: career?.isPlacement ?? false,
-                          gamesNeededForRating:
-                              career?.gamesNeededForRating,
-                        ),
-
-                        const SizedBox(height: AppSpacing.lg),
-
-                        // Bottom row: Wallet balances (VP, RP, KC)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: AppSpacing.md,
-                            vertical: AppSpacing.sm,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppColors.surface.withValues(alpha: 0.8),
-                            borderRadius: AppRadius.roundedMd,
-                            border: Border.all(color: AppColors.border.withValues(alpha: 0.5)),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceAround,
-                            children: [
-                              _buildWalletItem(
-                                icon: Icons.monetization_on_outlined,
-                                color: AppColors.vpGold,
-                                label: 'VP',
-                                amount: profile?.walletAvailable == true ? profile!.valorantPoints : null,
-                              ),
-                              Container(width: 1, height: 24, color: AppColors.border),
-                              _buildWalletItem(
-                                icon: Icons.hexagon_outlined,
-                                color: AppColors.radianite,
-                                label: 'RP',
-                                amount: profile?.walletAvailable == true ? profile!.radianitePoints : null,
-                              ),
-                              Container(width: 1, height: 24, color: AppColors.border),
-                              _buildWalletItem(
-                                icon: Icons.token_outlined,
-                                color: AppColors.cyan,
-                                label: 'KC',
-                                amount: profile?.walletAvailable == true ? profile!.kingdomCredits : null,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             );
           },
@@ -298,205 +196,419 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildWalletItem({
-    required IconData icon,
-    required Color color,
-    required String label,
-    required int? amount,
-  }) {
+  Widget _buildIdentityRow(UserProfile? profile) {
+    final avatar = profile?.cardSmallArt;
+
     return Row(
-      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 16, color: color),
-        const SizedBox(width: AppSpacing.xs),
-        Text(
-          amount?.toString() ?? '--',
-          style: AppTextStyles.statValue(color: color, fontSize: 14),
+        if (avatar != null && avatar.isNotEmpty)
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              borderRadius: AppRadius.roundedSm,
+              border: Border.all(color: AppColors.border),
+            ),
+            child: ClipRRect(
+              borderRadius: AppRadius.roundedSm,
+              child: CachedNetworkImage(imageUrl: avatar, fit: BoxFit.cover),
+            ),
+          )
+        else
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: AppColors.card,
+              borderRadius: AppRadius.roundedSm,
+              border: Border.all(color: AppColors.border),
+            ),
+          ),
+        const SizedBox(width: AppSpacing.md),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Flexible(
+                    child: Text(
+                      profile?.gameName ?? 'VALORANT AGENT',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTextStyles.h3(color: AppColors.textPrimary),
+                    ),
+                  ),
+                  if (profile?.tagLine != null && profile!.tagLine.isNotEmpty)
+                    Text(
+                      ' #${profile.tagLine}',
+                      style: AppTextStyles.mono(
+                        fontSize: 12,
+                        color: AppColors.textMuted,
+                      ),
+                    ),
+                ],
+              ),
+              if (profile?.titleText != null && profile!.titleText!.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Text(
+                    profile.titleText!,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTextStyles.caption(color: AppColors.accentSoft),
+                  ),
+                ),
+            ],
+          ),
         ),
-        const SizedBox(width: 3),
-        Text(
-          label,
-          style: AppTextStyles.caption(color: AppColors.textMuted),
+        const SizedBox(width: AppSpacing.sm),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text(
+              '${profile?.region.toUpperCase() ?? 'AP'} / LVL ${profile?.accountLevel ?? 1}',
+              style: AppTextStyles.statLabel(color: AppColors.textSecondary),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'ONLINE',
+              style: AppTextStyles.statLabel(color: AppColors.accent),
+            ),
+          ],
         ),
       ],
     );
   }
 
-  Widget _buildLiveMatchBanner() {
-    return BlocBuilder<LiveMatchCubit, LiveMatchState>(
-      builder: (context, state) {
-        final isInMatch = state is LiveMatchLoaded && state.matchData.isInMatch;
+  Widget _buildRankRow({
+    required String rankName,
+    required int currentRR,
+    required int? tier,
+    required String? tierIcon,
+    required CareerOverview? career,
+  }) {
+    final isPlacement = career?.isPlacement == true;
+    final gamesNeeded = career?.gamesNeededForRating;
+    final peakTierName = career?.peakTierName;
+    final progress = isPlacement ? 0.0 : (currentRR / 100).clamp(0.0, 1.0);
 
-        return AscendCard(
-          onTap: () => context.push('/live-match'),
-          hasGlow: isInMatch,
-          glowColor: AppColors.red,
-          borderColor: isInMatch ? AppColors.red : AppColors.border,
-          gradient: isInMatch
-              ? const LinearGradient(
-                  colors: [Color(0x33FF4655), Color(0x11FF4655)],
-                )
-              : null,
-          padding: const EdgeInsets.all(AppSpacing.md),
-          child: Row(
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        ValorantRankIcon(
+          tier: tier,
+          iconUrl: tierIcon,
+          tierName: rankName,
+          size: 52,
+          showGlow: true,
+        ),
+        const SizedBox(width: AppSpacing.md),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                padding: const EdgeInsets.all(AppSpacing.sm),
-                decoration: BoxDecoration(
-                  color: (isInMatch ? AppColors.red : AppColors.cyan).withValues(alpha: 0.15),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  isInMatch ? Icons.radar_rounded : Icons.track_changes_rounded,
-                  color: isInMatch ? AppColors.red : AppColors.cyan,
-                  size: 24,
-                ),
+              Text(
+                rankName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppTextStyles.h2(color: AppColors.textPrimary),
               ),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Text(
-                          isInMatch ? 'ACTIVE LIVE MATCH' : 'LIVE MATCH TRACKER',
-                          style: AppTextStyles.h4(
-                            color: isInMatch ? AppColors.red : AppColors.textPrimary,
-                          ),
-                        ),
-                        if (isInMatch) ...[
-                          const SizedBox(width: AppSpacing.xs),
-                          Container(
-                            width: 8,
-                            height: 8,
-                            decoration: const BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: AppColors.red,
-                            ),
-                          ),
-                        ],
-                      ],
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  Text(
+                    isPlacement ? 'PLACEMENT' : '$currentRR',
+                    style: AppTextStyles.statValue(
+                      color: isPlacement
+                          ? AppColors.textSecondary
+                          : AppColors.accent,
+                      fontSize: 15,
                     ),
-                    const SizedBox(height: 2),
+                  ),
+                  if (!isPlacement) ...[
+                    const SizedBox(width: 3),
                     Text(
-                      isInMatch
-                          ? 'Track live players, ACS, KAST% & winrates'
-                          : 'Scan real-time pregame & live match lobbies',
-                      style: AppTextStyles.bodySmall(color: AppColors.textSecondary),
+                      'RR',
+                      style: AppTextStyles.statLabel(
+                        color: AppColors.textMuted,
+                      ),
                     ),
                   ],
-                ),
+                  if (isPlacement && gamesNeeded != null) ...[
+                    const SizedBox(width: AppSpacing.sm),
+                    Text(
+                      '$gamesNeeded LEFT',
+                      style: AppTextStyles.statLabel(
+                        color: AppColors.textMuted,
+                      ),
+                    ),
+                  ],
+                ],
               ),
-              const Icon(
-                Icons.arrow_forward_ios_rounded,
-                size: 14,
-                color: AppColors.textSecondary,
+              const SizedBox(height: 6),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(2),
+                child: LinearProgressIndicator(
+                  value: progress,
+                  minHeight: 3,
+                  backgroundColor: AppColors.border,
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    isPlacement ? AppColors.textMuted : AppColors.accent,
+                  ),
+                ),
               ),
             ],
           ),
+        ),
+        if (peakTierName != null) ...[
+          const SizedBox(width: AppSpacing.lg),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                'PEAK',
+                style: AppTextStyles.statLabel(color: AppColors.textMuted),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                peakTierName,
+                style: AppTextStyles.caption(color: AppColors.textSecondary),
+              ),
+            ],
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildFormTape(List<MatchSummary> matches) {
+    final recent = matches.take(10).toList().reversed.toList();
+
+    return Row(
+      children: [
+        Text(
+          'FORM',
+          style: AppTextStyles.statLabel(color: AppColors.textMuted),
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        if (recent.isEmpty)
+          Text(
+            'NO MATCHES',
+            style: AppTextStyles.statLabel(color: AppColors.textMuted),
+          )
+        else
+          Expanded(
+            child: Row(
+              children: [
+                for (var i = 0; i < recent.length; i++) ...[
+                  if (i > 0) const SizedBox(width: 3),
+                  Expanded(child: _buildFormBlock(recent[i])),
+                ],
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildFormBlock(MatchSummary match) {
+    final color = match.isDraw
+        ? AppColors.drawAmber
+        : (match.won == true ? AppColors.winGreen : AppColors.lossRed);
+    final label = match.isDraw ? 'D' : (match.won == true ? 'W' : 'L');
+
+    return Container(
+      height: 20,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(2),
+        border: Border.all(color: color.withValues(alpha: 0.4)),
+      ),
+      child: Text(
+        label,
+        style: AppTextStyles.mono(
+          fontSize: 9,
+          fontWeight: FontWeight.w600,
+          color: color,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWalletStrip(UserProfile? profile) {
+    final available = profile?.walletAvailable == true;
+
+    return Container(
+      padding: const EdgeInsets.only(top: AppSpacing.md),
+      decoration: const BoxDecoration(
+        border: Border(top: BorderSide(color: AppColors.border)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _buildWalletItem(
+              label: 'VP',
+              amount: available ? profile!.valorantPoints : null,
+              color: AppColors.vpGold,
+            ),
+          ),
+          Container(width: 1, height: 28, color: AppColors.border),
+          Expanded(
+            child: _buildWalletItem(
+              label: 'RP',
+              amount: available ? profile!.radianitePoints : null,
+              color: AppColors.radianite,
+              alignEnd: true,
+            ),
+          ),
+          Container(width: 1, height: 28, color: AppColors.border),
+          Expanded(
+            child: _buildWalletItem(
+              label: 'KC',
+              amount: available ? profile!.kingdomCredits : null,
+              color: AppColors.accentSoft,
+              alignEnd: true,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWalletItem({
+    required String label,
+    required int? amount,
+    required Color color,
+    bool alignEnd = false,
+  }) {
+    return Column(
+      crossAxisAlignment: alignEnd
+          ? CrossAxisAlignment.end
+          : CrossAxisAlignment.start,
+      children: [
+        Text(label, style: AppTextStyles.statLabel(color: AppColors.textMuted)),
+        const SizedBox(height: 2),
+        Text(
+          amount == null ? '--' : NumberFormat('#,###').format(amount),
+          style: AppTextStyles.statValue(color: color, fontSize: 15),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStatusRail() {
+    return DataPanel(
+      padding: EdgeInsets.zero,
+      tone: PanelTone.surface,
+      child: Row(
+        children: [
+          Expanded(child: _buildLiveStatusCell()),
+          Container(width: 1, height: 56, color: AppColors.border),
+          Expanded(child: _buildSquadStatusCell()),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLiveStatusCell() {
+    return BlocBuilder<LiveMatchCubit, LiveMatchState>(
+      builder: (context, state) {
+        final isInMatch = state is LiveMatchLoaded && state.matchData.isInMatch;
+        return _statusCell(
+          label: 'LIVE MATCH',
+          value: isInMatch ? 'IN MATCH' : 'STANDBY',
+          active: isInMatch,
+          onTap: () => context.push('/live-match'),
         );
       },
     );
   }
 
-  Widget _buildSocialFriendsBanner() {
+  Widget _buildSquadStatusCell() {
     return BlocBuilder<SocialCubit, SocialState>(
       builder: (context, state) {
-        final playingCount = state is SocialLoaded ? state.playingCount : 0;
-        final totalCount = state is SocialLoaded ? state.totalCount : 0;
-        final hasActiveFriends = playingCount > 0;
+        final playing = state is SocialLoaded ? state.playingCount : 0;
+        final total = state is SocialLoaded ? state.totalCount : 0;
+        final value = playing > 0
+            ? '$playing ONLINE'
+            : (total > 0 ? '$total TRACKED' : 'NO FRIENDS');
 
-        return AscendCard(
+        return _statusCell(
+          label: 'SQUAD',
+          value: value,
+          active: playing > 0,
           onTap: () => context.push('/social'),
-          hasGlow: hasActiveFriends,
-          glowColor: AppColors.cyan,
-          borderColor: hasActiveFriends
-              ? AppColors.cyan.withValues(alpha: 0.6)
-              : AppColors.border,
-          gradient: hasActiveFriends
-              ? const LinearGradient(
-                  colors: [Color(0x2200F5D4), Color(0x0A00F5D4)],
-                )
-              : null,
-          padding: const EdgeInsets.all(AppSpacing.md),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(AppSpacing.sm),
-                decoration: BoxDecoration(
-                  color: (hasActiveFriends ? AppColors.cyan : AppColors.textSecondary)
-                      .withValues(alpha: 0.15),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  Icons.people_alt_rounded,
-                  color: hasActiveFriends ? AppColors.cyan : AppColors.textSecondary,
-                  size: 24,
-                ),
-              ),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Text(
-                          'SQUAD & SOCIAL RADAR',
-                          style: AppTextStyles.h4(
-                            color: hasActiveFriends
-                                ? AppColors.cyan
-                                : AppColors.textPrimary,
-                          ),
-                        ),
-                        if (hasActiveFriends) ...[
-                          const SizedBox(width: AppSpacing.xs),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 1.5,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppColors.cyan.withValues(alpha: 0.2),
-                              borderRadius: BorderRadius.circular(4),
-                              border: Border.all(
-                                color: AppColors.cyan.withValues(alpha: 0.8),
-                              ),
-                            ),
-                            child: Text(
-                              '$playingCount IN-MATCH',
-                              style: const TextStyle(
-                                fontSize: 9,
-                                fontWeight: FontWeight.w900,
-                                color: AppColors.cyan,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      hasActiveFriends
-                          ? '$playingCount teman sedang bermain Valorant live!'
-                          : (totalCount > 0
-                              ? '$totalCount teman dilacak • Pantau player card & live game'
-                              : 'Pantau teman yang sedang main & player banner mereka'),
-                      style: AppTextStyles.bodySmall(color: AppColors.textSecondary),
-                    ),
-                  ],
-                ),
-              ),
-              const Icon(
-                Icons.arrow_forward_ios_rounded,
-                size: 14,
-                color: AppColors.textSecondary,
-              ),
-            ],
-          ),
         );
       },
+    );
+  }
+
+  Widget _statusCell({
+    required String label,
+    required String value,
+    required bool active,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      splashColor: AppColors.accent.withValues(alpha: 0.06),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.md,
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: AppTextStyles.statLabel(color: AppColors.textMuted),
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      if (active) ...[
+                        Container(
+                          width: 5,
+                          height: 5,
+                          decoration: const BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: AppColors.accent,
+                          ),
+                        ),
+                        const SizedBox(width: 5),
+                      ],
+                      Flexible(
+                        child: Text(
+                          value,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTextStyles.h4(
+                            color: active
+                                ? AppColors.accent
+                                : AppColors.textPrimary,
+                          ).copyWith(fontSize: 13),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const Icon(
+              Icons.chevron_right_rounded,
+              size: 16,
+              color: AppColors.textMuted,
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -504,7 +616,7 @@ class _HomePageState extends State<HomePage> {
     return BlocBuilder<StoreCubit, StoreState>(
       builder: (context, state) {
         if (state is StoreLoading) {
-          return const ShimmerBox(height: 220, borderRadius: AppRadius.xl);
+          return const ShimmerBox(height: 210, borderRadius: AppRadius.lg);
         }
 
         if (state is! StoreLoaded) {
@@ -518,6 +630,7 @@ class _HomePageState extends State<HomePage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             SectionHeader(
+              index: '01',
               title: 'DAILY ROTATION',
               actionLabel: 'VIEW STORE',
               onActionTap: () => context.go('/store'),
@@ -528,14 +641,14 @@ class _HomePageState extends State<HomePage> {
             ),
             const SizedBox(height: AppSpacing.sm),
             SizedBox(
-              height: 180,
+              height: 172,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 itemCount: skins.length,
-                separatorBuilder: (_, __) => const SizedBox(width: AppSpacing.md),
+                separatorBuilder: (_, __) =>
+                    const SizedBox(width: AppSpacing.sm),
                 itemBuilder: (context, index) {
-                  final skin = skins[index];
-                  return _buildStoreSkinCard(skin);
+                  return _buildStoreSkinCard(skins[index]);
                 },
               ),
             ),
@@ -548,36 +661,25 @@ class _HomePageState extends State<HomePage> {
   Widget _buildStoreSkinCard(SkinItem skin) {
     final tierColor = AppColors.getTierColor(skin.tierName);
 
-    return GestureDetector(
-      onTap: () => SkinPreviewSheet.show(context, skin),
-      child: Container(
-        width: 150,
-        decoration: BoxDecoration(
-          color: AppColors.card,
-          borderRadius: AppRadius.roundedLg,
-          border: Border.all(color: AppColors.border),
-          boxShadow: [
-            BoxShadow(
-              color: tierColor.withValues(alpha: 0.12),
-              blurRadius: 16,
-              spreadRadius: 1,
-            ),
-          ],
-        ),
+    return SizedBox(
+      width: 146,
+      child: DataPanel(
         padding: const EdgeInsets.all(AppSpacing.md),
+        onTap: () => SkinPreviewSheet.show(context, skin),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                if (skin.tierName != null)
-                  StatBadge(
-                    text: skin.tierName!,
-                    color: tierColor,
-                    fontSize: 8,
+                Expanded(
+                  child: Text(
+                    skin.tierName ?? 'SELECT',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTextStyles.statLabel(color: tierColor),
                   ),
-                VpChip(amount: skin.cost, fontSize: 11, compact: true),
+                ),
+                VpChip(amount: skin.cost, fontSize: 10, compact: true),
               ],
             ),
             const Spacer(),
@@ -585,46 +687,55 @@ class _HomePageState extends State<HomePage> {
               child: skin.displayIcon != null && skin.displayIcon!.isNotEmpty
                   ? CachedNetworkImage(
                       imageUrl: skin.displayIcon!,
-                      height: 60,
+                      height: 58,
                       fit: BoxFit.contain,
                       errorWidget: (_, __, ___) => const Icon(
                         Icons.shield_outlined,
-                        size: 40,
+                        size: 38,
                         color: AppColors.textMuted,
                       ),
                     )
                   : const Icon(
                       Icons.shield_outlined,
-                      size: 40,
+                      size: 38,
                       color: AppColors.textMuted,
                     ),
             ),
             const Spacer(),
             Text(
-              skin.displayName.toUpperCase(),
-              style: AppTextStyles.h4(color: AppColors.textPrimary).copyWith(
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-              ),
+              skin.displayName,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
+              style: AppTextStyles.h4(
+                color: AppColors.textPrimary,
+              ).copyWith(fontSize: 12),
             ),
-            if (skin.weaponName != null)
-              Text(
-                skin.weaponName!.toUpperCase(),
-                style: AppTextStyles.caption(color: AppColors.textSecondary),
+            const SizedBox(height: 2),
+            Text(
+              skin.weaponName ?? 'SKIN',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppTextStyles.statLabel(color: AppColors.textMuted),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Container(
+              height: 2,
+              decoration: BoxDecoration(
+                color: tierColor.withValues(alpha: 0.7),
+                borderRadius: BorderRadius.circular(1),
               ),
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildRecentFormAndMatch() {
+  Widget _buildCareerSnapshot() {
     return BlocBuilder<CareerCubit, CareerState>(
       builder: (context, state) {
         if (state is CareerLoading) {
-          return const ShimmerBox(height: 180, borderRadius: AppRadius.xl);
+          return const ShimmerBox(height: 190, borderRadius: AppRadius.lg);
         }
 
         if (state is! CareerLoaded) {
@@ -632,199 +743,168 @@ class _HomePageState extends State<HomePage> {
         }
 
         final career = state.overview;
-        final lastMatch = career.matches.isNotEmpty ? career.matches.first : null;
+        final lastMatch = career.matches.isNotEmpty
+            ? career.matches.first
+            : null;
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             SectionHeader(
-              title: 'CAREER OVERVIEW',
-              actionLabel: 'VIEW ALL',
+              index: '02',
+              title: 'CAREER SNAPSHOT',
+              actionLabel: 'OPEN TRACKER',
               onActionTap: () => context.go('/tracker'),
             ),
             const SizedBox(height: AppSpacing.sm),
-            // Quick 3 stats row
-            Row(
-              children: [
-                Expanded(
-                  child: StatBox(
-                    label: 'WIN RATE',
-                    value: '${career.winRate.toStringAsFixed(1)}%',
-                    subtitle: '${career.totalWins}W / ${career.totalLosses}L',
-                    valueColor: career.winRate >= 50 ? AppColors.winGreen : AppColors.lossRed,
+            DataPanel(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              child: Column(
+                children: [
+                  StatRail(
+                    items: [
+                      StatRailItem(
+                        label: 'WIN RATE',
+                        value: '${career.winRate.toStringAsFixed(1)}%',
+                        subtitle: '${career.totalWins}W ${career.totalLosses}L',
+                        valueColor: career.winRate >= 50
+                            ? AppColors.winGreen
+                            : AppColors.lossRed,
+                      ),
+                      StatRailItem(
+                        label: 'K/D',
+                        value: career.avgKdRatio.toStringAsFixed(2),
+                        subtitle:
+                            '${career.avgHeadshotPct.toStringAsFixed(0)}% HS',
+                        valueColor: career.avgKdRatio >= 1
+                            ? AppColors.textPrimary
+                            : AppColors.lossRed,
+                      ),
+                      StatRailItem(
+                        label: 'AVG ACS',
+                        value: '${career.avgCombatScore}',
+                        subtitle: '${career.totalMatches} MATCHES',
+                      ),
+                    ],
                   ),
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                Expanded(
-                  child: StatBox(
-                    label: 'AVG ACS',
-                    value: '${career.avgCombatScore}',
-                    subtitle: 'Score / Round',
-                    valueColor: AppColors.cyan,
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                Expanded(
-                  child: StatBox(
-                    label: 'AVG K/D',
-                    value: career.avgKdRatio.toStringAsFixed(2),
-                    subtitle: '${career.avgHeadshotPct.toStringAsFixed(0)}% HS',
-                    valueColor: career.avgKdRatio >= 1.0 ? AppColors.winGreen : AppColors.lossRed,
-                  ),
-                ),
-              ],
+                  if (lastMatch != null) ...[
+                    const SizedBox(height: AppSpacing.md),
+                    const Divider(height: 1, color: AppColors.border),
+                    const SizedBox(height: AppSpacing.sm),
+                    _buildRecentMatchRow(lastMatch),
+                  ],
+                ],
+              ),
             ),
-            if (lastMatch != null) ...[
-              const SizedBox(height: AppSpacing.md),
-              _buildRecentMatchCard(lastMatch),
-            ],
           ],
         );
       },
     );
   }
 
-  Widget _buildRecentMatchCard(MatchSummary match) {
-    final isWon = match.won ?? false;
-    final isDraw = match.isDraw;
-    final outcomeColor = isDraw
+  Widget _buildRecentMatchRow(MatchSummary match) {
+    final outcomeColor = match.isDraw
         ? AppColors.drawAmber
-        : isWon
-            ? AppColors.winGreen
-            : AppColors.lossRed;
+        : (match.won == true ? AppColors.winGreen : AppColors.lossRed);
+    final outcome = match.isDraw ? 'D' : (match.won == true ? 'W' : 'L');
 
-    return AscendCard(
-      onTap: () {
-        context.push('/match-detail', extra: match);
-      },
-      padding: const EdgeInsets.all(AppSpacing.md),
-      gradient: isDraw
-          ? null
-          : (isWon ? AppColors.winGradient : AppColors.lossGradient),
-      borderColor: outcomeColor.withValues(alpha: 0.35),
-      child: Row(
-        children: [
-          // Agent Avatar with Rank Badge
-          Stack(
-            clipBehavior: Clip.none,
-            children: [
-              AgentAvatar(
-                imageUrl: match.agentIconUrl,
-                agentName: match.agentName,
-                size: 48,
-                borderColor: outcomeColor,
+    return InkWell(
+      onTap: () => context.push('/match-detail', extra: match),
+      splashColor: AppColors.accent.withValues(alpha: 0.06),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+        child: Row(
+          children: [
+            Container(
+              width: 3,
+              height: 40,
+              decoration: BoxDecoration(
+                color: outcomeColor,
+                borderRadius: BorderRadius.circular(1),
               ),
-              if (match.competitiveTier != null ||
-                  (match.rankIconUrl != null && match.rankIconUrl!.isNotEmpty) ||
-                  (match.rankName != null && match.rankName!.isNotEmpty))
-                Positioned(
-                  right: -3,
-                  bottom: -3,
-                  child: Container(
-                    padding: const EdgeInsets.all(1.5),
-                    decoration: BoxDecoration(
-                      color: AppColors.surface,
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: outcomeColor.withValues(alpha: 0.8),
-                        width: 1.5,
-                      ),
-                    ),
-                    child: ValorantRankIcon(
-                      tier: match.competitiveTier,
-                      iconUrl: match.rankIconUrl,
-                      tierName: match.rankName ?? 'Unrated',
-                      size: 18,
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(width: AppSpacing.md),
-          // Match Info
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Text(
-                      match.resultText,
-                      style: AppTextStyles.h4(color: outcomeColor),
-                    ),
-                    const SizedBox(width: AppSpacing.xs),
-                    Text(
-                      '• ${match.scoreDisplay}',
-                      style: AppTextStyles.h4(color: AppColors.textPrimary),
-                    ),
-                    if (match.rankRatingEarned != null || match.competitiveTier != null) ...[
-                      const SizedBox(width: AppSpacing.xs),
-                      ValorantRankIcon(
-                        tier: match.competitiveTier,
-                        iconUrl: match.rankIconUrl,
-                        tierName: match.rankName ?? 'Unrated',
-                        size: 15,
-                      ),
-                      const SizedBox(width: 3),
-                      Flexible(
-                        child: Text(
-                          match.rankRatingEarned != null
-                              ? (match.rankRatingEarned! > 0
-                                  ? '+${match.rankRatingEarned} RR'
-                                  : (match.rankRatingEarned! == 0
-                                      ? '+0 RR'
-                                      : '${match.rankRatingEarned} RR'))
-                              : (match.rankName ?? ''),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: AppTextStyles.caption(
-                            color: match.rankRatingEarned != null
-                                ? (match.rankRatingEarned! > 0
-                                    ? AppColors.winGreen
-                                    : (match.rankRatingEarned! == 0
-                                        ? AppColors.drawAmber
-                                        : AppColors.lossRed))
-                                : AppColors.textSecondary,
-                          ).copyWith(
-                            fontWeight: match.rankRatingEarned != null
-                                ? FontWeight.w700
-                                : FontWeight.w600,
-                          ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            AgentAvatar(
+              imageUrl: match.agentIconUrl,
+              agentName: match.agentName,
+              size: 38,
+              borderColor: AppColors.border,
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        outcome,
+                        style: AppTextStyles.mono(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: outcomeColor,
                         ),
                       ),
+                      const SizedBox(width: 5),
+                      Text(
+                        match.scoreDisplay,
+                        style: AppTextStyles.statValue(
+                          color: AppColors.textPrimary,
+                          fontSize: 12,
+                        ),
+                      ),
+                      if (match.rankRatingEarned != null) ...[
+                        const SizedBox(width: AppSpacing.sm),
+                        Text(
+                          match.rankRatingEarned! > 0
+                              ? '+${match.rankRatingEarned} RR'
+                              : '${match.rankRatingEarned} RR',
+                          style: AppTextStyles.statLabel(
+                            color: match.rankRatingEarned! >= 0
+                                ? AppColors.winGreen
+                                : AppColors.lossRed,
+                          ),
+                        ),
+                      ],
                     ],
-                  ],
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${match.mapName} / ${match.queueDisplayName}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTextStyles.caption(
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  match.kdaDisplay,
+                  style: AppTextStyles.statValue(
+                    color: AppColors.textPrimary,
+                    fontSize: 13,
+                  ),
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  '${match.mapName} • ${match.queueDisplayName}',
-                  style: AppTextStyles.bodySmall(color: AppColors.textSecondary),
+                  '${match.averageCombatScore} ACS',
+                  style: AppTextStyles.statLabel(color: AppColors.textMuted),
                 ),
               ],
             ),
-          ),
-          // KDA & ACS
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                match.kdaDisplay,
-                style: AppTextStyles.statValue(color: AppColors.textPrimary, fontSize: 15),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                '${match.averageCombatScore} ACS',
-                style: AppTextStyles.caption(color: AppColors.cyan),
-              ),
-            ],
-          ),
-          const SizedBox(width: AppSpacing.xs),
-          const Icon(
-            Icons.chevron_right_rounded,
-            size: 20,
-            color: AppColors.textMuted,
-          ),
-        ],
+            const Icon(
+              Icons.chevron_right_rounded,
+              size: 18,
+              color: AppColors.textMuted,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -840,74 +920,85 @@ class _HomePageState extends State<HomePage> {
         if (missions.isEmpty) {
           return const SizedBox.shrink();
         }
+        final preview = missions.take(3).toList();
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            SectionHeader(
-              title: 'DAILY MISSIONS',
-              subtitle: 'Active XP Challenges',
-            ),
+            const SectionHeader(index: '03', title: 'DAILY MISSIONS'),
             const SizedBox(height: AppSpacing.sm),
-            ...missions.take(3).map((m) {
-              final progress = m.progressToComplete > 0
-                  ? (m.currentProgress / m.progressToComplete).clamp(0.0, 1.0)
-                  : 0.0;
-
-              return Container(
-                margin: const EdgeInsets.only(bottom: AppSpacing.xs),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.md,
-                  vertical: AppSpacing.sm,
-                ),
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: AppRadius.roundedMd,
-                  border: Border.all(color: AppColors.border.withValues(alpha: 0.6)),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      m.isCompleted ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
-                      size: 16,
-                      color: m.isCompleted ? AppColors.winGreen : AppColors.textMuted,
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            m.title,
-                            style: AppTextStyles.bodyMedium(color: AppColors.textPrimary),
-                          ),
-                          const SizedBox(height: 4),
-                          ClipRRect(
-                            borderRadius: AppRadius.roundedPill,
-                            child: LinearProgressIndicator(
-                              value: progress,
-                              backgroundColor: AppColors.card,
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                m.isCompleted ? AppColors.winGreen : AppColors.cyan,
-                              ),
-                              minHeight: 4,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.md),
-                    Text(
-                      '+${m.xpReward} XP',
-                      style: AppTextStyles.statLabel(color: AppColors.vpGold),
-                    ),
+            DataPanel(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md,
+                vertical: AppSpacing.xs,
+              ),
+              child: Column(
+                children: [
+                  for (var i = 0; i < preview.length; i++) ...[
+                    if (i > 0)
+                      const Divider(height: 1, color: AppColors.border),
+                    _buildMissionRow(preview[i]),
                   ],
-                ),
-              );
-            }),
+                ],
+              ),
+            ),
           ],
         );
       },
+    );
+  }
+
+  Widget _buildMissionRow(MissionItem mission) {
+    final progress = mission.progressToComplete > 0
+        ? (mission.currentProgress / mission.progressToComplete).clamp(0.0, 1.0)
+        : 0.0;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+      child: Row(
+        children: [
+          Icon(
+            mission.isCompleted
+                ? Icons.check_circle_outline_rounded
+                : Icons.radio_button_unchecked_rounded,
+            size: 16,
+            color: mission.isCompleted ? AppColors.accent : AppColors.textMuted,
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  mission.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTextStyles.bodySmall(color: AppColors.textPrimary),
+                ),
+                const SizedBox(height: 5),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(2),
+                  child: LinearProgressIndicator(
+                    value: progress,
+                    minHeight: 3,
+                    backgroundColor: AppColors.border,
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      mission.isCompleted
+                          ? AppColors.accent
+                          : AppColors.accentSoft,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Text(
+            '+${mission.xpReward} XP',
+            style: AppTextStyles.statLabel(color: AppColors.vpGold),
+          ),
+        ],
+      ),
     );
   }
 }
