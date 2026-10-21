@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
-import '../theme/app_radius.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_text_styles.dart';
 
@@ -29,28 +28,33 @@ class StatBox extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: EdgeInsets.symmetric(
-        horizontal: compact ? AppSpacing.sm : AppSpacing.md,
-        vertical: compact ? AppSpacing.xs : AppSpacing.sm,
+      padding: EdgeInsets.only(
+        top: compact ? AppSpacing.sm : AppSpacing.md,
+        bottom: compact ? AppSpacing.xs : AppSpacing.sm,
+        left: compact ? 0 : AppSpacing.xs,
+        right: compact ? 0 : AppSpacing.xs,
       ),
       decoration: BoxDecoration(
-        color: backgroundColor ?? AppColors.surface.withValues(alpha: 0.6),
-        borderRadius: AppRadius.roundedMd,
-        border: Border.all(color: AppColors.border.withValues(alpha: 0.5)),
+        color: backgroundColor,
+        border: const Border(
+          top: BorderSide(color: AppColors.border, width: 1),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
           Row(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                label.toUpperCase(),
-                style: AppTextStyles.statLabel(color: AppColors.textSecondary),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+              Expanded(
+                child: Text(
+                  label.toUpperCase(),
+                  style: AppTextStyles.statLabel(
+                    color: AppColors.textSecondary,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
               if (trailing != null) ...[
                 const SizedBox(width: AppSpacing.xs),
@@ -58,18 +62,18 @@ class StatBox extends StatelessWidget {
               ],
             ],
           ),
-          const SizedBox(height: AppSpacing.xxs),
+          const SizedBox(height: AppSpacing.xs),
           Text(
             value,
             style: AppTextStyles.statValue(
               color: valueColor ?? AppColors.textPrimary,
-              fontSize: compact ? 15 : 18,
+              fontSize: compact ? 17 : 22,
             ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
           if (subtitle != null) ...[
-            const SizedBox(height: 2),
+            const SizedBox(height: 3),
             Text(
               subtitle!,
               style: AppTextStyles.caption(

@@ -15,7 +15,7 @@ class StatBadge extends StatelessWidget {
   const StatBadge({
     super.key,
     required this.text,
-    this.color = AppColors.red,
+    this.color = AppColors.accent,
     this.textColor,
     this.icon,
     this.outlined = false,
@@ -45,22 +45,22 @@ class StatBadge extends StatelessWidget {
 
   factory StatBadge.teamMvp() => const StatBadge(
         text: 'TEAM MVP',
-        color: AppColors.cyan,
+        color: AppColors.accentSoft,
         icon: Icons.star_border_rounded,
       );
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(
+      padding: EdgeInsets.symmetric(
         horizontal: AppSpacing.sm,
-        vertical: AppSpacing.xxs + 1,
+        vertical: 3,
       ),
       decoration: BoxDecoration(
-        color: outlined ? color.withValues(alpha: 0.1) : color.withValues(alpha: 0.18),
+        color: color.withValues(alpha: outlined ? 0.04 : 0.1),
         borderRadius: AppRadius.roundedSm,
         border: Border.all(
-          color: color.withValues(alpha: outlined ? 0.8 : 0.4),
+          color: color.withValues(alpha: outlined ? 0.55 : 0.3),
           width: 1,
         ),
       ),

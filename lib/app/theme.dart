@@ -1,5 +1,3 @@
-/// Dark Esports HUD Theme Bridge
-/// Re-exports modern design tokens and provides backward compatibility.
 export 'package:valorant_store_tracker/ui/theme/app_colors.dart';
 export 'package:valorant_store_tracker/ui/theme/app_text_styles.dart';
 export 'package:valorant_store_tracker/ui/theme/app_spacing.dart';
@@ -7,19 +5,18 @@ export 'package:valorant_store_tracker/ui/theme/app_radius.dart';
 export 'package:valorant_store_tracker/ui/theme/app_theme.dart';
 
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:valorant_store_tracker/ui/theme/app_colors.dart';
+import 'package:valorant_store_tracker/ui/theme/app_text_styles.dart';
 import 'package:valorant_store_tracker/ui/theme/app_theme.dart';
 
 class AppTheme {
   AppTheme._();
 
-  // ─── Esports Colors ─────────────────────────────────────────
-  static const Color accentMagenta = AppColors.red;
+  static const Color accentMagenta = AppColors.accent;
   static const Color accentPurple = AppColors.purple;
   static const Color winGreen = AppColors.winGreen;
   static const Color loseRed = AppColors.lossRed;
-  static const Color selfHighlight = AppColors.cyan;
+  static const Color selfHighlight = AppColors.accentSoft;
 
   static const Color backgroundDark = AppColors.background;
   static const Color backgroundColor = AppColors.background;
@@ -32,70 +29,40 @@ class AppTheme {
   static const Color textSecondary = AppColors.textSecondary;
   static const Color textMuted = AppColors.textMuted;
 
-  // ─── Legacy aliases ─────────────────────────────────────────
-  static const Color valorantRed = AppColors.red;
-  static const Color valorantDarkRed = AppColors.redDark;
-  static const Color valorantCyan = AppColors.cyan;
+  static const Color valorantRed = AppColors.accent;
+  static const Color valorantDarkRed = AppColors.accentStrong;
+  static const Color valorantCyan = AppColors.accentSoft;
 
-  // ─── Skin Tier Colors ───────────────────────────────────────
   static const Color tierSelect = AppColors.tierSelect;
   static const Color tierDeluxe = AppColors.tierDeluxe;
   static const Color tierPremium = AppColors.tierPremium;
   static const Color tierUltra = AppColors.tierUltra;
   static const Color tierExclusive = AppColors.tierExclusive;
 
-  // ─── VP (Valorant Points) ───────────────────────────────────
   static const Color vpGold = AppColors.vpGold;
 
-  // ─── Gradients ──────────────────────────────────────────────
   static const LinearGradient primaryGradient = AppColors.primaryGradient;
   static const LinearGradient backgroundGradient = LinearGradient(
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
-    colors: [AppColors.background, Color(0xFF080D13)],
+    colors: [AppColors.background, AppColors.background],
   );
   static const LinearGradient cardGradient = AppColors.cardGradient;
 
-  // ─── Stat Typography Helpers (Rajdhani) ─────────────────────
   static TextStyle statLarge({Color color = textPrimary}) =>
-      GoogleFonts.rajdhani(
-        fontSize: 18,
-        fontWeight: FontWeight.w700,
-        color: color,
-        height: 1.1,
-      );
+      AppTextStyles.statValue(color: color, fontSize: 18);
 
   static TextStyle statMedium({Color color = textPrimary}) =>
-      GoogleFonts.rajdhani(
-        fontSize: 15,
-        fontWeight: FontWeight.w700,
-        color: color,
-        height: 1.1,
-      );
+      AppTextStyles.statValue(color: color, fontSize: 15);
 
   static TextStyle statSmall({Color color = textPrimary}) =>
-      GoogleFonts.rajdhani(
-        fontSize: 13,
-        fontWeight: FontWeight.w600,
-        color: color,
-        height: 1.1,
-      );
+      AppTextStyles.statValue(color: color, fontSize: 13);
 
   static TextStyle scoreBig({Color color = textPrimary}) =>
-      GoogleFonts.oxanium(
-        fontSize: 48,
-        fontWeight: FontWeight.w800,
-        color: color,
-        height: 1.0,
-      );
+      AppTextStyles.scoreHuge(color: color);
 
   static TextStyle labelCaption({Color color = textSecondary}) =>
-      GoogleFonts.inter(
-        fontSize: 9,
-        fontWeight: FontWeight.w500,
-        color: color,
-        letterSpacing: 0.8,
-      );
+      AppTextStyles.label(color: color);
 
   static ThemeData get darkTheme => DarkTheme.darkTheme;
 

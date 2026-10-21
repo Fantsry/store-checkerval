@@ -1,79 +1,75 @@
 import 'package:flutter/material.dart';
 
-/// Esports HUD Design System – Color Palette
-/// Clean, high-contrast dark theme inspired by Valorant broadcasts.
 class AppColors {
   AppColors._();
 
-  // Background & Surfaces
-  static const Color background = Color(0xFF0F1923);
-  static const Color surface = Color(0xFF141E28);
-  static const Color card = Color(0xFF182330);
-  static const Color cardElevated = Color(0xFF1E2D3D);
-  static const Color border = Color(0xFF263647);
-  static const Color borderSubtle = Color(0x1AFFFFFF);
+  static const Color background = Color(0xFF0A0C0B);
+  static const Color surface = Color(0xFF111412);
+  static const Color card = Color(0xFF151A17);
+  static const Color cardElevated = Color(0xFF1B211D);
+  static const Color border = Color(0xFF29312B);
+  static const Color borderSubtle = Color(0x142E3A31);
 
-  // Brand Accents
-  static const Color red = Color(0xFFFF4655);
-  static const Color redDark = Color(0xFFBD2835);
-  static const Color redLight = Color(0xFFFF727E);
-  static const Color cyan = Color(0xFF00F5D4);
-  static const Color cyanDark = Color(0xFF00BFA5);
-  static const Color purple = Color(0xFF9D4EDD);
+  static const Color accent = Color(0xFF48C878);
+  static const Color accentStrong = Color(0xFF2F9D57);
+  static const Color accentSoft = Color(0xFF7BE3A7);
+  static const Color onAccent = Color(0xFF06110A);
 
-  // Status & Outcomes
-  static const Color winGreen = Color(0xFF00E676);
-  static const Color winGreenDark = Color(0xFF00897B);
-  static const Color lossRed = Color(0xFFFF4655);
-  static const Color drawAmber = Color(0xFFFFB300);
+  static const Color red = accent;
+  static const Color redDark = accentStrong;
+  static const Color redLight = accentSoft;
+  static const Color cyan = accentSoft;
+  static const Color cyanDark = accentStrong;
+  static const Color purple = Color(0xFF8BA696);
 
-  // Typography
-  static const Color textPrimary = Color(0xFFECE8E1);
-  static const Color textSecondary = Color(0xFF8B97A5);
-  static const Color textMuted = Color(0xFF505E6D);
+  static const Color winGreen = Color(0xFF48C878);
+  static const Color winGreenDark = Color(0xFF2F9D57);
+  static const Color lossRed = Color(0xFFFF5C5C);
+  static const Color drawAmber = Color(0xFFE3B341);
 
-  // Currencies & Tiers
-  static const Color vpGold = Color(0xFFFFD700);
-  static const Color radianite = Color(0xFF00E5FF);
+  static const Color textPrimary = Color(0xFFF2F5F1);
+  static const Color textSecondary = Color(0xFF9AA49C);
+  static const Color textMuted = Color(0xFF667169);
 
-  static const Color tierSelect = Color(0xFF5A9FE1);
-  static const Color tierDeluxe = Color(0xFF00E676);
-  static const Color tierPremium = Color(0xFFD1548D);
-  static const Color tierUltra = Color(0xFFF5D662);
-  static const Color tierExclusive = Color(0xFFFF4655);
+  static const Color vpGold = Color(0xFFE6C66A);
+  static const Color radianite = Color(0xFF7BE3A7);
 
-  // Gradients
+  static const Color tierSelect = Color(0xFF6AA6D8);
+  static const Color tierDeluxe = Color(0xFF4CC38A);
+  static const Color tierPremium = Color(0xFFC96A9E);
+  static const Color tierUltra = Color(0xFFD8C46A);
+  static const Color tierExclusive = Color(0xFFE06B5E);
+
   static const LinearGradient primaryGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [red, redDark],
+    colors: [accent, accent],
   );
 
   static const LinearGradient cyanGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [cyan, cyanDark],
+    colors: [accentSoft, accentSoft],
   );
 
   static const LinearGradient cardGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [Color(0xFF182330), Color(0xFF121B24)],
+    colors: [card, card],
   );
 
   static const LinearGradient winGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [Color(0x2E00E676), Color(0x0500E676)],
+    colors: [Color(0x1F48C878), Color(0x0048C878)],
   );
 
   static const LinearGradient lossGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [Color(0x2EFF4655), Color(0x05FF4655)],
+    colors: [Color(0x1FFF5C5C), Color(0x00FF5C5C)],
   );
 
-  /// Helper to get tier color
   static Color getTierColor(String? tier) {
     return switch (tier?.toLowerCase()) {
       'select' => tierSelect,
@@ -85,7 +81,6 @@ class AppColors {
     };
   }
 
-  /// Helper to get rank color
   static Color getRankColor(String? rankName) {
     final lower = rankName?.toLowerCase() ?? '';
     if (lower.contains('iron')) return const Color(0xFF6E6E6E);

@@ -10,6 +10,7 @@ class SectionHeader extends StatelessWidget {
   final VoidCallback? onActionTap;
   final Color accentColor;
   final Widget? trailing;
+  final String? index;
 
   const SectionHeader({
     super.key,
@@ -17,64 +18,77 @@ class SectionHeader extends StatelessWidget {
     this.subtitle,
     this.actionLabel,
     this.onActionTap,
-    this.accentColor = AppColors.red,
+    this.accentColor = AppColors.accent,
     this.trailing,
+    this.index,
   });
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        crossAxisAlignment: CrossAxisAlignment.center,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisSize: MainAxisSize.min,
             children: [
-              Container(
-                width: 3,
-                height: 16,
-                decoration: BoxDecoration(
-                  color: accentColor,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    title.toUpperCase(),
-                    style: AppTextStyles.h4(color: AppColors.textPrimary).copyWith(
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.8,
-                    ),
+              if (index != null) ...[
+                Text(
+                  index!,
+                  style: AppTextStyles.mono(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    color: accentColor,
+                    letterSpacing: 0.6,
                   ),
-                  if (subtitle != null) ...[
-                    const SizedBox(height: 1),
-                    Text(
-                      subtitle!,
-                      style: AppTextStyles.caption(color: AppColors.textSecondary),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+              ],
+              Expanded(
+                child: Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        title.toUpperCase(),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTextStyles.sectionLabel(
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.md),
+                    const Expanded(
+                      child: Divider(color: AppColors.border, height: 1),
                     ),
                   ],
-                ],
-              ),
-            ],
-          ),
-          if (trailing != null)
-            trailing!
-          else if (actionLabel != null && onActionTap != null)
-            GestureDetector(
-              onTap: onActionTap,
-              child: Text(
-                actionLabel!.toUpperCase(),
-                style: AppTextStyles.statLabel(color: AppColors.red).copyWith(
-                  fontWeight: FontWeight.w700,
                 ),
               ),
+              if (trailing != null) ...[
+                const SizedBox(width: AppSpacing.md),
+                trailing!,
+              ] else if (actionLabel != null && onActionTap != null) ...[
+                const SizedBox(width: AppSpacing.md),
+                GestureDetector(
+                  onTap: onActionTap,
+                  behavior: HitTestBehavior.opaque,
+                  child: Text(
+                    actionLabel!.toUpperCase(),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTextStyles.label(color: accentColor),
+                  ),
+                ),
+              ],
+            ],
+          ),
+          if (subtitle != null) ...[
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              subtitle!,
+              style: AppTextStyles.caption(color: AppColors.textSecondary),
             ),
+          ],
         ],
       ),
     );

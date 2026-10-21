@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
-import '../theme/app_radius.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_text_styles.dart';
 
@@ -24,49 +23,42 @@ class EmptyStateView extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.xxl),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.lg,
+          vertical: AppSpacing.xxl,
+        ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              padding: const EdgeInsets.all(AppSpacing.lg),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                shape: BoxShape.circle,
-                border: Border.all(color: AppColors.border),
-              ),
-              child: Icon(
-                icon,
-                size: 40,
-                color: AppColors.textSecondary,
-              ),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 16, color: AppColors.textMuted),
+                const SizedBox(width: AppSpacing.sm),
+                Text(
+                  'NO DATA',
+                  style: AppTextStyles.label(color: AppColors.textMuted),
+                ),
+              ],
             ),
-            const SizedBox(height: AppSpacing.lg),
+            const SizedBox(height: AppSpacing.md),
             Text(
               title,
               style: AppTextStyles.h3(color: AppColors.textPrimary),
-              textAlign: TextAlign.center,
             ),
-            const SizedBox(height: AppSpacing.sm),
+            const SizedBox(height: AppSpacing.xs),
             Text(
               description,
-              style: AppTextStyles.bodyMedium(color: AppColors.textSecondary),
-              textAlign: TextAlign.center,
+              style: AppTextStyles.bodyMedium(
+                color: AppColors.textSecondary,
+              ),
             ),
             if (buttonText != null && onButtonPressed != null) ...[
-              const SizedBox(height: AppSpacing.xl),
+              const SizedBox(height: AppSpacing.lg),
               ElevatedButton(
                 onPressed: onButtonPressed,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.red,
-                  shape: RoundedRectangleBorder(borderRadius: AppRadius.roundedMd),
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                ),
-                child: Text(
-                  buttonText!,
-                  style: AppTextStyles.statValue(color: Colors.white, fontSize: 14),
-                ),
+                child: Text(buttonText!),
               ),
             ],
           ],

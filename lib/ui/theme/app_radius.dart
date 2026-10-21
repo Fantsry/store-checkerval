@@ -3,10 +3,10 @@ import 'package:flutter/material.dart';
 class AppRadius {
   AppRadius._();
 
-  static const double sm = 8.0;
-  static const double md = 12.0;
-  static const double lg = 16.0;
-  static const double xl = 20.0;
+  static const double sm = 4.0;
+  static const double md = 8.0;
+  static const double lg = 10.0;
+  static const double xl = 12.0;
   static const double pill = 999.0;
 
   static const BorderRadius roundedSm = BorderRadius.all(Radius.circular(sm));

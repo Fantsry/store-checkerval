@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
-import '../theme/app_radius.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_text_styles.dart';
 
@@ -24,71 +23,58 @@ class ErrorStateView extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.xxl),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.lg,
+          vertical: AppSpacing.xxl,
+        ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              padding: const EdgeInsets.all(AppSpacing.lg),
-              decoration: BoxDecoration(
-                color: AppColors.lossRed.withValues(alpha: 0.1),
-                shape: BoxShape.circle,
-                border: Border.all(color: AppColors.lossRed.withValues(alpha: 0.4)),
-              ),
-              child: const Icon(
-                Icons.error_outline_rounded,
-                size: 40,
-                color: AppColors.lossRed,
-              ),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.error_outline_rounded,
+                  size: 16,
+                  color: AppColors.lossRed,
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Text(
+                  'ERROR',
+                  style: AppTextStyles.label(color: AppColors.lossRed),
+                ),
+              ],
             ),
-            const SizedBox(height: AppSpacing.lg),
+            const SizedBox(height: AppSpacing.md),
             Text(
-              title ?? 'TRANSMISSION FAILED',
+              title ?? 'Transmission failed',
               style: AppTextStyles.h3(color: AppColors.textPrimary),
-              textAlign: TextAlign.center,
             ),
-            const SizedBox(height: AppSpacing.sm),
+            const SizedBox(height: AppSpacing.xs),
             Text(
               message,
-              style: AppTextStyles.bodyMedium(color: AppColors.textSecondary),
-              textAlign: TextAlign.center,
+              style: AppTextStyles.bodyMedium(
+                color: AppColors.textSecondary,
+              ),
             ),
             if (onRetry != null || onAction != null) ...[
-              const SizedBox(height: AppSpacing.xl),
+              const SizedBox(height: AppSpacing.lg),
               Wrap(
-                spacing: AppSpacing.md,
-                runSpacing: AppSpacing.md,
-                alignment: WrapAlignment.center,
+                spacing: AppSpacing.sm,
+                runSpacing: AppSpacing.sm,
                 children: [
                   if (onRetry != null)
                     ElevatedButton.icon(
                       onPressed: onRetry,
-                      icon: const Icon(Icons.refresh_rounded, size: 18),
-                      label: Text(
-                        'RETRY',
-                        style: AppTextStyles.statValue(color: Colors.white, fontSize: 14),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.red,
-                        shape: RoundedRectangleBorder(borderRadius: AppRadius.roundedMd),
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                      ),
+                      icon: const Icon(Icons.refresh_rounded, size: 16),
+                      label: const Text('RETRY'),
                     ),
                   if (onAction != null && actionLabel != null)
-                    ElevatedButton.icon(
+                    OutlinedButton.icon(
                       onPressed: onAction,
-                      icon: const Icon(Icons.login_rounded, size: 18, color: Colors.black),
-                      label: Text(
-                        actionLabel!,
-                        style: AppTextStyles.statValue(color: Colors.black, fontSize: 14),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.cyan,
-                        foregroundColor: Colors.black,
-                        shape: RoundedRectangleBorder(borderRadius: AppRadius.roundedMd),
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                      ),
+                      icon: const Icon(Icons.login_rounded, size: 16),
+                      label: Text(actionLabel!),
                     ),
                 ],
               ),

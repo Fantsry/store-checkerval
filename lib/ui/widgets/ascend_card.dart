@@ -3,7 +3,71 @@ import '../theme/app_colors.dart';
 import '../theme/app_radius.dart';
 import '../theme/app_spacing.dart';
 
-/// Esports HUD surface card with subtle border, optional glow, and smooth press feedback.
+enum PanelTone { surface, elevated, inset }
+
+class DataPanel extends StatelessWidget {
+  final Widget child;
+  final EdgeInsetsGeometry? padding;
+  final EdgeInsetsGeometry? margin;
+  final VoidCallback? onTap;
+  final PanelTone tone;
+  final double borderRadius;
+  final bool showBorder;
+
+  const DataPanel({
+    super.key,
+    required this.child,
+    this.padding = const EdgeInsets.all(AppSpacing.lg),
+    this.margin,
+    this.onTap,
+    this.tone = PanelTone.surface,
+    this.borderRadius = AppRadius.lg,
+    this.showBorder = true,
+  });
+
+  Color get _background => switch (tone) {
+        PanelTone.surface => AppColors.surface,
+        PanelTone.elevated => AppColors.card,
+        PanelTone.inset => AppColors.background,
+      };
+
+  @override
+  Widget build(BuildContext context) {
+    final radius = BorderRadius.circular(borderRadius);
+    final content = DecoratedBox(
+      decoration: BoxDecoration(
+        color: _background,
+        borderRadius: radius,
+        border: showBorder
+            ? Border.all(color: AppColors.border, width: 1)
+            : null,
+      ),
+      child: Padding(
+        padding: padding ?? EdgeInsets.zero,
+        child: child,
+      ),
+    );
+
+    final wrapped = margin == null ? content : Padding(
+      padding: margin!,
+      child: content,
+    );
+
+    if (onTap == null) return wrapped;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: radius,
+        splashColor: AppColors.accent.withValues(alpha: 0.08),
+        highlightColor: Colors.white.withValues(alpha: 0.03),
+        child: wrapped,
+      ),
+    );
+  }
+}
+
 class HudCard extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry? padding;
@@ -34,33 +98,20 @@ class HudCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final effectiveBorderColor = borderColor ?? AppColors.border;
-    final effectiveBg = backgroundColor ?? AppColors.card;
-    final effectiveRadius = BorderRadius.circular(borderRadius);
-
-    Widget content = Container(
-      margin: margin,
+    final radius = BorderRadius.circular(borderRadius);
+    final content = Container(
       decoration: BoxDecoration(
-        color: gradient == null ? effectiveBg : null,
-        gradient: gradient,
-        borderRadius: effectiveRadius,
-        border: Border.all(
-          color: effectiveBorderColor,
-          width: borderWidth,
-        ),
-        boxShadow: hasGlow
-            ? [
-                BoxShadow(
-                  color: (glowColor ?? AppColors.red).withValues(alpha: 0.15),
-                  blurRadius: 16,
-                  spreadRadius: 1,
-                  offset: const Offset(0, 4),
-                ),
-              ]
+        color: backgroundColor ?? AppColors.surface,
+        borderRadius: radius,
+        border: borderWidth > 0
+            ? Border.all(
+                color: borderColor ?? AppColors.border,
+                width: borderWidth,
+              )
             : null,
       ),
       child: ClipRRect(
-        borderRadius: effectiveRadius,
+        borderRadius: radius,
         child: Padding(
           padding: padding ?? EdgeInsets.zero,
           child: child,
@@ -68,22 +119,24 @@ class HudCard extends StatelessWidget {
       ),
     );
 
-    if (onTap != null) {
-      return Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: effectiveRadius,
-          splashColor: AppColors.red.withValues(alpha: 0.1),
-          highlightColor: Colors.white.withValues(alpha: 0.05),
-          child: content,
-        ),
-      );
-    }
+    final wrapped = margin == null ? content : Padding(
+      padding: margin!,
+      child: content,
+    );
 
-    return content;
+    if (onTap == null) return wrapped;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: radius,
+        splashColor: AppColors.accent.withValues(alpha: 0.08),
+        highlightColor: Colors.white.withValues(alpha: 0.03),
+        child: wrapped,
+      ),
+    );
   }
 }
 
-/// Backward compatibility alias
 typedef AscendCard = HudCard;

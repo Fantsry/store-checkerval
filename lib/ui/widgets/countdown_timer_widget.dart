@@ -78,7 +78,7 @@ class _CountdownTimerWidgetState extends State<CountdownTimerWidget> {
       ),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: AppRadius.roundedPill,
+        borderRadius: AppRadius.roundedSm,
         border: Border.all(color: AppColors.border),
       ),
       child: Row(
@@ -87,7 +87,7 @@ class _CountdownTimerWidgetState extends State<CountdownTimerWidget> {
           const Icon(
             Icons.access_time_rounded,
             size: 14,
-            color: AppColors.cyan,
+            color: AppColors.accent,
           ),
           const SizedBox(width: AppSpacing.xs),
           Text(

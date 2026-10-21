@@ -13,19 +13,19 @@ class ShimmerBox extends StatelessWidget {
     super.key,
     this.width,
     required this.height,
-    this.borderRadius = AppRadius.sm,
+    this.borderRadius = AppRadius.md,
   });
 
   @override
   Widget build(BuildContext context) {
     return Shimmer.fromColors(
-      baseColor: AppColors.card,
+      baseColor: AppColors.surface,
       highlightColor: AppColors.cardElevated,
       child: Container(
         width: width,
         height: height,
         decoration: BoxDecoration(
-          color: AppColors.card,
+          color: AppColors.surface,
           borderRadius: BorderRadius.circular(borderRadius),
         ),
       ),
@@ -53,7 +53,7 @@ class ShimmerCardList extends StatelessWidget {
       separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.md),
       itemBuilder: (_, __) => ShimmerBox(
         height: itemHeight,
-        borderRadius: AppRadius.lg,
+        borderRadius: AppRadius.md,
       ),
     );
   }
@@ -82,7 +82,7 @@ class ShimmerGrid extends StatelessWidget {
       itemCount: itemCount,
       itemBuilder: (_, __) => const ShimmerBox(
         height: 180,
-        borderRadius: AppRadius.lg,
+        borderRadius: AppRadius.md,
       ),
     );
   }

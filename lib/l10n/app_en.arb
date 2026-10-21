@@ -1,0 +1,115 @@
+{
+  "@@locale": "en",
+  "appTitle": "StoreCheckerVal",
+  "navHome": "HOME",
+  "navStore": "STORE",
+  "navTracker": "TRACKER",
+  "navCollection": "COLLECTION",
+  "navProfile": "PROFILE",
+  "settingsLanguage": "Language",
+  "languageSystem": "System default",
+  "languageEnglish": "English",
+  "languageIndonesian": "Bahasa Indonesia",
+  "settingsLanguageSubtitle": "Choose the app language",
+  "settingsTitle": "PROFILE & SETTINGS",
+  "settingsSocialSubtitle": "Friends & Live Activity Radar",
+  "settingsSquadTitle": "Squad & Friends Radar",
+  "settingsSquadSubtitle": "Track live matches, presence & player banners",
+  "settingsPreferencesSubtitle": "Alerts & App Behavior",
+  "settingsDailyAlertsTitle": "Daily Store Reset Alerts",
+  "settingsDailyAlertsSubtitle": "Get notified when store refreshes",
+  "settingsNightMarketTitle": "Night Market Alerts",
+  "settingsNightMarketSubtitle": "Notify when a wishlist skin hits Night Market",
+  "settingsAccessoryTitle": "Accessory Rotation Alerts",
+  "settingsAccessorySubtitle": "Weekly alert when the Kingdom Credits store rotates",
+  "settingsChatTitle": "Chat Message Alerts",
+  "settingsChatSubtitle": "Notify when a new Riot chat message arrives",
+  "settingsRulesTitle": "Store Trigger Rules",
+  "settingsRulesSubtitle": "Configure specific skin & price alerts",
+  "settingsDataSubtitle": "Backup, Alerts & Pins",
+  "settingsExportTitle": "Export Backup JSON",
+  "settingsExportSubtitle": "Wishlist, alerts, pins & preferences",
+  "settingsImportTitle": "Import Backup JSON",
+  "settingsImportSubtitle": "Restore data with merge or replace",
+  "settingsAccountSubtitle": "Session & Credentials",
+  "settingsSignOut": "SIGN OUT",
+  "settingsSignOutSubtitle": "Disconnect Riot Games session",
+  "settingsFooter": "STORECHECKERVAL MOBILE",
+  "settingsVersion": "Version 1.0.0 • Designed for Valorant Competitors",
+  "settingsNotificationsEnabled": "Notifications enabled for store reset!",
+  "settingsNotificationsDenied": "Notification permissions denied in OS settings.",
+  "settingsChooseLanguage": "Choose language",
+  "settingsBackupSaved": "Backup saved successfully.",
+  "settingsBackupFailed": "Failed to create backup: {error}",
+  "settingsBackupImportTitle": "IMPORT BACKUP",
+  "settingsBackupContent": "Backup contains {wishlist} wishlist skins, {rules} alert rules, and {friends} favorite friends.",
+  "settingsBackupModeHint": "MERGE adds backup data to your current data. REPLACE deletes your current wishlist, alert rules, and pinned friends, then replaces them with the backup.",
+  "settingsBackupImported": "Backup imported ({mode}): {wishlist} skins, {rules} rules, {friends} favorite friends.",
+  "settingsImportFailed": "Failed to import backup: {error}",
+  "settingsLogoutConfirm": "Are you sure you want to sign out from Riot Games? Your stored session tokens will be cleared.",
+  "cancel": "CANCEL",
+  "merge": "MERGE",
+  "replace": "REPLACE",
+  "share": "SHARE",
+  "preparing": "PREPARING...",
+  "shareCard": "SHARE CARD",
+  "shareFailed": "Failed to share card: {error}",
+  "careerLoadMore": "LOAD MORE MATCHES",
+  "careerRatingTrend": "RATING TREND",
+  "careerKdTrend": "K/D TREND",
+  "refreshMatches": "Refresh Matches",
+  "shareRankCard": "Share Rank Card",
+  "refreshCollection": "Refresh Collection",
+  "shareCollection": "Share Collection",
+  "shareMatch": "Share Match",
+  "@settingsBackupFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@settingsBackupContent": {
+    "placeholders": {
+      "wishlist": {
+        "type": "int"
+      },
+      "rules": {
+        "type": "int"
+      },
+      "friends": {
+        "type": "int"
+      }
+    }
+  },
+  "@settingsBackupImported": {
+    "placeholders": {
+      "mode": {
+        "type": "String"
+      },
+      "wishlist": {
+        "type": "int"
+      },
+      "rules": {
+        "type": "int"
+      },
+      "friends": {
+        "type": "int"
+      }
+    }
+  },
+  "@settingsImportFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@shareFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  }
+}
