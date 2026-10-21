@@ -8,15 +8,22 @@ import 'package:valorant_store_tracker/core/storage/secure_storage_service.dart'
 import 'package:valorant_store_tracker/core/utils/timezone_helper.dart';
 import 'package:valorant_store_tracker/features/auth/data/datasources/auth_remote_datasource.dart';
 import 'package:valorant_store_tracker/features/daily_store/data/datasources/riot_store_remote_datasource.dart';
+import 'package:valorant_store_tracker/features/daily_store/data/datasources/valorant_api_remote_datasource.dart';
+import 'package:valorant_store_tracker/features/daily_store/data/store_widget_service.dart';
+import 'package:valorant_store_tracker/features/daily_store/data/storefront_alert_parser.dart';
 import 'package:valorant_store_tracker/features/daily_store/domain/entities/daily_store.dart';
 import 'package:valorant_store_tracker/features/daily_store/domain/entities/skin_item.dart';
 import 'package:valorant_store_tracker/features/notifications/data/notification_service.dart';
+import 'package:valorant_store_tracker/features/social/data/datasources/riot_chat_remote_datasource.dart';
+import 'package:valorant_store_tracker/features/social/domain/entities/chat_message.dart';
 
 const String dailyStoreCheckTaskKey = 'com.valorantstore.daily_check_task';
 const String dailyStoreResetTaskKey = 'com.valorantstore.daily_reset_task';
+const String chatCheckTaskKey = 'com.valorantstore.chat_check_task';
 
 const String periodicStoreCheckTaskTag = 'valorant_store_periodic';
 const String resetStoreCheckTaskTag = 'valorant_store_reset_target';
+const String periodicChatCheckTaskTag = 'valorant_chat_periodic';
 
 @pragma('vm:entry-point')
 void callbackDispatcher() {
@@ -25,8 +32,13 @@ void callbackDispatcher() {
     debugPrint('[Workmanager] Executing background task: $task');
 
     try {
-      final success =
-          await BackgroundTaskManager.executeStoreCheck(deduplicate: true);
+      if (task == chatCheckTaskKey) {
+        return await BackgroundTaskManager.executeChatCheck();
+      }
+
+      final success = await BackgroundTaskManager.executeStoreCheck(
+        deduplicate: true,
+      );
 
       // Always schedule the next targeted reset check for 00:00 UTC tomorrow
       await BackgroundTaskManager.scheduleNextResetCheck();
@@ -79,7 +91,8 @@ class BackgroundTaskManager {
 
     if (puuid == null || puuid.isEmpty) {
       debugPrint(
-          '[BackgroundTaskManager] No PUUID found. Aborting store check.');
+        '[BackgroundTaskManager] No PUUID found. Aborting store check.',
+      );
       return true;
     }
 
@@ -161,17 +174,17 @@ class BackgroundTaskManager {
 
     final skinsPanel =
         storefront['SkinsPanelLayout'] as Map<String, dynamic>? ?? {};
-    final offerUuids =
-        (skinsPanel['SingleItemOffers'] as List<dynamic>? ?? [])
-            .map((e) => e.toString().toLowerCase())
-            .toList();
+    final offerUuids = (skinsPanel['SingleItemOffers'] as List<dynamic>? ?? [])
+        .map((e) => e.toString().toLowerCase())
+        .toList();
 
     var allSkins = await localStore.getCachedSkins() ?? [];
     if (allSkins.isEmpty) {
       // Fallback fetch catalog skins from valorant-api
       try {
-        final valApiResponse =
-            await dio.get('https://valorant-api.com/v1/weapons/skins');
+        final valApiResponse = await dio.get(
+          'https://valorant-api.com/v1/weapons/skins',
+        );
         if (valApiResponse.statusCode == 200 && valApiResponse.data is Map) {
           final data = valApiResponse.data['data'] as List?;
           if (data != null) {
@@ -201,12 +214,9 @@ class BackgroundTaskManager {
       SkinItem? matched = skinMap[offerUuid] ?? levelToSkinMap[offerUuid];
       if (matched == null) {
         for (final o in storeOffers) {
-          if (o is Map &&
-              o['OfferID']?.toString().toLowerCase() == offerUuid) {
+          if (o is Map && o['OfferID']?.toString().toLowerCase() == offerUuid) {
             final rewards = o['Rewards'] as List?;
-            if (rewards != null &&
-                rewards.isNotEmpty &&
-                rewards.first is Map) {
+            if (rewards != null && rewards.isNotEmpty && rewards.first is Map) {
               final rId = rewards.first['ItemID']?.toString().toLowerCase();
               if (rId != null) {
                 matched = skinMap[rId] ?? levelToSkinMap[rId];
@@ -221,30 +231,47 @@ class BackgroundTaskManager {
 
     final remainingSecs =
         (skinsPanel['SingleItemOffersRemainingDurationInSeconds'] as num?)
-                ?.toInt() ??
-            86400;
+            ?.toInt() ??
+        86400;
 
-    // This job only refreshes individual offers; keep bundle/night-market
-    // data from the last full sync instead of replacing it with an empty list.
+    var accessoryMetadata = <String, Map<String, dynamic>>{};
+    try {
+      accessoryMetadata = await ValorantApiRemoteDataSourceImpl(
+        dio: dio,
+      ).getAccessoriesMetadata();
+    } catch (_) {}
+
+    final sections = parseStorefrontAlertSections(
+      storefront: storefront,
+      skinMap: skinMap,
+      levelToSkinMap: levelToSkinMap,
+      accessoryMetadata: accessoryMetadata,
+    );
+
+    // Keep cached sections only when Riot omitted them from this response.
     final existingStore = await localStore.getCachedDailyStore(puuid: puuid);
     final dailyStore = DailyStore(
       featuredOffers: dailySkins,
       remainingDurationSeconds: remainingSecs,
       bundles: existingStore?.bundles ?? const [],
-      accessoryOffers: existingStore?.accessoryOffers ?? const [],
-      nightMarket: existingStore?.nightMarket,
+      accessoryOffers: sections.hasAccessorySection
+          ? sections.accessoryOffers
+          : (existingStore?.accessoryOffers ?? const []),
+      nightMarket: sections.hasNightMarketSection
+          ? sections.nightMarket
+          : existingStore?.nightMarket,
       lastFetched: DateTime.now(),
     );
 
     // Save to daily store cache
     await localStore.saveDailyStore(dailyStore, puuid: puuid);
+    await StoreWidgetService().update(dailyStore);
 
     // Check both Wishlist and Custom Alert Rules
     final wishlist = await localStore.getWishlist();
     final alertRules = await localStore.getAlertRules();
 
-    final notificationsEnabled =
-        await secureStorage.areNotificationsEnabled();
+    final notificationsEnabled = await secureStorage.areNotificationsEnabled();
     if (notificationsEnabled) {
       final notificationService = NotificationService();
       await notificationService.init();
@@ -255,9 +282,108 @@ class BackgroundTaskManager {
         localStore: localStore,
         deduplicate: deduplicate,
         notificationsEnabled: notificationsEnabled,
+        nightMarketAlertsEnabled: await localStore
+            .areNightMarketAlertsEnabled(),
+        accessoryAlertsEnabled: await localStore.areAccessoryAlertsEnabled(),
       );
     }
 
+    return true;
+  }
+
+  /// Best-effort chat poll. XMPP is intentionally short-lived; WorkManager
+  /// decides when this can run and the OS may delay it.
+  static Future<bool> executeChatCheck() async {
+    final secureStorage = SecureStorageService();
+    final localStore = LocalStoreService();
+    await localStore.init();
+
+    if (!await localStore.areChatAlertsEnabled()) return true;
+    if (!await secureStorage.areNotificationsEnabled()) return true;
+
+    final accessToken = await secureStorage.getAccessToken();
+    final selfPuuid = await secureStorage.getPuuid() ?? '';
+    if (accessToken == null || accessToken.isEmpty) return true;
+
+    final entitlementToken = await secureStorage.getEntitlementsToken();
+    final dio = Dio(
+      BaseOptions(
+        connectTimeout: const Duration(seconds: 12),
+        receiveTimeout: const Duration(seconds: 12),
+      ),
+    );
+    final chatDataSource = RiotChatRemoteDataSource(dio: dio);
+    final socialData = await chatDataSource.fetchRemoteSocialData(
+      accessToken: accessToken,
+      entitlementToken: entitlementToken,
+    );
+    if (socialData.messages.isEmpty) return true;
+
+    for (final message in socialData.messages) {
+      if (message.senderPuuid == selfPuuid) continue;
+      await localStore.saveChatMessage(
+        message.senderPuuid,
+        ChatMessageEntity(
+          id: message.id,
+          body: message.body,
+          timestamp: message.timestamp,
+          isMine: false,
+          status: ChatMessageStatus.sent,
+        ),
+      );
+    }
+
+    final previous = await localStore.getLastNotifiedChatAt(selfPuuid);
+    final newest = socialData.messages.reduce(
+      (a, b) => a.timestamp.isAfter(b.timestamp) ? a : b,
+    );
+
+    if (previous == null) {
+      await localStore.setLastNotifiedChatAt(selfPuuid, DateTime.now());
+      return true;
+    }
+
+    final fresh =
+        socialData.messages
+            .where(
+              (message) =>
+                  message.senderPuuid != selfPuuid &&
+                  message.timestamp.isAfter(previous),
+            )
+            .toList()
+          ..sort((a, b) => b.timestamp.compareTo(a.timestamp));
+    if (fresh.isEmpty) return true;
+
+    final latest = fresh.first;
+    var senderName = 'Teman Riot';
+    for (final friend in socialData.roster) {
+      if (friend.puuid == latest.senderPuuid && friend.name.isNotEmpty) {
+        senderName = friend.name;
+        break;
+      }
+    }
+    if (senderName == 'Teman Riot') {
+      for (final raw in await localStore.getSavedFriendsJson()) {
+        try {
+          final map = jsonDecode(raw) as Map<String, dynamic>;
+          if (map['puuid']?.toString() == latest.senderPuuid) {
+            final name = map['gameName']?.toString() ?? '';
+            final tag = map['tagLine']?.toString() ?? '';
+            senderName = tag.isEmpty ? name : '$name#$tag';
+            break;
+          }
+        } catch (_) {}
+      }
+    }
+
+    final notificationService = NotificationService();
+    await notificationService.init();
+    await notificationService.showChatNotification(
+      senderName: senderName,
+      body: latest.body,
+      senderPuuid: latest.senderPuuid,
+    );
+    await localStore.setLastNotifiedChatAt(selfPuuid, newest.timestamp);
     return true;
   }
 
@@ -272,9 +398,7 @@ class BackgroundTaskManager {
   static Future<void> initialize() async {
     if (kIsWeb) return;
     try {
-      await Workmanager().initialize(
-        callbackDispatcher,
-      );
+      await Workmanager().initialize(callbackDispatcher);
     } catch (e) {
       debugPrint('Workmanager init error: $e');
     }
@@ -291,16 +415,15 @@ class BackgroundTaskManager {
       final delay = timeUntilReset + const Duration(minutes: 1);
 
       debugPrint(
-          '[BackgroundTaskManager] Scheduling targeted reset check in: ${delay.inMinutes}m (${TimezoneHelper.formatDuration(delay)})');
+        '[BackgroundTaskManager] Scheduling targeted reset check in: ${delay.inMinutes}m (${TimezoneHelper.formatDuration(delay)})',
+      );
 
       await Workmanager().registerOneOffTask(
         dailyStoreResetTaskKey,
         dailyStoreResetTaskKey,
         tag: resetStoreCheckTaskTag,
         initialDelay: delay,
-        constraints: Constraints(
-          networkType: NetworkType.connected,
-        ),
+        constraints: Constraints(networkType: NetworkType.connected),
         existingWorkPolicy: ExistingWorkPolicy.replace,
       );
     } catch (e) {
@@ -319,13 +442,40 @@ class BackgroundTaskManager {
         dailyStoreCheckTaskKey,
         tag: periodicStoreCheckTaskTag,
         frequency: const Duration(hours: 1),
-        constraints: Constraints(
-          networkType: NetworkType.connected,
-        ),
+        constraints: Constraints(networkType: NetworkType.connected),
         existingWorkPolicy: ExistingPeriodicWorkPolicy.update,
       );
     } catch (e) {
       debugPrint('Workmanager registration error: $e');
+    }
+  }
+
+  static Future<void> registerPeriodicChatCheck() async {
+    if (kIsWeb) return;
+    if (!await _areNotificationsEnabled()) return;
+    final localStore = LocalStoreService();
+    await localStore.init();
+    if (!await localStore.areChatAlertsEnabled()) return;
+    try {
+      await Workmanager().registerPeriodicTask(
+        chatCheckTaskKey,
+        chatCheckTaskKey,
+        tag: periodicChatCheckTaskTag,
+        frequency: const Duration(minutes: 30),
+        constraints: Constraints(networkType: NetworkType.connected),
+        existingWorkPolicy: ExistingPeriodicWorkPolicy.update,
+      );
+    } catch (e) {
+      debugPrint('Workmanager chat registration error: $e');
+    }
+  }
+
+  static Future<void> cancelChatCheck() async {
+    if (kIsWeb) return;
+    try {
+      await Workmanager().cancelByTag(periodicChatCheckTaskTag);
+    } catch (e) {
+      debugPrint('Workmanager chat cancel error: $e');
     }
   }
 

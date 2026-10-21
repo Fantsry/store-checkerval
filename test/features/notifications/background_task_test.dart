@@ -14,6 +14,8 @@ class MockLocalStoreService extends Mock implements LocalStoreService {}
 class FakeNotificationService extends NotificationService {
   final List<List<String>> wishlistMatchesNotified = [];
   final List<Map<String, List<String>>> customAlertsNotified = [];
+  final List<List<NightMarketItem>> nightMarketNotified = [];
+  final List<List<AccessoryStoreItem>> accessoryNotified = [];
 
   @override
   Future<void> showWishlistMatchNotification({
@@ -28,6 +30,20 @@ class FakeNotificationService extends NotificationService {
     required Map<String, List<String>> ruleMatches,
   }) async {
     customAlertsNotified.add(ruleMatches);
+  }
+
+  @override
+  Future<void> showNightMarketNotification({
+    required List<NightMarketItem> matches,
+  }) async {
+    nightMarketNotified.add(matches);
+  }
+
+  @override
+  Future<void> showAccessoryNotification({
+    required List<AccessoryStoreItem> items,
+  }) async {
+    accessoryNotified.add(items);
   }
 }
 
@@ -114,6 +130,10 @@ void main() {
     setUp(() {
       mockLocalStore = MockLocalStoreService();
       notificationService = FakeNotificationService();
+      when(() => mockLocalStore.getLastNotifiedNightMarketRotation())
+          .thenAnswer((_) async => null);
+      when(() => mockLocalStore.getLastNotifiedAccessoryRotation())
+          .thenAnswer((_) async => null);
     });
 
     test('skips notification when already notified today with deduplicate = true', () async {
@@ -182,6 +202,141 @@ void main() {
       expect(notificationService.wishlistMatchesNotified.length, 1);
       expect(notificationService.wishlistMatchesNotified.first, ['Prime Vandal']);
       expect(notificationService.customAlertsNotified.length, 1);
+    });
+
+    test('notifies Night Market wishlist match even when daily store was notified', () async {
+      final todayKey = DateTime.now().toUtc().toIso8601String().substring(0, 10);
+      when(() => mockLocalStore.getLastNotifiedStoreDate())
+          .thenAnswer((_) async => todayKey);
+      when(() => mockLocalStore.setLastNotifiedNightMarketRotation(any()))
+          .thenAnswer((_) async => {});
+
+      final nightMarket = NightMarket(
+        offers: [
+          NightMarketItem(
+            skin: tVandalSkin,
+            originalCost: 1775,
+            discountPercent: 30,
+            discountedCost: 1242,
+          ),
+        ],
+        remainingDurationSeconds: 1000,
+      );
+      final store = DailyStore(
+        featuredOffers: const [],
+        remainingDurationSeconds: 43200,
+        nightMarket: nightMarket,
+        lastFetched: DateTime.now(),
+      );
+
+      await notificationService.evaluateStoreOffers(
+        store: store,
+        wishlist: [
+          WishlistItem(
+            uuid: 'vandal-prime-uuid',
+            displayName: 'Prime Vandal',
+            cost: 1775,
+            addedAt: DateTime.now(),
+          ),
+        ],
+        alertRules: const [],
+        localStore: mockLocalStore,
+        deduplicate: true,
+        notificationsEnabled: true,
+      );
+
+      expect(notificationService.nightMarketNotified.length, 1);
+      expect(
+        notificationService.nightMarketNotified.single.single.skin.displayName,
+        'Prime Vandal',
+      );
+      verify(() => mockLocalStore.setLastNotifiedNightMarketRotation(any()))
+          .called(1);
+    });
+
+    test('does not repeat Night Market alert for the same rotation', () async {
+      when(() => mockLocalStore.getLastNotifiedStoreDate())
+          .thenAnswer((_) async => null);
+      when(() => mockLocalStore.getLastNotifiedNightMarketRotation())
+          .thenAnswer((_) async => 'vandal-prime-uuid');
+
+      final store = DailyStore(
+        featuredOffers: const [],
+        remainingDurationSeconds: 43200,
+        nightMarket: NightMarket(
+          offers: [
+            NightMarketItem(
+              skin: tVandalSkin,
+              originalCost: 1775,
+              discountPercent: 30,
+              discountedCost: 1242,
+            ),
+          ],
+          remainingDurationSeconds: 1000,
+        ),
+        lastFetched: DateTime.now(),
+      );
+
+      await notificationService.evaluateStoreOffers(
+        store: store,
+        wishlist: [
+          WishlistItem(
+            uuid: 'vandal-prime-uuid',
+            displayName: 'Prime Vandal',
+            cost: 1775,
+            addedAt: DateTime.now(),
+          ),
+        ],
+        alertRules: const [],
+        localStore: mockLocalStore,
+        deduplicate: true,
+        notificationsEnabled: true,
+      );
+
+      expect(notificationService.nightMarketNotified, isEmpty);
+      verifyNever(
+        () => mockLocalStore.setLastNotifiedNightMarketRotation(any()),
+      );
+    });
+
+    test('notifies accessory rotation once and respects its toggle', () async {
+      when(() => mockLocalStore.getLastNotifiedStoreDate())
+          .thenAnswer((_) async => null);
+      when(() => mockLocalStore.setLastNotifiedAccessoryRotation(any()))
+          .thenAnswer((_) async => {});
+
+      final store = DailyStore(
+        featuredOffers: const [],
+        remainingDurationSeconds: 43200,
+        accessoryOffers: const [
+          AccessoryStoreItem(uuid: 'buddy-1', displayName: 'Nice Buddy'),
+        ],
+        lastFetched: DateTime.now(),
+      );
+
+      await notificationService.evaluateStoreOffers(
+        store: store,
+        wishlist: const [],
+        alertRules: const [],
+        localStore: mockLocalStore,
+        deduplicate: true,
+        notificationsEnabled: true,
+      );
+
+      expect(notificationService.accessoryNotified.length, 1);
+      verify(() => mockLocalStore.setLastNotifiedAccessoryRotation('buddy-1'))
+          .called(1);
+
+      await notificationService.evaluateStoreOffers(
+        store: store,
+        wishlist: const [],
+        alertRules: const [],
+        localStore: mockLocalStore,
+        deduplicate: true,
+        notificationsEnabled: true,
+        accessoryAlertsEnabled: false,
+      );
+      expect(notificationService.accessoryNotified.length, 1);
     });
 
     test('skips all notifications when notifications are disabled', () async {
