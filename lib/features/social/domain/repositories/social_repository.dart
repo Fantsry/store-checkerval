@@ -53,4 +53,10 @@ abstract class SocialRepository {
     required String puuid,
     required String body,
   });
+
+  /// Unread incoming message counts keyed by friend PUUID.
+  Future<Map<String, int>> getUnreadChatCounts();
+
+  /// Mark the latest stored message in a conversation as read.
+  Future<void> markChatRead(String puuid);
 }

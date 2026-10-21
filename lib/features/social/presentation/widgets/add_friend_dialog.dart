@@ -153,12 +153,12 @@ class _AddFriendDialogState extends State<AddFriendDialog>
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: AppColors.red.withValues(alpha: 0.15),
+                      color: AppColors.accent.withValues(alpha: 0.15),
                       borderRadius: AppRadius.roundedSm,
                     ),
                     child: const Icon(
                       Icons.person_add_rounded,
-                      color: AppColors.red,
+                      color: AppColors.accent,
                       size: 20,
                     ),
                   ),
@@ -198,7 +198,7 @@ class _AddFriendDialogState extends State<AddFriendDialog>
               ),
               child: TabBar(
                 controller: _tabController,
-                indicatorColor: AppColors.red,
+                indicatorColor: AppColors.accent,
                 indicatorWeight: 2,
                 labelColor: AppColors.textPrimary,
                 unselectedLabelColor: AppColors.textSecondary,
@@ -267,7 +267,7 @@ class _AddFriendDialogState extends State<AddFriendDialog>
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: AppRadius.roundedMd,
-                borderSide: const BorderSide(color: AppColors.red, width: 1.5),
+                borderSide: const BorderSide(color: AppColors.accent, width: 1.5),
               ),
               prefixIcon: const Icon(
                 Icons.tag_rounded,
@@ -282,7 +282,7 @@ class _AddFriendDialogState extends State<AddFriendDialog>
             const SizedBox(height: AppSpacing.xs),
             Text(
               _errorMessage!,
-              style: AppTextStyles.caption(color: AppColors.red),
+              style: AppTextStyles.caption(color: AppColors.accent),
             ),
           ],
 
@@ -292,7 +292,7 @@ class _AddFriendDialogState extends State<AddFriendDialog>
           ElevatedButton(
             onPressed: _isLoading ? null : _submitRiotId,
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.red,
+              backgroundColor: AppColors.accent,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 14),
               shape: RoundedRectangleBorder(
@@ -329,7 +329,7 @@ class _AddFriendDialogState extends State<AddFriendDialog>
   Widget _buildRecentTeammatesTab() {
     if (_isLoadingTeammates) {
       return const Center(
-        child: CircularProgressIndicator(color: AppColors.red),
+        child: CircularProgressIndicator(color: AppColors.accent),
       );
     }
 

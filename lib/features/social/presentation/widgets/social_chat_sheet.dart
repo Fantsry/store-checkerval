@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:valorant_store_tracker/features/social/domain/entities/chat_message.dart';
@@ -79,6 +81,9 @@ class _SocialChatSheetState extends State<SocialChatSheet> {
           _loadError = null;
         });
         _scrollToBottom();
+        if (merged.any((message) => !message.isMine)) {
+          unawaited(cubit.markChatRead(widget.friend.puuid));
+        }
       },
       failure: (failure) {
         setState(() {
@@ -117,10 +122,7 @@ class _SocialChatSheetState extends State<SocialChatSheet> {
     await _sendText(failedMessage.body, retryOf: failedMessage);
   }
 
-  Future<void> _sendText(
-    String text, {
-    ChatMessageEntity? retryOf,
-  }) async {
+  Future<void> _sendText(String text, {ChatMessageEntity? retryOf}) async {
     final cubit = context.read<SocialCubit>();
     final now = DateTime.now();
     final optimistic = ChatMessageEntity(
@@ -184,10 +186,7 @@ class _SocialChatSheetState extends State<SocialChatSheet> {
     messenger
       ?..hideCurrentSnackBar()
       ..showSnackBar(
-        SnackBar(
-          content: Text(message),
-          backgroundColor: AppColors.red,
-        ),
+        SnackBar(content: Text(message), backgroundColor: AppColors.lossRed),
       );
   }
 
@@ -196,13 +195,13 @@ class _SocialChatSheetState extends State<SocialChatSheet> {
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
     final friend = widget.friend;
 
-    Color statusDotColor = const Color(0xFF64748B);
+    Color statusDotColor = AppColors.textMuted;
     if (friend.status == FriendLiveStatus.inGame) {
-      statusDotColor = AppColors.red;
+      statusDotColor = AppColors.accent;
     } else if (friend.status == FriendLiveStatus.inLobby) {
       statusDotColor = const Color(0xFF22C55E);
     } else if (friend.status == FriendLiveStatus.away) {
-      statusDotColor = const Color(0xFFEAB308);
+      statusDotColor = AppColors.drawAmber;
     }
 
     return BlocListener<SocialCubit, SocialState>(
@@ -248,7 +247,7 @@ class _SocialChatSheetState extends State<SocialChatSheet> {
             children: [
               CircleAvatar(
                 radius: 20,
-                backgroundColor: const Color(0xFF1E2633),
+                backgroundColor: AppColors.cardElevated,
                 backgroundImage: friend.cardSmallArt != null
                     ? NetworkImage(friend.cardSmallArt!)
                     : null,
@@ -259,7 +258,7 @@ class _SocialChatSheetState extends State<SocialChatSheet> {
                             : 'A',
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
-                          color: Colors.white,
+                          color: AppColors.textPrimary,
                         ),
                       )
                     : null,
@@ -273,10 +272,7 @@ class _SocialChatSheetState extends State<SocialChatSheet> {
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: statusDotColor,
-                    border: Border.all(
-                      color: const Color(0xFF0F141C),
-                      width: 2,
-                    ),
+                    border: Border.all(color: AppColors.background, width: 2),
                   ),
                 ),
               ),
@@ -292,7 +288,7 @@ class _SocialChatSheetState extends State<SocialChatSheet> {
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
-                    color: Colors.white,
+                    color: AppColors.textPrimary,
                   ),
                 ),
                 Text(
@@ -301,15 +297,18 @@ class _SocialChatSheetState extends State<SocialChatSheet> {
                   style: TextStyle(
                     fontSize: 12,
                     color: friend.status == FriendLiveStatus.inGame
-                        ? AppColors.red
-                        : const Color(0xFF94A3B8),
+                        ? AppColors.accent
+                        : AppColors.textSecondary,
                   ),
                 ),
               ],
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.close_rounded, color: Colors.white70),
+            icon: const Icon(
+              Icons.close_rounded,
+              color: AppColors.textSecondary,
+            ),
             onPressed: () => Navigator.of(context).pop(),
           ),
         ],
@@ -320,7 +319,7 @@ class _SocialChatSheetState extends State<SocialChatSheet> {
   Widget _buildMessages(FriendEntity friend) {
     if (_isLoading) {
       return const Center(
-        child: CircularProgressIndicator(color: AppColors.red),
+        child: CircularProgressIndicator(color: AppColors.accent),
       );
     }
 
@@ -340,17 +339,11 @@ class _SocialChatSheetState extends State<SocialChatSheet> {
               child: Text(
                 _loadError!,
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: Color(0xFF94A3B8),
-                  fontSize: 13,
-                ),
+                style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
               ),
             ),
             const SizedBox(height: 12),
-            TextButton(
-              onPressed: _loadHistory,
-              child: const Text('Coba lagi'),
-            ),
+            TextButton(onPressed: _loadHistory, child: const Text('Coba lagi')),
           ],
         ),
       );
@@ -369,10 +362,7 @@ class _SocialChatSheetState extends State<SocialChatSheet> {
             const SizedBox(height: 8),
             Text(
               'Mulai percakapan dengan ${friend.gameName}',
-              style: const TextStyle(
-                color: Color(0xFF64748B),
-                fontSize: 13,
-              ),
+              style: const TextStyle(color: Color(0xFF64748B), fontSize: 13),
             ),
           ],
         ),
@@ -394,25 +384,27 @@ class _SocialChatSheetState extends State<SocialChatSheet> {
     final isSending = message.status == ChatMessageStatus.sending;
 
     return Align(
-      alignment: message.isMine
-          ? Alignment.centerRight
-          : Alignment.centerLeft,
+      alignment: message.isMine ? Alignment.centerRight : Alignment.centerLeft,
       child: Column(
-        crossAxisAlignment:
-            message.isMine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+        crossAxisAlignment: message.isMine
+            ? CrossAxisAlignment.end
+            : CrossAxisAlignment.start,
         children: [
           Container(
             margin: const EdgeInsets.only(bottom: 3),
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
-              color: message.isMine
-                  ? AppColors.red
-                  : const Color(0xFF1E2530),
+              color: message.isMine ? AppColors.accent : AppColors.cardElevated,
               borderRadius: BorderRadius.circular(14),
             ),
             child: Text(
               message.body,
-              style: const TextStyle(color: Colors.white, fontSize: 14),
+              style: TextStyle(
+                color: message.isMine
+                    ? AppColors.onAccent
+                    : AppColors.textPrimary,
+                fontSize: 14,
+              ),
             ),
           ),
           if (message.isMine)
@@ -462,7 +454,10 @@ class _SocialChatSheetState extends State<SocialChatSheet> {
               maxLength: _maxMessageLength,
               enabled: !_isSending,
               onSubmitted: (_) => _sendMessage(),
-              style: const TextStyle(color: Colors.white, fontSize: 14),
+              style: const TextStyle(
+                color: AppColors.textPrimary,
+                fontSize: 14,
+              ),
               decoration: InputDecoration(
                 hintText: 'Kirim pesan ke ${friend.gameName}...',
                 hintStyle: const TextStyle(
@@ -471,7 +466,7 @@ class _SocialChatSheetState extends State<SocialChatSheet> {
                 ),
                 counterText: '',
                 filled: true,
-                fillColor: const Color(0xFF0F141C),
+                fillColor: AppColors.background,
                 contentPadding: const EdgeInsets.symmetric(
                   horizontal: 14,
                   vertical: 10,
@@ -486,7 +481,7 @@ class _SocialChatSheetState extends State<SocialChatSheet> {
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(20),
-                  borderSide: const BorderSide(color: AppColors.red),
+                  borderSide: const BorderSide(color: AppColors.accent),
                 ),
               ),
             ),
@@ -495,8 +490,9 @@ class _SocialChatSheetState extends State<SocialChatSheet> {
           IconButton(
             onPressed: _isSending ? null : _sendMessage,
             style: IconButton.styleFrom(
-              backgroundColor:
-                  _isSending ? const Color(0xFF334155) : AppColors.red,
+              backgroundColor: _isSending
+                  ? AppColors.textMuted
+                  : AppColors.accent,
               shape: const CircleBorder(),
             ),
             icon: _isSending
@@ -505,12 +501,12 @@ class _SocialChatSheetState extends State<SocialChatSheet> {
                     height: 16,
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
-                      color: Colors.white,
+                      color: AppColors.textPrimary,
                     ),
                   )
                 : const Icon(
                     Icons.send_rounded,
-                    color: Colors.white,
+                    color: AppColors.textPrimary,
                     size: 18,
                   ),
           ),

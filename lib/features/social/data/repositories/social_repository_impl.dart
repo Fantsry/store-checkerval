@@ -625,6 +625,11 @@ class SocialRepositoryImpl implements SocialRepository {
             } catch (_) {}
           }
 
+          if (selfPuuid.isNotEmpty &&
+              await _localStore.getLastNotifiedChatAt(selfPuuid) == null) {
+            await _localStore.setLastNotifiedChatAt(selfPuuid, DateTime.now());
+          }
+
           final roster = socialData.roster;
           if (roster.isNotEmpty) {
             final List<String> puuidsToResolve = [];
@@ -995,5 +1000,50 @@ class SocialRepositoryImpl implements SocialRepository {
         ServerFailure(message: 'Gagal mengirim pesan: $e'),
       );
     }
+  }
+
+  @override
+  Future<Map<String, int>> getUnreadChatCounts() async {
+    final counts = <String, int>{};
+    final now = DateTime.now();
+    final rawList = await _localStore.getSavedFriendsJson();
+
+    for (final raw in rawList) {
+      try {
+        final map = jsonDecode(raw) as Map<String, dynamic>;
+        final puuid = map['puuid']?.toString() ?? '';
+        if (puuid.isEmpty) continue;
+
+        final history = await _localStore.getChatMessages(puuid);
+        if (history.isEmpty) continue;
+
+        final lastReadId = await _localStore.getLastReadChatMessageId(puuid);
+        final lastReadIndex = lastReadId == null
+            ? -1
+            : history.indexWhere((message) => message.id == lastReadId);
+
+        var unread = 0;
+        for (var i = lastReadIndex + 1; i < history.length; i++) {
+          final message = history[i];
+          if (message.isMine) continue;
+          if (lastReadId == null &&
+              now.difference(message.timestamp) > const Duration(days: 7)) {
+            continue;
+          }
+          unread++;
+        }
+
+        if (unread > 0) counts[puuid] = unread;
+      } catch (_) {}
+    }
+
+    return counts;
+  }
+
+  @override
+  Future<void> markChatRead(String puuid) async {
+    final history = await _localStore.getChatMessages(puuid);
+    if (history.isEmpty) return;
+    await _localStore.markChatRead(puuid, history.last.id);
   }
 }

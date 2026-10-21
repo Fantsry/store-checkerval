@@ -1,15 +1,26 @@
 import 'dart:async';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
+import 'package:valorant_store_tracker/features/live_match/presentation/widgets/gem_rank_icon.dart';
 import 'package:valorant_store_tracker/features/social/domain/entities/friend_entity.dart';
 import 'package:valorant_store_tracker/features/social/presentation/cubit/social_cubit.dart';
 import 'package:valorant_store_tracker/features/social/presentation/cubit/social_state.dart';
 import 'package:valorant_store_tracker/features/social/presentation/widgets/add_friend_dialog.dart';
-import 'package:valorant_store_tracker/features/social/presentation/widgets/friend_card.dart';
 import 'package:valorant_store_tracker/features/social/presentation/widgets/social_chat_sheet.dart';
 import 'package:valorant_store_tracker/ui/theme/app_colors.dart';
+import 'package:valorant_store_tracker/ui/theme/app_radius.dart';
+import 'package:valorant_store_tracker/ui/theme/app_spacing.dart';
+import 'package:valorant_store_tracker/ui/theme/app_text_styles.dart';
+import 'package:valorant_store_tracker/ui/widgets/ascend_card.dart';
+import 'package:valorant_store_tracker/ui/widgets/custom_tab_bar.dart';
+import 'package:valorant_store_tracker/ui/widgets/empty_state_view.dart';
+import 'package:valorant_store_tracker/ui/widgets/error_state_view.dart';
+import 'package:valorant_store_tracker/ui/widgets/section_header.dart';
+import 'package:valorant_store_tracker/ui/widgets/shimmer_loading.dart';
+import 'package:valorant_store_tracker/ui/widgets/stat_rail.dart';
 
 class SocialPage extends StatefulWidget {
   const SocialPage({super.key});
@@ -18,10 +29,10 @@ class SocialPage extends StatefulWidget {
   State<SocialPage> createState() => _SocialPageState();
 }
 
-class _SocialPageState extends State<SocialPage> with SingleTickerProviderStateMixin {
+class _SocialPageState extends State<SocialPage> {
   final TextEditingController _searchController = TextEditingController();
   Timer? _livePollingTimer;
-  int _selectedTabIndex = 0; // 0: Friends, 1: Community, 2: Team
+  int _selectedTabIndex = 0;
 
   @override
   void initState() {
@@ -32,11 +43,10 @@ class _SocialPageState extends State<SocialPage> with SingleTickerProviderStateM
       cubit.loadFriends();
     }
 
-    // Auto-poll live presence every 15s to update real-time match scores and statuses
-    _livePollingTimer = Timer.periodic(const Duration(seconds: 15), (_) {
+    _livePollingTimer = Timer.periodic(const Duration(seconds: 45), (_) {
       if (mounted) {
-        final s = context.read<SocialCubit>().state;
-        if (s is SocialLoaded && !s.isRefreshing) {
+        final state = context.read<SocialCubit>().state;
+        if (state is SocialLoaded && !state.isRefreshing) {
           context.read<SocialCubit>().refreshLivePresence();
         }
       }
@@ -61,601 +71,396 @@ class _SocialPageState extends State<SocialPage> with SingleTickerProviderStateM
     await context.read<SocialCubit>().syncRiotFriends(clearMocks: true);
   }
 
+  SocialLoaded? _loadedFrom(SocialState state) {
+    if (state is SocialLoaded) return state;
+    if (state is SocialLoading && state.cachedFriends != null) {
+      return SocialLoaded(friends: state.cachedFriends!);
+    }
+    if (state is SocialError && state.cachedFriends != null) {
+      return SocialLoaded(friends: state.cachedFriends!);
+    }
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0D1117),
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        title: Text(
+          'Social',
+          style: AppTextStyles.h2(color: AppColors.textPrimary),
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(
+              Icons.person_add_alt_1_rounded,
+              color: AppColors.textSecondary,
+            ),
+            tooltip: 'Add friend',
+            onPressed: _showAddFriendDialog,
+          ),
+          IconButton(
+            icon: const Icon(
+              Icons.more_horiz_rounded,
+              color: AppColors.textSecondary,
+            ),
+            tooltip: 'Social options',
+            onPressed: () => _showSettingsMenu(context),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+        ],
+      ),
       body: SafeArea(
-        child: Column(
-          children: [
-            // ── Top Header ──────────────────────────────────────────────
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 16, 12),
-              child: Row(
-                children: [
-                  const Text(
-                    'Social',
-                    style: TextStyle(
-                      fontSize: 26,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                      letterSpacing: -0.5,
-                    ),
-                  ),
-                  const Spacer(),
-                  IconButton(
-                    icon: const Icon(Icons.push_pin_rounded, color: AppColors.red, size: 24),
-                    tooltip: 'Pinned Squad',
-                    onPressed: () {
-                      context.read<SocialCubit>().refreshLivePresence();
-                    },
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.settings_outlined, color: Colors.white70, size: 24),
-                    tooltip: 'Social Settings',
-                    onPressed: () => _showSettingsMenu(context),
-                  ),
-                ],
-              ),
-            ),
+        child: BlocBuilder<SocialCubit, SocialState>(
+          builder: (context, state) {
+            final loaded = _loadedFrom(state);
 
-            // ── Top Tabs: [Friends] [Community] [Team] ──────────────────
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Row(
-                children: [
-                  _buildTabPill(index: 0, title: 'Friends'),
-                  const SizedBox(width: 8),
-                  _buildTabPill(index: 1, title: 'Community'),
-                  const SizedBox(width: 8),
-                  _buildTabPill(index: 2, title: 'Team'),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 14),
-
-            // ── Search & Add Friend Bar ─────────────────────────────────
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Container(
-                height: 48,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF161B22),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFF262C36), width: 1),
+            return Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.lg,
+                    AppSpacing.sm,
+                    AppSpacing.lg,
+                    AppSpacing.md,
+                  ),
+                  child: StatRail(
+                    items: [
+                      StatRailItem(
+                        label: 'FRIENDS',
+                        value: loaded == null ? '—' : '${loaded.totalCount}',
+                      ),
+                      StatRailItem(
+                        label: 'ONLINE',
+                        value: loaded == null
+                            ? '—'
+                            : '${loaded.totalCount - loaded.offlineCount}',
+                        valueColor: loaded == null
+                            ? null
+                            : AppColors.accent,
+                      ),
+                      StatRailItem(
+                        label: 'IN GAME',
+                        value: loaded == null
+                            ? '—'
+                            : '${loaded.playingCount}',
+                      ),
+                      StatRailItem(
+                        label: 'UNREAD',
+                        value: loaded == null ? '—' : '${loaded.totalUnread}',
+                        valueColor: loaded != null && loaded.totalUnread > 0
+                            ? AppColors.vpGold
+                            : null,
+                      ),
+                    ],
+                  ),
                 ),
-                child: Row(
-                  children: [
-                    const SizedBox(width: 12),
-                    const Icon(Icons.search_rounded, color: Color(0xFF8B949E), size: 20),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: TextField(
-                        controller: _searchController,
-                        onChanged: (val) => context.read<SocialCubit>().setSearchQuery(val),
-                        style: const TextStyle(color: Colors.white, fontSize: 14),
-                        decoration: const InputDecoration(
-                          hintText: 'Search friends or chats...',
-                          hintStyle: TextStyle(color: Color(0xFF6E7681), fontSize: 14),
-                          border: InputBorder.none,
-                          isDense: true,
-                          contentPadding: EdgeInsets.zero,
-                        ),
-                      ),
-                    ),
-                    if (_searchController.text.isNotEmpty)
-                      IconButton(
-                        icon: const Icon(Icons.close_rounded, color: Colors.white54, size: 18),
-                        onPressed: () {
-                          _searchController.clear();
-                          context.read<SocialCubit>().setSearchQuery('');
-                        },
-                      ),
-                    IconButton(
-                      icon: const Icon(Icons.person_add_alt_1_rounded, color: AppColors.red, size: 22),
-                      tooltip: 'Add Friend',
-                      onPressed: _showAddFriendDialog,
-                    ),
-                    const SizedBox(width: 4),
+                CustomTabBar(
+                  tabs: [
+                    'FRIENDS',
+                    'CHATS${loaded != null && loaded.totalUnread > 0 ? ' ${loaded.totalUnread}' : ''}',
                   ],
+                  selectedIndex: _selectedTabIndex,
+                  onTabSelected: (index) {
+                    setState(() => _selectedTabIndex = index);
+                  },
+                ),
+                _buildSearchBar(),
+                Expanded(child: _buildContent(state, loaded)),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSearchBar() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.lg,
+        AppSpacing.md,
+        AppSpacing.lg,
+        AppSpacing.sm,
+      ),
+      child: Container(
+        height: 42,
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: AppRadius.roundedMd,
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Row(
+          children: [
+            const Icon(
+              Icons.search_rounded,
+              size: 18,
+              color: AppColors.textMuted,
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: TextField(
+                controller: _searchController,
+                onChanged: (value) {
+                  setState(() {});
+                  context.read<SocialCubit>().setSearchQuery(value);
+                },
+                style: AppTextStyles.bodyMedium(color: AppColors.textPrimary),
+                decoration: InputDecoration(
+                  hintText: 'Search friends or chats',
+                  hintStyle: AppTextStyles.bodyMedium(
+                    color: AppColors.textMuted,
+                  ),
+                  border: InputBorder.none,
+                  isDense: true,
+                  contentPadding: EdgeInsets.zero,
                 ),
               ),
             ),
-
-            const SizedBox(height: 12),
-
-            // ── Content Area ────────────────────────────────────────────
-            Expanded(
-              child: _selectedTabIndex == 0
-                  ? _buildFriendsTab()
-                  : _selectedTabIndex == 1
-                      ? _buildCommunityTab()
-                      : _buildTeamTab(),
-            ),
+            if (_searchController.text.isNotEmpty)
+              GestureDetector(
+                onTap: () {
+                  _searchController.clear();
+                  setState(() {});
+                  context.read<SocialCubit>().setSearchQuery('');
+                },
+                child: const Icon(
+                  Icons.close_rounded,
+                  size: 16,
+                  color: AppColors.textMuted,
+                ),
+              ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildTabPill({required int index, required String title}) {
-    final isSelected = _selectedTabIndex == index;
-    return Expanded(
-      child: GestureDetector(
-        onTap: () => setState(() => _selectedTabIndex = index),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          decoration: BoxDecoration(
-            color: isSelected ? AppColors.red : const Color(0xFF161B22),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: isSelected ? AppColors.red : const Color(0xFF262C36),
-              width: 1,
-            ),
-          ),
-          alignment: Alignment.center,
-          child: Text(
-            title,
-            style: TextStyle(
-              color: isSelected ? Colors.white : const Color(0xFF8B949E),
-              fontSize: 14,
-              fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildFriendsTab() {
-    return BlocConsumer<SocialCubit, SocialState>(
-      listener: (context, state) {},
-      builder: (context, state) {
-        if (state is SocialLoading && state.cachedFriends == null) {
-          return const Center(
-            child: CircularProgressIndicator(color: AppColors.red),
-          );
-        }
-
-        if (state is SocialError && (state.cachedFriends == null || state.cachedFriends!.isEmpty)) {
-          return Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.error_outline_rounded, color: AppColors.red, size: 48),
-                const SizedBox(height: 12),
-                Text(
-                  state.message,
-                  style: const TextStyle(color: Colors.white70),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 16),
-                ElevatedButton.icon(
-                  onPressed: () => context.read<SocialCubit>().syncRiotFriends(clearMocks: true),
-                  icon: const Icon(Icons.refresh_rounded),
-                  label: const Text('Sinkronkan Ulang Teman Riot'),
-                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.red),
-                ),
-              ],
-            ),
-          );
-        }
-
-        if (state is SocialLoaded) {
-          final inGame = state.inGameFriends;
-          final chats = state.chatFriends;
-          final online = state.onlineFriends;
-          final offline = state.offlineFriends;
-
-          if (state.friends.isEmpty) {
-            return RefreshIndicator(
-              onRefresh: _handleRefresh,
-              color: AppColors.red,
-              backgroundColor: const Color(0xFF161B22),
-              child: ListView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                children: [
-                  const SizedBox(height: 80),
-                  const Icon(Icons.group_outlined, size: 64, color: Color(0xFF334155)),
-                  const SizedBox(height: 16),
-                  const Center(
-                    child: Text(
-                      'Belum ada teman yang terhubung',
-                      style: TextStyle(color: Colors.white70, fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  const Center(
-                    child: Text(
-                      'Tarik ke bawah untuk menyinkronkan teman Riot secara real-time',
-                      style: TextStyle(color: Color(0xFF8B949E), fontSize: 13),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  Center(
-                    child: ElevatedButton.icon(
-                      onPressed: () => context.read<SocialCubit>().syncRiotFriends(clearMocks: true),
-                      icon: const Icon(Icons.sync_rounded),
-                      label: const Text('Sinkronkan Teman Riot (XMPP)'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.red,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }
-
-          return RefreshIndicator(
-            onRefresh: _handleRefresh,
-            color: AppColors.red,
-            backgroundColor: const Color(0xFF161B22),
-            child: ListView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              children: [
-                // ── 1. IN GAME SECTION ──────────────────────────────────
-                if (inGame.isNotEmpty) ...[
-                  _buildSectionHeader('IN GAME', inGame.length),
-                  const SizedBox(height: 8),
-                  ...inGame.map((f) => _buildRealtimeFriendCard(f, section: 'IN_GAME')),
-                  const SizedBox(height: 16),
-                ],
-
-                // ── 2. CHATS SECTION ────────────────────────────────────
-                if (chats.isNotEmpty) ...[
-                  _buildSectionHeader('CHATS', chats.length),
-                  const SizedBox(height: 8),
-                  ...chats.map((f) => _buildRealtimeFriendCard(f, section: 'CHATS')),
-                  const SizedBox(height: 16),
-                ],
-
-                // ── 3. ONLINE SECTION ───────────────────────────────────
-                if (online.isNotEmpty) ...[
-                  _buildSectionHeader('ONLINE', online.length),
-                  const SizedBox(height: 8),
-                  ...online.map((f) => _buildRealtimeFriendCard(f, section: 'ONLINE')),
-                  const SizedBox(height: 16),
-                ],
-
-                // ── 4. OFFLINE SECTION ──────────────────────────────────
-                if (offline.isNotEmpty) ...[
-                  _buildSectionHeader('OFFLINE', offline.length),
-                  const SizedBox(height: 8),
-                  ...offline.map((f) => _buildRealtimeFriendCard(f, section: 'OFFLINE')),
-                  const SizedBox(height: 24),
-                ],
-              ],
-            ),
-          );
-        }
-
-        return const SizedBox.shrink();
-      },
-    );
-  }
-
-  Widget _buildSectionHeader(String title, int count) {
-    return Text(
-      '$title · $count',
-      style: const TextStyle(
-        fontSize: 12,
-        fontWeight: FontWeight.w800,
-        color: Color(0xFF8B949E),
-        letterSpacing: 1.2,
-      ),
-    );
-  }
-
-  Widget _buildRealtimeFriendCard(FriendEntity friend, {required String section}) {
-    final isChatSection = section == 'CHATS';
-    final isPlaying = friend.isPlaying;
-    final isAway = friend.status == FriendLiveStatus.away;
-    final isLobby = friend.status == FriendLiveStatus.inLobby;
-
-    Color statusDotColor = const Color(0xFF64748B);
-    if (isPlaying) {
-      statusDotColor = AppColors.red;
-    } else if (isLobby) {
-      statusDotColor = const Color(0xFF22C55E); // Green dot
-    } else if (isAway) {
-      statusDotColor = const Color(0xFFEAB308); // Yellow dot
+  Widget _buildContent(SocialState state, SocialLoaded? loaded) {
+    if (loaded == null) {
+      if (state is SocialError) {
+        return ErrorStateView(
+          message: state.message,
+          onRetry: _handleRefresh,
+        );
+      }
+      return ListView(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        children: const [
+          ShimmerBox(height: 64),
+          SizedBox(height: AppSpacing.sm),
+          ShimmerBox(height: 64),
+          SizedBox(height: AppSpacing.sm),
+          ShimmerBox(height: 64),
+          SizedBox(height: AppSpacing.sm),
+          ShimmerBox(height: 64),
+        ],
+      );
     }
 
-    final avatarLetter = friend.gameName.isNotEmpty ? friend.gameName[0].toUpperCase() : 'A';
-    final avatarBgColor = _getLetterColor(avatarLetter);
+    return RefreshIndicator(
+      onRefresh: _handleRefresh,
+      color: AppColors.accent,
+      backgroundColor: AppColors.card,
+      child: _selectedTabIndex == 0
+          ? _buildFriendsTab(loaded)
+          : _buildChatsTab(loaded),
+    );
+  }
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      decoration: BoxDecoration(
-        color: const Color(0xFF161B22),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF262C36), width: 1),
+  Widget _buildFriendsTab(SocialLoaded state) {
+    final inGame = state.inGameFriends;
+    final online = state.onlineFriends;
+    final offline = state.offlineFriends;
+    final hasResults =
+        inGame.isNotEmpty || online.isNotEmpty || offline.isNotEmpty;
+
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.lg,
+        AppSpacing.sm,
+        AppSpacing.lg,
+        AppSpacing.xxl,
       ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(14),
-          onTap: () => _showFriendDetailSheet(friend),
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Row(
-              children: [
-                // ── Left: Avatar with Status Dot ────────────────────────
-                Stack(
-                  children: [
-                    Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: avatarBgColor,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      clipBehavior: Clip.antiAlias,
-                      child: friend.cardSmallArt != null
-                          ? CachedNetworkImage(
-                              imageUrl: friend.cardSmallArt!,
-                              fit: BoxFit.cover,
-                              errorWidget: (_, __, ___) => Center(
-                                child: Text(
-                                  avatarLetter,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            )
-                          : Center(
-                              child: Text(
-                                avatarLetter,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                    ),
-                    Positioned(
-                      right: 0,
-                      bottom: 0,
-                      child: Container(
-                        width: 10,
-                        height: 10,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: statusDotColor,
-                          border: Border.all(color: const Color(0xFF161B22), width: 2),
-                        ),
-                      ),
+      children: [
+        if (!hasResults)
+          EmptyStateView(
+            icon: Icons.group_outlined,
+            title: state.friends.isEmpty
+                ? 'No friends connected'
+                : 'No friends match this search',
+            description: state.friends.isEmpty
+                ? 'Sync your Riot friends to see live presence and matches.'
+                : 'Try a different name or clear the search.',
+            buttonText: state.friends.isEmpty ? 'SYNC RIOT FRIENDS' : null,
+            onButtonPressed: state.friends.isEmpty ? _handleRefresh : null,
+          )
+        else ...[
+          if (inGame.isNotEmpty)
+            _buildGroup(
+              index: '01',
+              title: 'IN GAME',
+              friends: inGame,
+              unreadCounts: state.unreadCounts,
+            ),
+          if (online.isNotEmpty)
+            _buildGroup(
+              index: inGame.isNotEmpty ? '02' : '01',
+              title: 'ONLINE',
+              friends: online,
+              unreadCounts: state.unreadCounts,
+            ),
+          if (offline.isNotEmpty)
+            _buildGroup(
+              index: inGame.isNotEmpty && online.isNotEmpty
+                  ? '03'
+                  : (inGame.isNotEmpty || online.isNotEmpty ? '02' : '01'),
+              title: 'OFFLINE',
+              friends: offline,
+              unreadCounts: state.unreadCounts,
+            ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildChatsTab(SocialLoaded state) {
+    final chats = state.chatFriends;
+
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.lg,
+        AppSpacing.sm,
+        AppSpacing.lg,
+        AppSpacing.xxl,
+      ),
+      children: [
+        if (chats.isEmpty)
+          const EmptyStateView(
+            icon: Icons.chat_bubble_outline_rounded,
+            title: 'No conversations yet',
+            description: 'Chats with your Riot friends will appear here.',
+          )
+        else
+          _buildGroup(
+            index: '01',
+            title: 'CHATS',
+            friends: chats,
+            unreadCounts: state.unreadCounts,
+            isChat: true,
+          ),
+      ],
+    );
+  }
+
+  Widget _buildGroup({
+    required String index,
+    required String title,
+    required List<FriendEntity> friends,
+    required Map<String, int> unreadCounts,
+    bool isChat = false,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.xl),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SectionHeader(
+            index: index,
+            title: title,
+            trailing: Text(
+              '${friends.length}',
+              style: AppTextStyles.statLabel(color: AppColors.textMuted),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          DataPanel(
+            padding: EdgeInsets.zero,
+            child: ClipRRect(
+              borderRadius: AppRadius.roundedLg,
+              child: Column(
+                children: [
+                  for (var i = 0; i < friends.length; i++) ...[
+                    if (i > 0)
+                      const Divider(height: 1, color: AppColors.border),
+                    _buildFriendRow(
+                      friends[i],
+                      isChat: isChat,
+                      unreadCount: unreadCounts[friends[i].puuid] ?? 0,
                     ),
                   ],
-                ),
-
-                const SizedBox(width: 12),
-
-                // ── Center: Title & Subtitle ────────────────────────────
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        friend.displayName,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: -0.2,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 4),
-
-                      // Subtitle
-                      if (isChatSection)
-                        Text(
-                          friend.lastChatMessage ?? '',
-                          style: const TextStyle(
-                            color: Color(0xFF8B949E),
-                            fontSize: 13,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        )
-                      else if (isPlaying)
-                        Row(
-                          children: [
-                            const Icon(
-                              Icons.desktop_windows_outlined,
-                              size: 14,
-                              color: AppColors.red,
-                            ),
-                            const SizedBox(width: 5),
-                            Expanded(
-                              child: Text(
-                                _buildInGameSubtitle(friend),
-                                style: const TextStyle(
-                                  color: AppColors.red,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        )
-                      else if (isAway)
-                        Row(
-                          children: [
-                            const Icon(
-                              Icons.phone_android_rounded,
-                              size: 14,
-                              color: Color(0xFFEAB308),
-                            ),
-                            const SizedBox(width: 5),
-                            const Text(
-                              'Away',
-                              style: TextStyle(
-                                color: Color(0xFFEAB308),
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        )
-                      else if (isLobby)
-                        Row(
-                          children: [
-                            const Icon(
-                              Icons.desktop_windows_outlined,
-                              size: 14,
-                              color: Color(0xFF8B949E),
-                            ),
-                            const SizedBox(width: 5),
-                            Text(
-                              friend.clientActivity ?? 'In Riot Client',
-                              style: const TextStyle(
-                                color: Color(0xFF8B949E),
-                                fontSize: 12,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        )
-                      else
-                        const Text(
-                          'Offline',
-                          style: TextStyle(
-                            color: Color(0xFF6E7681),
-                            fontSize: 12,
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(width: 8),
-
-                // ── Right: Trailing Chat Button or Date ─────────────────
-                if (isChatSection)
-                  Text(
-                    _formatChatDate(friend.lastChatTimestamp),
-                    style: const TextStyle(
-                      color: Color(0xFF6E7681),
-                      fontSize: 12,
-                    ),
-                  )
-                else
-                  GestureDetector(
-                    onTap: () => SocialChatSheet.show(context, friend),
-                    child: Container(
-                      width: 36,
-                      height: 36,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF1C222B),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: const Color(0xFF282F3B), width: 1),
-                      ),
-                      alignment: Alignment.center,
-                      child: const Icon(
-                        Icons.chat_bubble_outline_rounded,
-                        color: Color(0xFF8B949E),
-                        size: 16,
-                      ),
-                    ),
-                  ),
-              ],
+                ],
+              ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }
 
-  String _buildInGameSubtitle(FriendEntity friend) {
-    final activity = friend.liveActivity;
-    if (activity == null) return friend.clientActivity ?? 'In Game';
-
-    final mode = activity.modeName ?? 'Competitive';
-    final map = activity.mapName ?? 'Valorant';
-    final scoreAlly = activity.scoreAlly;
-    final scoreEnemy = activity.scoreEnemy;
-
-    if (scoreAlly != null && scoreEnemy != null) {
-      return '$mode · $map · $scoreAlly-$scoreEnemy';
-    }
-    return '$mode · $map';
-  }
-
-  String _formatChatDate(DateTime? time) {
-    if (time == null) return '';
-    return DateFormat('MMM d, yyyy').format(time);
-  }
-
-  Color _getLetterColor(String letter) {
-    final colors = [
-      const Color(0xFF2E7D32), // Green
-      const Color(0xFF00838F), // Teal
-      const Color(0xFF4527A0), // Deep Purple
-      const Color(0xFFAD1457), // Pink
-      const Color(0xFFD84315), // Deep Orange
-      const Color(0xFF1565C0), // Blue
-    ];
-    final code = letter.codeUnitAt(0);
-    return colors[code % colors.length];
-  }
-
-  void _showFriendDetailSheet(FriendEntity friend) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => Container(
-        height: MediaQuery.of(context).size.height * 0.82,
-        decoration: const BoxDecoration(
-          color: Color(0xFF0D1117),
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+  Widget _buildFriendRow(
+    FriendEntity friend, {
+    required bool isChat,
+    required int unreadCount,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => isChat
+            ? SocialChatSheet.show(context, friend)
+            : _showFriendDetailSheet(friend),
+        child: Container(
+          color: friend.isPlaying
+              ? AppColors.accent.withValues(alpha: 0.035)
+              : Colors.transparent,
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.sm,
+          ),
+          child: Row(
             children: [
-              FriendCard(
-                friend: friend,
-                onFavoriteTap: () => context.read<SocialCubit>().toggleFavorite(friend.puuid),
-                onDeleteTap: () {
-                  Navigator.of(context).pop();
-                  context.read<SocialCubit>().removeFriend(friend.puuid);
-                },
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                  SocialChatSheet.show(context, friend);
-                },
-                icon: const Icon(Icons.chat_rounded),
-                label: Text('Chat dengan ${friend.gameName}'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.red,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              _buildAvatar(friend),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            friend.displayName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTextStyles.bodyMedium(
+                              color: AppColors.textPrimary,
+                            ).copyWith(fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                        if (friend.isFavorite) ...[
+                          const SizedBox(width: 4),
+                          const Icon(
+                            Icons.star_rounded,
+                            size: 12,
+                            color: AppColors.vpGold,
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 3),
+                    _buildSubtitle(friend, isChat),
+                  ],
                 ),
               ),
+              const SizedBox(width: AppSpacing.sm),
+              if (isChat)
+                _buildChatTrailing(friend, unreadCount)
+              else
+                _buildPresenceTrailing(friend),
             ],
           ),
         ),
@@ -663,41 +468,639 @@ class _SocialPageState extends State<SocialPage> with SingleTickerProviderStateM
     );
   }
 
+  Widget _buildAvatar(FriendEntity friend) {
+    final initial = friend.gameName.isNotEmpty
+        ? friend.gameName[0].toUpperCase()
+        : '?';
+
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Container(
+          width: 42,
+          height: 42,
+          decoration: BoxDecoration(
+            color: AppColors.cardElevated,
+            borderRadius: AppRadius.roundedSm,
+            border: Border.all(
+              color: friend.isPlaying
+                  ? AppColors.accent.withValues(alpha: 0.4)
+                  : AppColors.border,
+            ),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: friend.cardSmallArt != null
+              ? CachedNetworkImage(
+                  imageUrl: friend.cardSmallArt!,
+                  fit: BoxFit.cover,
+                  errorWidget: (_, __, ___) => Center(
+                    child: Text(
+                      initial,
+                      style: AppTextStyles.mono(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ),
+                )
+              : Center(
+                  child: Text(
+                    initial,
+                    style: AppTextStyles.mono(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ),
+        ),
+        Positioned(
+          right: -2,
+          bottom: -2,
+          child: Container(
+            width: 10,
+            height: 10,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: _statusColor(friend.status),
+              border: Border.all(color: AppColors.surface, width: 2),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSubtitle(FriendEntity friend, bool isChat) {
+    if (isChat) {
+      return Text(
+        friend.lastChatMessage ?? '',
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: AppTextStyles.caption(color: AppColors.textSecondary),
+      );
+    }
+
+    if (friend.isPlaying) {
+      return Row(
+        children: [
+          const Icon(
+            Icons.sports_esports_outlined,
+            size: 12,
+            color: AppColors.accent,
+          ),
+          const SizedBox(width: 4),
+          Expanded(
+            child: Text(
+              _activityText(friend),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppTextStyles.caption(
+                color: AppColors.accent,
+              ).copyWith(fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      );
+    }
+
+    final text = switch (friend.status) {
+      FriendLiveStatus.inLobby => friend.clientActivity ?? 'In client',
+      FriendLiveStatus.away => friend.isMobile ? 'Away on mobile' : 'Away',
+      FriendLiveStatus.offline => 'Offline',
+      _ => friend.clientActivity ?? 'Online',
+    };
+
+    return Text(
+      text,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: AppTextStyles.caption(color: AppColors.textMuted),
+    );
+  }
+
+  Widget _buildPresenceTrailing(FriendEntity friend) {
+    if (!friend.isPlaying) {
+      return GestureDetector(
+        onTap: () => SocialChatSheet.show(context, friend),
+        child: Container(
+          width: 32,
+          height: 32,
+          decoration: BoxDecoration(
+            color: AppColors.cardElevated,
+            borderRadius: AppRadius.roundedSm,
+            border: Border.all(color: AppColors.border),
+          ),
+          alignment: Alignment.center,
+          child: const Icon(
+            Icons.chat_bubble_outline_rounded,
+            size: 15,
+            color: AppColors.textMuted,
+          ),
+        ),
+      );
+    }
+
+    final activity = friend.liveActivity;
+    final score = activity?.scoreDisplay.isNotEmpty == true
+        ? activity!.scoreDisplay.replaceAll(' ', '')
+        : 'LIVE';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Text(
+          score,
+          style: AppTextStyles.statValue(
+            color: AppColors.textPrimary,
+            fontSize: 14,
+          ),
+        ),
+        if (activity != null && activity.roundHistory.isNotEmpty) ...[
+          const SizedBox(height: 4),
+          _buildRoundTape(activity.roundHistory),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildRoundTape(List<bool> history) {
+    final visible = history.length > 6
+        ? history.sublist(history.length - 6)
+        : history;
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (final won in visible)
+          Container(
+            width: 3,
+            height: 9,
+            margin: const EdgeInsets.only(left: 2),
+            color: won ? AppColors.winGreen : AppColors.lossRed,
+          ),
+      ],
+    );
+  }
+
+  Widget _buildChatTrailing(FriendEntity friend, int unreadCount) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Text(
+          _formatChatDate(friend.lastChatTimestamp),
+          style: AppTextStyles.statLabel(color: AppColors.textMuted).copyWith(
+            fontSize: 9,
+            letterSpacing: 0,
+          ),
+        ),
+        if (unreadCount > 0) ...[
+          const SizedBox(height: 4),
+          Container(
+            constraints: const BoxConstraints(minWidth: 18),
+            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+            decoration: BoxDecoration(
+              color: AppColors.accent,
+              borderRadius: AppRadius.roundedPill,
+            ),
+            alignment: Alignment.center,
+            child: Text(
+              unreadCount > 99 ? '99+' : '$unreadCount',
+              style: AppTextStyles.mono(
+                fontSize: 9,
+                fontWeight: FontWeight.w700,
+                color: AppColors.onAccent,
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  String _activityText(FriendEntity friend) {
+    final activity = friend.liveActivity;
+    if (activity == null) return friend.clientActivity ?? 'In game';
+
+    final parts = <String>[
+      activity.modeName ?? 'Competitive',
+      if (activity.mapName != null && activity.mapName!.isNotEmpty)
+        activity.mapName!,
+    ];
+    return parts.join(' / ');
+  }
+
+  Color _statusColor(FriendLiveStatus status) {
+    return switch (status) {
+      FriendLiveStatus.inGame => AppColors.accent,
+      FriendLiveStatus.inAgentSelect => AppColors.vpGold,
+      FriendLiveStatus.inLobby => AppColors.winGreen,
+      FriendLiveStatus.away => AppColors.drawAmber,
+      FriendLiveStatus.offline => AppColors.textMuted,
+    };
+  }
+
+  String _formatChatDate(DateTime? time) {
+    if (time == null) return '';
+    return DateFormat('MMM d').format(time);
+  }
+
+  Future<void> _showFriendDetailSheet(FriendEntity friend) async {
+    var isFavorite = friend.isFavorite;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            final activity = friend.liveActivity;
+
+            return Container(
+              height: MediaQuery.of(sheetContext).size.height * 0.82,
+              decoration: const BoxDecoration(
+                color: AppColors.background,
+                borderRadius: BorderRadius.vertical(
+                  top: Radius.circular(AppRadius.xl),
+                ),
+                border: Border(
+                  top: BorderSide(color: AppColors.border),
+                ),
+              ),
+              child: SafeArea(
+                top: false,
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _buildDetailArt(friend, sheetContext),
+                      Padding(
+                        padding: const EdgeInsets.all(AppSpacing.lg),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Row(
+                              children: [
+                                _buildAvatar(friend),
+                                const SizedBox(width: AppSpacing.md),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        friend.gameName,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: AppTextStyles.h2(
+                                          color: AppColors.textPrimary,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        friend.tagLine.isEmpty
+                                            ? 'RIOT ID'
+                                            : '#${friend.tagLine}',
+                                        style: AppTextStyles.statLabel(
+                                          color: AppColors.textMuted,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                ValorantRankIcon(
+                                  tier: friend.rankTier,
+                                  iconUrl: friend.rankIcon,
+                                  tierName: friend.rankName ?? 'Unrated',
+                                  size: 34,
+                                ),
+                              ],
+                            ),
+                            if (activity != null && friend.isPlaying) ...[
+                              const SizedBox(height: AppSpacing.lg),
+                              _buildLivePanel(activity),
+                            ],
+                            const SizedBox(height: AppSpacing.lg),
+                            DataPanel(
+                              padding: EdgeInsets.zero,
+                              child: Column(
+                                children: [
+                                  _buildInfoRow(
+                                    'RANK',
+                                    friend.rankName ?? 'Unrated',
+                                  ),
+                                  const Divider(
+                                    height: 1,
+                                    color: AppColors.border,
+                                  ),
+                                  _buildInfoRow(
+                                    'LEVEL',
+                                    '${friend.accountLevel}',
+                                  ),
+                                  const Divider(
+                                    height: 1,
+                                    color: AppColors.border,
+                                  ),
+                                  _buildInfoRow(
+                                    'STATUS',
+                                    _statusLabel(friend.status),
+                                    valueColor: _statusColor(friend.status),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: AppSpacing.lg),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: FilledButton.icon(
+                                    onPressed: () {
+                                      Navigator.of(sheetContext).pop();
+                                      SocialChatSheet.show(this.context, friend);
+                                    },
+                                    icon: const Icon(
+                                      Icons.chat_bubble_outline_rounded,
+                                      size: 16,
+                                    ),
+                                    label: const Text('MESSAGE'),
+                                  ),
+                                ),
+                                const SizedBox(width: AppSpacing.sm),
+                                OutlinedButton(
+                                  onPressed: () {
+                                    setSheetState(
+                                      () => isFavorite = !isFavorite,
+                                    );
+                                    this
+                                        .context
+                                        .read<SocialCubit>()
+                                        .toggleFavorite(friend.puuid);
+                                  },
+                                  style: OutlinedButton.styleFrom(
+                                    minimumSize: const Size(46, 46),
+                                    padding: EdgeInsets.zero,
+                                    foregroundColor: isFavorite
+                                        ? AppColors.vpGold
+                                        : AppColors.textSecondary,
+                                  ),
+                                  child: Icon(
+                                    isFavorite
+                                        ? Icons.star_rounded
+                                        : Icons.star_border_rounded,
+                                    size: 20,
+                                  ),
+                                ),
+                                const SizedBox(width: AppSpacing.sm),
+                                OutlinedButton(
+                                  onPressed: () {
+                                    Navigator.of(sheetContext).pop();
+                                    this
+                                        .context
+                                        .read<SocialCubit>()
+                                        .removeFriend(friend.puuid);
+                                  },
+                                  style: OutlinedButton.styleFrom(
+                                    minimumSize: const Size(46, 46),
+                                    padding: EdgeInsets.zero,
+                                    foregroundColor: AppColors.lossRed,
+                                  ),
+                                  child: const Icon(
+                                    Icons.person_remove_outlined,
+                                    size: 20,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildDetailArt(FriendEntity friend, BuildContext sheetContext) {
+    return SizedBox(
+      height: 170,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          if (friend.cardWideArt != null)
+            CachedNetworkImage(
+              imageUrl: friend.cardWideArt!,
+              fit: BoxFit.cover,
+              alignment: Alignment.topCenter,
+              errorWidget: (_, __, ___) =>
+                  const ColoredBox(color: AppColors.surface),
+            )
+          else
+            const ColoredBox(color: AppColors.surface),
+          const DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Colors.transparent, AppColors.background],
+                stops: [0.35, 1],
+              ),
+            ),
+          ),
+          Positioned(
+            right: AppSpacing.md,
+            top: AppSpacing.md,
+            child: IconButton(
+              onPressed: () => Navigator.of(sheetContext).pop(),
+              icon: const Icon(
+                Icons.close_rounded,
+                color: AppColors.textPrimary,
+                size: 20,
+              ),
+              style: IconButton.styleFrom(
+                backgroundColor: Colors.black.withValues(alpha: 0.35),
+              ),
+            ),
+          ),
+          Positioned(
+            left: AppSpacing.lg,
+            bottom: AppSpacing.md,
+            child: Text(
+              'PLAYER PROFILE',
+              style: AppTextStyles.statLabel(color: AppColors.textSecondary),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLivePanel(FriendLiveActivity activity) {
+    return DataPanel(
+      tone: PanelTone.inset,
+      padding: const EdgeInsets.all(AppSpacing.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                'LIVE MATCH',
+                style: AppTextStyles.statLabel(color: AppColors.accent),
+              ),
+              const Spacer(),
+              Text(
+                activity.durationDisplay,
+                style: AppTextStyles.statLabel(color: AppColors.textMuted),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                activity.scoreDisplay.isEmpty ? '0 - 0' : activity.scoreDisplay,
+                style: AppTextStyles.scoreLarge(
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const Spacer(),
+              if (activity.roundHistory.isNotEmpty)
+                _buildRoundTape(activity.roundHistory),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            [
+              activity.modeName ?? 'Competitive',
+              if (activity.mapName != null) activity.mapName!,
+              if (activity.agentName != null) activity.agentName!,
+            ].join(' / '),
+            style: AppTextStyles.caption(color: AppColors.textSecondary),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoRow(String label, String value, {Color? valueColor}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.sm,
+      ),
+      child: Row(
+        children: [
+          Text(
+            label,
+            style: AppTextStyles.statLabel(color: AppColors.textMuted),
+          ),
+          const Spacer(),
+          Text(
+            value,
+            style: AppTextStyles.bodyMedium(
+              color: valueColor ?? AppColors.textPrimary,
+            ).copyWith(fontWeight: FontWeight.w600),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _statusLabel(FriendLiveStatus status) {
+    return switch (status) {
+      FriendLiveStatus.inGame => 'In game',
+      FriendLiveStatus.inAgentSelect => 'Agent select',
+      FriendLiveStatus.inLobby => 'Online',
+      FriendLiveStatus.away => 'Away',
+      FriendLiveStatus.offline => 'Offline',
+    };
+  }
+
   void _showSettingsMenu(BuildContext context) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: const Color(0xFF161B22),
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      backgroundColor: AppColors.background,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
+      ),
       builder: (_) => SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 16),
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              Container(
+                width: 40,
+                height: 3,
+                decoration: BoxDecoration(
+                  color: AppColors.border,
+                  borderRadius: AppRadius.roundedPill,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.md),
               ListTile(
-                leading: const Icon(Icons.sync_rounded, color: AppColors.cyan),
-                title: const Text('Sinkronkan Ulang Teman Riot (XMPP)', style: TextStyle(color: Colors.white)),
+                leading: const Icon(
+                  Icons.sync_rounded,
+                  color: AppColors.accent,
+                  size: 20,
+                ),
+                title: Text(
+                  'Sync Riot friends',
+                  style: AppTextStyles.bodyMedium(
+                    color: AppColors.textPrimary,
+                  ),
+                ),
                 onTap: () {
                   Navigator.of(context).pop();
-                  context.read<SocialCubit>().syncRiotFriends(clearMocks: true);
+                  this.context
+                      .read<SocialCubit>()
+                      .syncRiotFriends(clearMocks: true);
                 },
               ),
               ListTile(
-                leading: const Icon(Icons.history_rounded, color: Colors.white70),
-                title: const Text('Impor Teman dari Riwayat Match', style: TextStyle(color: Colors.white)),
+                leading: const Icon(
+                  Icons.history_rounded,
+                  color: AppColors.textMuted,
+                  size: 20,
+                ),
+                title: Text(
+                  'Import recent teammates',
+                  style: AppTextStyles.bodyMedium(
+                    color: AppColors.textPrimary,
+                  ),
+                ),
                 onTap: () async {
                   Navigator.of(context).pop();
-                  final count = await context.read<SocialCubit>().importRecentTeammates();
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('$count rekan tim berhasil diimpor!')),
-                    );
-                  }
+                  final count = await this
+                      .context
+                      .read<SocialCubit>()
+                      .importRecentTeammates();
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(this.context).showSnackBar(
+                    SnackBar(content: Text('$count teammates imported')),
+                  );
                 },
               ),
               ListTile(
-                leading: const Icon(Icons.person_add_rounded, color: AppColors.red),
-                title: const Text('Tambah Teman Manual', style: TextStyle(color: Colors.white)),
+                leading: const Icon(
+                  Icons.person_add_rounded,
+                  color: AppColors.textMuted,
+                  size: 20,
+                ),
+                title: Text(
+                  'Add friend manually',
+                  style: AppTextStyles.bodyMedium(
+                    color: AppColors.textPrimary,
+                  ),
+                ),
                 onTap: () {
                   Navigator.of(context).pop();
                   _showAddFriendDialog();
@@ -707,159 +1110,6 @@ class _SocialPageState extends State<SocialPage> with SingleTickerProviderStateM
           ),
         ),
       ),
-    );
-  }
-
-  Widget _buildCommunityTab() {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        _buildCommunityCard(
-          title: 'Official Valorant Discord',
-          subtitle: 'Join 500k+ players for LFG, patch notes, & squad scrims',
-          icon: Icons.discord,
-          badge: 'ACTIVE',
-        ),
-        const SizedBox(height: 12),
-        _buildCommunityCard(
-          title: 'SEA Competitive Hub',
-          subtitle: 'Find Ascendant - Radiant 5-stack parties and tournaments',
-          icon: Icons.shield_rounded,
-          badge: 'COMPETITIVE',
-        ),
-        const SizedBox(height: 12),
-        _buildCommunityCard(
-          title: 'Skin Trading & Market Watch',
-          subtitle: 'Live night market discussions and bundle reviews',
-          icon: Icons.shopping_bag_outlined,
-          badge: 'TRENDING',
-        ),
-      ],
-    );
-  }
-
-  Widget _buildCommunityCard({
-    required String title,
-    required String subtitle,
-    required IconData icon,
-    required String badge,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFF161B22),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF262C36)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: const Color(0xFF1C222B),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, color: AppColors.red, size: 24),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Text(
-                      title,
-                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
-                    ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: AppColors.red.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        badge,
-                        style: const TextStyle(color: AppColors.red, fontSize: 9, fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  subtitle,
-                  style: const TextStyle(color: Color(0xFF8B949E), fontSize: 12),
-                ),
-              ],
-            ),
-          ),
-          const Icon(Icons.arrow_forward_ios_rounded, color: Color(0xFF6E7681), size: 14),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTeamTab() {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFF1E2633), Color(0xFF161B22)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.red.withValues(alpha: 0.4)),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  const Icon(Icons.military_tech_rounded, color: AppColors.red, size: 28),
-                  const SizedBox(width: 8),
-                  const Text(
-                    'Premier Division',
-                    style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  const Spacer(),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: AppColors.red,
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: const Text(
-                      'STAGE E10',
-                      style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w900),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              const Text(
-                'Squad roster terhubung dengan Riot XMPP Roster. Buat tim Premier atau pantau jadwal pertandingan mingguan bersama teman.',
-                style: TextStyle(color: Color(0xFF8B949E), fontSize: 13, height: 1.4),
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton.icon(
-                onPressed: _showAddFriendDialog,
-                icon: const Icon(Icons.add_rounded),
-                label: const Text('Undang Teman ke Squad'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.red,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
     );
   }
 }

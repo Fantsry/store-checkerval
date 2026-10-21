@@ -17,6 +17,8 @@ class LocalStoreService {
   static const String _careerCacheBoxName = 'career_cache_box';
   static const String _socialFriendsBoxName = 'social_friends_box';
   static const String _socialChatsBoxName = 'social_chats_box';
+  static const String _settingsBoxName = 'settings_box';
+  static const String _chatMetaBoxName = 'chat_meta_box';
 
   late Box<String> _wishlistBox;
   late Box<String> _skinsCacheBox;
@@ -26,6 +28,8 @@ class LocalStoreService {
   late Box<String> _careerCacheBox;
   late Box<String> _socialFriendsBox;
   late Box<String> _socialChatsBox;
+  late Box<String> _settingsBox;
+  late Box<String> _chatMetaBox;
 
   Future<void> init() async {
     await Hive.initFlutter();
@@ -37,7 +41,60 @@ class LocalStoreService {
     _careerCacheBox = await Hive.openBox<String>(_careerCacheBoxName);
     _socialFriendsBox = await Hive.openBox<String>(_socialFriendsBoxName);
     _socialChatsBox = await Hive.openBox<String>(_socialChatsBoxName);
+    _settingsBox = await Hive.openBox<String>(_settingsBoxName);
+    _chatMetaBox = await Hive.openBox<String>(_chatMetaBoxName);
   }
+
+  // ─── Device Settings ───────────────────────────────────────
+
+  static const String _keyLocale = 'locale';
+  static const String _keyNightMarketAlerts = 'night_market_alerts_enabled';
+  static const String _keyAccessoryAlerts = 'accessory_alerts_enabled';
+  static const String _keyChatAlerts = 'chat_alerts_enabled';
+  static const String _keyLastNightMarketNotification =
+      'last_notified_night_market_rotation';
+  static const String _keyLastAccessoryNotification =
+      'last_notified_accessory_rotation';
+
+  Future<String?> getLocale() async => _settingsBox.get(_keyLocale);
+
+  Future<void> setLocale(String? localeCode) async {
+    if (localeCode == null || localeCode.isEmpty) {
+      await _settingsBox.delete(_keyLocale);
+      return;
+    }
+    await _settingsBox.put(_keyLocale, localeCode);
+  }
+
+  Future<bool> areNightMarketAlertsEnabled() async =>
+      _settingsBox.get(_keyNightMarketAlerts) != 'false';
+
+  Future<void> setNightMarketAlertsEnabled(bool enabled) async =>
+      _settingsBox.put(_keyNightMarketAlerts, enabled.toString());
+
+  Future<bool> areAccessoryAlertsEnabled() async =>
+      _settingsBox.get(_keyAccessoryAlerts) != 'false';
+
+  Future<void> setAccessoryAlertsEnabled(bool enabled) async =>
+      _settingsBox.put(_keyAccessoryAlerts, enabled.toString());
+
+  Future<bool> areChatAlertsEnabled() async =>
+      _settingsBox.get(_keyChatAlerts) != 'false';
+
+  Future<void> setChatAlertsEnabled(bool enabled) async =>
+      _settingsBox.put(_keyChatAlerts, enabled.toString());
+
+  Future<String?> getLastNotifiedNightMarketRotation() async =>
+      _settingsBox.get(_keyLastNightMarketNotification);
+
+  Future<void> setLastNotifiedNightMarketRotation(String rotationKey) async =>
+      _settingsBox.put(_keyLastNightMarketNotification, rotationKey);
+
+  Future<String?> getLastNotifiedAccessoryRotation() async =>
+      _settingsBox.get(_keyLastAccessoryNotification);
+
+  Future<void> setLastNotifiedAccessoryRotation(String rotationKey) async =>
+      _settingsBox.put(_keyLastAccessoryNotification, rotationKey);
 
   // ─── Wishlist Operations ───────────────────────────────────
 
@@ -167,7 +224,8 @@ class LocalStoreService {
   // ─── Skins Catalog Cache ───────────────────────────────────
 
   Future<List<SkinItem>?> getCachedSkins() async {
-    final raw = _skinsCacheBox.get('all_skins_v6') ??
+    final raw =
+        _skinsCacheBox.get('all_skins_v6') ??
         _skinsCacheBox.get('all_skins_v5');
     if (raw == null || raw.isEmpty) return null;
 
@@ -187,7 +245,8 @@ class LocalStoreService {
             liveStorePrice: livePrice,
             displayName: skin.displayName,
           );
-          final weapon = (skin.weaponName == null ||
+          final weapon =
+              (skin.weaponName == null ||
                   skin.weaponName!.toLowerCase() == 'weapon')
               ? 'Melee'
               : skin.weaponName;
@@ -242,10 +301,7 @@ class LocalStoreService {
 
   Future<void> saveDailyStore(DailyStore store, {String? puuid}) async {
     final jsonStr = jsonEncode(store.toJson());
-    await _storeCacheBox.put(
-      _accountKey('latest_daily_store', puuid),
-      jsonStr,
-    );
+    await _storeCacheBox.put(_accountKey('latest_daily_store', puuid), jsonStr);
   }
 
   // ─── Player Profile Offline Cache ──────────────────────────
@@ -271,9 +327,7 @@ class LocalStoreService {
   }
 
   Future<void> clearCachedProfile({String? puuid}) async {
-    await _profileCacheBox.delete(
-      _accountKey('latest_user_profile', puuid),
-    );
+    await _profileCacheBox.delete(_accountKey('latest_user_profile', puuid));
   }
 
   // ─── Store Alert Rules Operations ─────────────────────────
@@ -367,13 +421,18 @@ class LocalStoreService {
     await _alertRulesBox.delete(id);
   }
 
+  Future<void> clearAlertRules() async {
+    await _alertRulesBox.clear();
+  }
+
   Future<void> toggleAlertRule(String id, bool isEnabled) async {
     final raw = _alertRulesBox.get(id);
     if (raw != null) {
       try {
         final map = jsonDecode(raw) as Map<String, dynamic>;
-        final rule =
-            StoreAlertRule.fromJson(map).copyWith(isEnabled: isEnabled);
+        final rule = StoreAlertRule.fromJson(
+          map,
+        ).copyWith(isEnabled: isEnabled);
         await _alertRulesBox.put(id, jsonEncode(rule.toJson()));
       } catch (_) {}
     }
@@ -457,6 +516,20 @@ class LocalStoreService {
     await _socialFriendsBox.clear();
   }
 
+  Future<void> clearFavoriteFriendFlags() async {
+    for (final key in _socialFriendsBox.keys.toList()) {
+      final raw = _socialFriendsBox.get(key);
+      if (raw == null || raw.isEmpty) continue;
+      try {
+        final map = jsonDecode(raw) as Map<String, dynamic>;
+        if (map['isFavorite'] == true) {
+          map['isFavorite'] = false;
+          await _socialFriendsBox.put(key.toString(), jsonEncode(map));
+        }
+      } catch (_) {}
+    }
+  }
+
   // ─── Social Chat History ───────────────────────────────────
 
   Future<List<ChatMessageEntity>> getChatMessages(String puuid) async {
@@ -488,6 +561,35 @@ class LocalStoreService {
     await _socialChatsBox.delete(puuid);
   }
 
+  // ─── Chat Read / Notification Metadata ──────────────────────
+
+  static String _readKey(String puuid) => 'read:$puuid';
+  static String _notifiedKey(String ownerPuuid) => 'notified:$ownerPuuid';
+
+  Future<String?> getLastReadChatMessageId(String puuid) async =>
+      _chatMetaBox.get(_readKey(puuid));
+
+  Future<void> markChatRead(String puuid, String messageId) async {
+    if (messageId.isEmpty) return;
+    await _chatMetaBox.put(_readKey(puuid), messageId);
+  }
+
+  Future<DateTime?> getLastNotifiedChatAt(String ownerPuuid) async {
+    final raw = _chatMetaBox.get(_notifiedKey(ownerPuuid));
+    if (raw == null) return null;
+    return DateTime.tryParse(raw);
+  }
+
+  Future<void> setLastNotifiedChatAt(
+    String ownerPuuid,
+    DateTime timestamp,
+  ) async {
+    await _chatMetaBox.put(
+      _notifiedKey(ownerPuuid),
+      timestamp.toIso8601String(),
+    );
+  }
+
   // ─── Account-scoped Cleanup ────────────────────────────────
 
   /// Clears every cache that belongs to the signed-in Riot account.
@@ -499,6 +601,7 @@ class LocalStoreService {
       _careerCacheBox.clear(),
       _socialFriendsBox.clear(),
       _socialChatsBox.clear(),
+      _chatMetaBox.clear(),
     ]);
   }
 }

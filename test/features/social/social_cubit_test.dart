@@ -58,6 +58,10 @@ void main() {
 
   setUp(() {
     mockRepository = MockSocialRepository();
+    when(() => mockRepository.getUnreadChatCounts())
+        .thenAnswer((_) async => {});
+    when(() => mockRepository.markChatRead(any()))
+        .thenAnswer((_) async {});
     cubit = SocialCubit(socialRepository: mockRepository);
   });
 
@@ -273,6 +277,25 @@ void main() {
 
       expect(result.valueOrNull, messages);
       verify(() => mockRepository.getChatMessages('p1')).called(1);
+    });
+
+    test('loads unread counts and clears them when a chat is read', () async {
+      when(
+        () => mockRepository.getFriends(forceRefresh: false),
+      ).thenAnswer((_) async => Result.success(testFriends));
+      when(() => mockRepository.getUnreadChatCounts())
+          .thenAnswer((_) async => {'p1': 3, 'p2': 1});
+
+      await cubit.loadFriends();
+      var state = cubit.state as SocialLoaded;
+      expect(state.totalUnread, 4);
+      expect(state.unreadCounts['p1'], 3);
+
+      await cubit.markChatRead('p1');
+      state = cubit.state as SocialLoaded;
+      expect(state.unreadCounts.containsKey('p1'), isFalse);
+      expect(state.totalUnread, 1);
+      verify(() => mockRepository.markChatRead('p1')).called(1);
     });
 
     test('reset clears the previous account state', () async {

@@ -33,12 +33,14 @@ class SocialLoaded extends SocialState {
   final FriendFilter activeFilter;
   final String searchQuery;
   final bool isRefreshing;
+  final Map<String, int> unreadCounts;
 
   const SocialLoaded({
     required this.friends,
     this.activeFilter = FriendFilter.all,
     this.searchQuery = '',
     this.isRefreshing = false,
+    this.unreadCounts = const {},
   });
 
   int get totalCount => friends.length;
@@ -61,11 +63,26 @@ class SocialLoaded extends SocialState {
   int get chatCount =>
       friends.where((f) => f.lastChatMessage != null && f.lastChatMessage!.isNotEmpty).length;
 
+  int get totalUnread =>
+      unreadCounts.values.fold<int>(0, (sum, count) => sum + count);
+
   List<FriendEntity> get inGameFriends =>
       filteredFriends.where((f) => f.isPlaying).toList();
 
-  List<FriendEntity> get chatFriends =>
-      filteredFriends.where((f) => f.lastChatMessage != null && f.lastChatMessage!.isNotEmpty).toList();
+  List<FriendEntity> get chatFriends {
+    final list = filteredFriends
+        .where((f) => f.lastChatMessage != null && f.lastChatMessage!.isNotEmpty)
+        .toList();
+    list.sort((a, b) {
+      final aTime = a.lastChatTimestamp;
+      final bTime = b.lastChatTimestamp;
+      if (aTime == null && bTime == null) return 0;
+      if (aTime == null) return 1;
+      if (bTime == null) return -1;
+      return bTime.compareTo(aTime);
+    });
+    return list;
+  }
 
   List<FriendEntity> get onlineFriends =>
       filteredFriends.where((f) => f.status == FriendLiveStatus.inLobby || f.status == FriendLiveStatus.away).toList();
@@ -159,12 +176,20 @@ class SocialLoaded extends SocialState {
     FriendFilter? activeFilter,
     String? searchQuery,
     bool? isRefreshing,
+    Map<String, int>? unreadCounts,
+    bool clearUnreadForPuuid = false,
+    String? readPuuid,
   }) {
+    final counts = Map<String, int>.from(unreadCounts ?? this.unreadCounts);
+    if (clearUnreadForPuuid && readPuuid != null) {
+      counts.remove(readPuuid);
+    }
     return SocialLoaded(
       friends: friends ?? this.friends,
       activeFilter: activeFilter ?? this.activeFilter,
       searchQuery: searchQuery ?? this.searchQuery,
       isRefreshing: isRefreshing ?? this.isRefreshing,
+      unreadCounts: counts,
     );
   }
 
@@ -174,6 +199,7 @@ class SocialLoaded extends SocialState {
         activeFilter,
         searchQuery,
         isRefreshing,
+        unreadCounts,
       ];
 }
 
