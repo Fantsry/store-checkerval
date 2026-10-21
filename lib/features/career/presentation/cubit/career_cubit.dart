@@ -52,6 +52,36 @@ class CareerCubit extends Cubit<CareerState> {
     }
   }
 
+  Future<void> loadMore() async {
+    final current = state;
+    if (current is! CareerLoaded ||
+        current.isLoadingMore ||
+        !current.overview.hasMore) {
+      return;
+    }
+
+    emit(current.copyWith(isLoadingMore: true, clearSyncError: true));
+    final result =
+        await _careerRepository.loadMoreMatches(current.overview);
+
+    switch (result) {
+      case Success(:final value):
+        emit(
+          CareerLoaded(
+            overview: value,
+            selectedQueueFilter: current.selectedQueueFilter,
+          ),
+        );
+      case Error(:final failure):
+        emit(
+          current.copyWith(
+            isLoadingMore: false,
+            syncError: failure.message,
+          ),
+        );
+    }
+  }
+
   Future<void> refresh() => loadCareer(forceRefresh: true);
 
   void reset() => emit(const CareerInitial());

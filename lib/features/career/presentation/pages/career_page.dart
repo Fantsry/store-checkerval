@@ -3,11 +3,18 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:valorant_store_tracker/app/di.dart';
+import 'package:valorant_store_tracker/core/share/share_preview_sheet.dart';
+import 'package:valorant_store_tracker/core/storage/secure_storage_service.dart';
 import 'package:valorant_store_tracker/features/auth/domain/repositories/auth_repository.dart';
 import 'package:valorant_store_tracker/features/career/domain/entities/career_overview.dart';
 import 'package:valorant_store_tracker/features/career/domain/entities/match_summary.dart';
 import 'package:valorant_store_tracker/features/career/presentation/cubit/career_cubit.dart';
 import 'package:valorant_store_tracker/features/career/presentation/cubit/career_state.dart';
+import 'package:valorant_store_tracker/features/career/presentation/widgets/career_trend_charts.dart';
+import 'package:valorant_store_tracker/features/career/presentation/widgets/performance_stats_card.dart';
+import 'package:valorant_store_tracker/features/career/presentation/widgets/rank_share_card.dart';
+import 'package:valorant_store_tracker/features/live_match/presentation/widgets/gem_rank_icon.dart';
+import 'package:valorant_store_tracker/l10n/l10n.dart';
 import 'package:valorant_store_tracker/ui/theme/app_colors.dart';
 import 'package:valorant_store_tracker/ui/theme/app_radius.dart';
 import 'package:valorant_store_tracker/ui/theme/app_spacing.dart';
@@ -17,11 +24,8 @@ import 'package:valorant_store_tracker/ui/widgets/ascend_card.dart';
 import 'package:valorant_store_tracker/ui/widgets/custom_tab_bar.dart';
 import 'package:valorant_store_tracker/ui/widgets/empty_state_view.dart';
 import 'package:valorant_store_tracker/ui/widgets/error_state_view.dart';
-import 'package:valorant_store_tracker/ui/widgets/rank_badge.dart';
 import 'package:valorant_store_tracker/ui/widgets/section_header.dart';
-import 'package:valorant_store_tracker/features/live_match/presentation/widgets/gem_rank_icon.dart';
 import 'package:valorant_store_tracker/ui/widgets/shimmer_loading.dart';
-import 'package:valorant_store_tracker/ui/widgets/stat_box.dart';
 
 class CareerPage extends StatefulWidget {
   const CareerPage({super.key});
@@ -31,7 +35,12 @@ class CareerPage extends StatefulWidget {
 }
 
 class _CareerPageState extends State<CareerPage> {
-  final List<String> _filterTabs = ['ALL', 'COMPETITIVE', 'UNRATED', 'DEATHMATCH'];
+  final List<String> _filterTabs = [
+    'ALL',
+    'COMPETITIVE',
+    'UNRATED',
+    'DEATHMATCH',
+  ];
   int _currentFilterIndex = 0;
 
   @override
@@ -41,7 +50,6 @@ class _CareerPageState extends State<CareerPage> {
     if (cubit.state is CareerInitial) {
       cubit.loadCareer();
     } else {
-      // Revalidate in background so today's matches appear without waiting for pull-to-refresh
       cubit.loadCareer(forceRefresh: true);
     }
   }
@@ -59,17 +67,58 @@ class _CareerPageState extends State<CareerPage> {
     context.read<CareerCubit>().filterQueue(queue);
   }
 
+  Future<void> _shareRankCard() async {
+    final state = context.read<CareerCubit>().state;
+    if (state is! CareerLoaded) return;
+
+    var playerName = '';
+    if (getIt.isRegistered<SecureStorageService>()) {
+      final storage = getIt<SecureStorageService>();
+      final gameName = await storage.getGameName();
+      final tagLine = await storage.getTagLine();
+      if (gameName != null && gameName.isNotEmpty) {
+        playerName = tagLine != null && tagLine.isNotEmpty
+            ? '$gameName#$tagLine'
+            : gameName;
+      }
+    }
+    if (!mounted) return;
+
+    final overview = state.overview;
+    await showSharePreviewSheet(
+      context,
+      card: RankShareCard(overview: overview, playerName: playerName),
+      shareText:
+          'My Valorant rank: ${overview.currentTierName} (${overview.currentRankRating} RR) — tracked with Store Checker Val.',
+      fileName: 'valorant_rank_${DateTime.now().millisecondsSinceEpoch}',
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: Text('TRACKER', style: AppTextStyles.h2(color: AppColors.textPrimary)),
+        title: Text(
+          'Tracker',
+          style: AppTextStyles.h2(color: AppColors.textPrimary),
+        ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh_rounded, color: AppColors.textSecondary),
+            icon: const Icon(
+              Icons.ios_share_rounded,
+              color: AppColors.textSecondary,
+            ),
+            onPressed: _shareRankCard,
+            tooltip: context.l10n.shareRankCard,
+          ),
+          IconButton(
+            icon: const Icon(
+              Icons.refresh_rounded,
+              color: AppColors.textSecondary,
+            ),
             onPressed: () => context.read<CareerCubit>().refresh(),
-            tooltip: 'Refresh Matches',
+            tooltip: context.l10n.refreshMatches,
           ),
           const SizedBox(width: AppSpacing.sm),
         ],
@@ -77,7 +126,7 @@ class _CareerPageState extends State<CareerPage> {
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: () async => context.read<CareerCubit>().refresh(),
-          color: AppColors.red,
+          color: AppColors.accent,
           backgroundColor: AppColors.card,
           child: BlocBuilder<CareerCubit, CareerState>(
             builder: (context, state) {
@@ -86,7 +135,8 @@ class _CareerPageState extends State<CareerPage> {
               }
 
               if (state is CareerError && state.cachedOverview == null) {
-                final isAuthError = state.message.toLowerCase().contains('session') ||
+                final isAuthError =
+                    state.message.toLowerCase().contains('session') ||
                     state.message.toLowerCase().contains('unauthorized') ||
                     state.message.toLowerCase().contains('sign in') ||
                     state.message.toLowerCase().contains('login') ||
@@ -99,16 +149,14 @@ class _CareerPageState extends State<CareerPage> {
                   actionLabel: isAuthError ? 'PERBARUI SESI' : null,
                   onAction: isAuthError
                       ? () async {
-                          final reauthResult =
-                              await getIt<AuthRepository>().silentReauth();
+                          final reauthResult = await getIt<AuthRepository>()
+                              .silentReauth();
                           if (reauthResult.isSuccess) {
                             if (context.mounted) {
                               context.read<CareerCubit>().refresh();
                             }
-                          } else {
-                            if (context.mounted) {
-                              context.push('/login');
-                            }
+                          } else if (context.mounted) {
+                            context.push('/login');
                           }
                         }
                       : null,
@@ -123,7 +171,9 @@ class _CareerPageState extends State<CareerPage> {
                 return const SizedBox.shrink();
               }
 
-              final matches = state is CareerLoaded ? state.filteredMatches : overview.matches;
+              final matches = state is CareerLoaded
+                  ? state.filteredMatches
+                  : overview.matches;
 
               return SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
@@ -138,29 +188,56 @@ class _CareerPageState extends State<CareerPage> {
                       _buildSyncErrorBanner(state.syncError!),
                       const SizedBox(height: AppSpacing.md),
                     ],
-                    _buildRankAndPeakCard(overview),
-                    const SizedBox(height: AppSpacing.lg),
-                    _buildPerformanceStatsGrid(overview),
-                    const SizedBox(height: AppSpacing.lg),
+                    _buildRankHero(overview),
+                    const SizedBox(height: AppSpacing.md),
+                    _buildPerformanceGrid(overview),
+                    const SizedBox(height: AppSpacing.xxl),
+                    const SectionHeader(index: '01', title: 'TRENDS'),
+                    const SizedBox(height: AppSpacing.sm),
+                    CareerTrendCharts(overview: overview),
+                    const SizedBox(height: AppSpacing.xxl),
+                    const SectionHeader(index: '02', title: 'INSIGHTS'),
+                    const SizedBox(height: AppSpacing.sm),
+                    PerformanceStatsCard(overview: overview),
+                    const SizedBox(height: AppSpacing.xxl),
+                    const SectionHeader(index: '03', title: 'MATCH HISTORY'),
+                    const SizedBox(height: AppSpacing.md),
                     CustomTabBar(
                       tabs: _filterTabs,
                       selectedIndex: _currentFilterIndex,
                       onTabSelected: _onFilterSelected,
                     ),
-                    const SizedBox(height: AppSpacing.lg),
-                    SectionHeader(
-                      title: 'MATCH HISTORY',
-                      subtitle: '${matches.length} Matches Found',
+                    const SizedBox(height: AppSpacing.md),
+                    Row(
+                      children: [
+                        Text(
+                          '${matches.length} MATCHES',
+                          style: AppTextStyles.statLabel(
+                            color: AppColors.textMuted,
+                          ),
+                        ),
+                        const Spacer(),
+                        if (state is CareerLoading)
+                          Text(
+                            'SYNCING',
+                            style: AppTextStyles.statLabel(
+                              color: AppColors.accent,
+                            ),
+                          ),
+                      ],
                     ),
                     const SizedBox(height: AppSpacing.sm),
                     if (matches.isEmpty)
                       const EmptyStateView(
                         icon: Icons.history_rounded,
                         title: 'NO MATCHES RECORDED',
-                        description: 'No match history found for the selected filter.',
+                        description:
+                            'No match history found for the selected filter.',
                       )
                     else
-                      ...matches.map((m) => _buildMatchCard(m)),
+                      _buildMatchList(matches),
+                    if (state is CareerLoaded && overview.hasMore)
+                      _buildLoadMoreButton(state.isLoadingMore),
                     const SizedBox(height: AppSpacing.xxxl),
                   ],
                 ),
@@ -172,188 +249,315 @@ class _CareerPageState extends State<CareerPage> {
     );
   }
 
-  Widget _buildLoadingSkeleton() {
-    return SingleChildScrollView(
+  Widget _buildRankHero(CareerOverview overview) {
+    final isPlacement = overview.isPlacement;
+    final rr = overview.currentRankRating;
+    final progress = isPlacement ? 0.0 : (rr / 100).clamp(0.0, 1.0);
+
+    return DataPanel(
       padding: const EdgeInsets.all(AppSpacing.lg),
       child: Column(
-        children: const [
-          ShimmerBox(height: 140, borderRadius: AppRadius.xl),
-          SizedBox(height: AppSpacing.lg),
-          ShimmerBox(height: 120, borderRadius: AppRadius.xl),
-          SizedBox(height: AppSpacing.lg),
-          ShimmerCardList(itemCount: 4, itemHeight: 96),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRankAndPeakCard(CareerOverview overview) {
-    return AscendCard(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      borderRadius: AppRadius.xl,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Current Rank
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'CURRENT RANK',
-                  style: AppTextStyles.statLabel(color: AppColors.textSecondary),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ValorantRankIcon(
+                tier: overview.currentTier,
+                iconUrl: overview.currentTierIcon,
+                tierName: overview.currentTierName,
+                size: 54,
+                showGlow: true,
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'CURRENT RANK',
+                      style: AppTextStyles.statLabel(
+                        color: AppColors.textMuted,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      overview.currentTierName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTextStyles.h2(color: AppColors.textPrimary),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Text(
+                          isPlacement ? 'PLACEMENT' : '$rr',
+                          style: AppTextStyles.statValue(
+                            color: isPlacement
+                                ? AppColors.textSecondary
+                                : AppColors.accent,
+                            fontSize: 15,
+                          ),
+                        ),
+                        if (!isPlacement) ...[
+                          const SizedBox(width: 3),
+                          Text(
+                            'RR',
+                            style: AppTextStyles.statLabel(
+                              color: AppColors.textMuted,
+                            ),
+                          ),
+                        ],
+                        if (isPlacement &&
+                            overview.gamesNeededForRating != null) ...[
+                          const SizedBox(width: AppSpacing.sm),
+                          Text(
+                            '${overview.gamesNeededForRating} LEFT',
+                            style: AppTextStyles.statLabel(
+                              color: AppColors.textMuted,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ],
                 ),
-                const SizedBox(height: AppSpacing.xs),
-                RankBadge(
-                  tierName: overview.currentTierName,
-                  rankedRating: overview.currentRankRating,
-                  tier: overview.currentTier,
-                  iconUrl: overview.currentTierIcon,
-                  iconSize: 42,
-                  isPlacement: overview.isPlacement,
-                  gamesNeededForRating: overview.gamesNeededForRating,
-                ),
-              ],
-            ),
-          ),
-          Container(width: 1, height: 50, color: AppColors.border),
-          // Peak Rank
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.only(left: AppSpacing.md),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
-                    'PEAK RATING',
-                    style: AppTextStyles.statLabel(color: AppColors.textSecondary),
+                    'PEAK',
+                    style: AppTextStyles.statLabel(color: AppColors.textMuted),
                   ),
-                  const SizedBox(height: AppSpacing.xs),
-                  RankBadge(
-                    tierName: overview.peakTierName ?? 'Unrated',
+                  const SizedBox(height: 4),
+                  ValorantRankIcon(
                     tier: overview.peakTier,
                     iconUrl: overview.peakTierIcon,
-                    iconSize: 34,
-                    showProgress: false,
+                    tierName: overview.peakTierName ?? 'Unrated',
+                    size: 28,
+                  ),
+                  const SizedBox(height: 2),
+                  SizedBox(
+                    width: 74,
+                    child: Text(
+                      overview.peakTierName ?? 'Unrated',
+                      textAlign: TextAlign.right,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTextStyles.caption(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
                   ),
                 ],
               ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.md),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(2),
+            child: LinearProgressIndicator(
+              value: progress,
+              minHeight: 3,
+              backgroundColor: AppColors.border,
+              valueColor: AlwaysStoppedAnimation<Color>(
+                isPlacement ? AppColors.textMuted : AppColors.accent,
+              ),
             ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          const Divider(height: 1, color: AppColors.border),
+          const SizedBox(height: AppSpacing.md),
+          Row(
+            children: [
+              Expanded(
+                child: _buildMiniStat('MATCHES', '${overview.totalMatches}'),
+              ),
+              Container(width: 1, height: 26, color: AppColors.border),
+              Expanded(
+                child: _buildMiniStat(
+                  'WINS',
+                  '${overview.totalWins}',
+                  alignEnd: true,
+                ),
+              ),
+              Container(width: 1, height: 26, color: AppColors.border),
+              Expanded(
+                child: _buildMiniStat(
+                  'LOSSES',
+                  '${overview.totalLosses}',
+                  alignEnd: true,
+                ),
+              ),
+            ],
           ),
         ],
       ),
     );
   }
 
-  Widget _buildPerformanceStatsGrid(CareerOverview overview) {
+  Widget _buildMiniStat(String label, String value, {bool alignEnd = false}) {
     return Column(
+      crossAxisAlignment: alignEnd
+          ? CrossAxisAlignment.end
+          : CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: StatBox(
-                label: 'WIN RATE',
-                value: '${overview.winRate.toStringAsFixed(1)}%',
-                subtitle: '${overview.totalWins}W / ${overview.totalLosses}L',
-                valueColor: overview.winRate >= 50 ? AppColors.winGreen : AppColors.lossRed,
-              ),
-            ),
-            const SizedBox(width: AppSpacing.sm),
-            Expanded(
-              child: StatBox(
-                label: 'K/D RATIO',
-                value: overview.avgKdRatio.toStringAsFixed(2),
-                subtitle: 'Last 10 Avg',
-                valueColor: overview.avgKdRatio >= 1.0 ? AppColors.winGreen : AppColors.lossRed,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        Row(
-          children: [
-            Expanded(
-              child: StatBox(
-                label: 'AVG COMBAT SCORE',
-                value: '${overview.avgCombatScore}',
-                subtitle: 'ACS / Round',
-                valueColor: AppColors.cyan,
-              ),
-            ),
-            const SizedBox(width: AppSpacing.sm),
-            Expanded(
-              child: StatBox(
-                label: 'HEADSHOT %',
-                value: '${overview.avgHeadshotPct.toStringAsFixed(0)}%',
-                subtitle: '${overview.totalMatches} Matches',
-                valueColor: AppColors.vpGold,
-              ),
-            ),
-          ],
+        Text(label, style: AppTextStyles.statLabel(color: AppColors.textMuted)),
+        const SizedBox(height: 2),
+        Text(
+          value,
+          style: AppTextStyles.statValue(
+            color: AppColors.textPrimary,
+            fontSize: 14,
+          ),
         ),
       ],
     );
   }
 
-  Widget _buildMatchCard(MatchSummary match) {
+  Widget _buildPerformanceGrid(CareerOverview overview) {
+    return DataPanel(
+      padding: EdgeInsets.zero,
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: _buildMetricCell(
+                  'WIN RATE',
+                  '${overview.winRate.toStringAsFixed(1)}%',
+                  '${overview.totalWins}W / ${overview.totalLosses}L',
+                  overview.winRate >= 50
+                      ? AppColors.winGreen
+                      : AppColors.lossRed,
+                ),
+              ),
+              Container(width: 1, height: 62, color: AppColors.border),
+              Expanded(
+                child: _buildMetricCell(
+                  'K/D RATIO',
+                  overview.avgKdRatio.toStringAsFixed(2),
+                  'Last 10 avg',
+                  overview.avgKdRatio >= 1
+                      ? AppColors.textPrimary
+                      : AppColors.lossRed,
+                ),
+              ),
+            ],
+          ),
+          const Divider(height: 1, color: AppColors.border),
+          Row(
+            children: [
+              Expanded(
+                child: _buildMetricCell(
+                  'AVG COMBAT SCORE',
+                  '${overview.avgCombatScore}',
+                  'ACS / round',
+                  AppColors.accent,
+                ),
+              ),
+              Container(width: 1, height: 62, color: AppColors.border),
+              Expanded(
+                child: _buildMetricCell(
+                  'HEADSHOT',
+                  '${overview.avgHeadshotPct.toStringAsFixed(0)}%',
+                  '${overview.totalMatches} matches',
+                  AppColors.accentSoft,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMetricCell(
+    String label,
+    String value,
+    String subtitle,
+    Color color,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppTextStyles.statLabel(color: AppColors.textMuted),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: AppTextStyles.statValue(color: color, fontSize: 22),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            subtitle,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppTextStyles.caption(color: AppColors.textMuted),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMatchList(List<MatchSummary> matches) {
+    return DataPanel(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+      child: Column(
+        children: [
+          for (var i = 0; i < matches.length; i++) ...[
+            if (i > 0) const Divider(height: 1, color: AppColors.border),
+            _buildMatchRow(matches[i]),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMatchRow(MatchSummary match) {
     final isWon = match.won ?? false;
-    final isDraw = match.isDraw;
-    final outcomeColor = isDraw
+    final outcomeColor = match.isDraw
         ? AppColors.drawAmber
         : (isWon ? AppColors.winGreen : AppColors.lossRed);
+    final outcome = match.isDraw ? 'D' : (isWon ? 'W' : 'L');
+    final rankEarned = match.rankRatingEarned;
+    final rankColor = rankEarned == null
+        ? AppColors.textMuted
+        : (rankEarned > 0
+              ? AppColors.winGreen
+              : (rankEarned == 0 ? AppColors.drawAmber : AppColors.lossRed));
 
-    final timeFormat = DateFormat('MMM d, HH:mm').format(match.gameStartTime);
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: AppSpacing.md),
-      child: AscendCard(
-        onTap: () {
-          context.push('/match-detail', extra: match);
-        },
-        padding: const EdgeInsets.all(AppSpacing.md),
-        borderColor: outcomeColor.withValues(alpha: 0.35),
-        gradient: isDraw ? null : (isWon ? AppColors.winGradient : AppColors.lossGradient),
+    return InkWell(
+      onTap: () => context.push('/match-detail', extra: match),
+      splashColor: AppColors.accent.withValues(alpha: 0.06),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
         child: Row(
           children: [
-            // Agent Avatar with Rank Badge
-            Stack(
-              clipBehavior: Clip.none,
-              children: [
-                AgentAvatar(
-                  imageUrl: match.agentIconUrl,
-                  agentName: match.agentName,
-                  size: 48,
-                  borderColor: outcomeColor,
-                ),
-                if (match.competitiveTier != null ||
-                    (match.rankIconUrl != null && match.rankIconUrl!.isNotEmpty) ||
-                    (match.rankName != null && match.rankName!.isNotEmpty))
-                  Positioned(
-                    right: -3,
-                    bottom: -3,
-                    child: Container(
-                      padding: const EdgeInsets.all(1.5),
-                      decoration: BoxDecoration(
-                        color: AppColors.surface,
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: outcomeColor.withValues(alpha: 0.8),
-                          width: 1.5,
-                        ),
-                      ),
-                      child: ValorantRankIcon(
-                        tier: match.competitiveTier,
-                        iconUrl: match.rankIconUrl,
-                        tierName: match.rankName ?? 'Unrated',
-                        size: 18,
-                      ),
-                    ),
-                  ),
-              ],
+            Container(
+              width: 3,
+              height: 44,
+              decoration: BoxDecoration(
+                color: outcomeColor,
+                borderRadius: BorderRadius.circular(1),
+              ),
             ),
-            const SizedBox(width: AppSpacing.md),
-
-            // Match Info
+            const SizedBox(width: AppSpacing.sm),
+            AgentAvatar(
+              imageUrl: match.agentIconUrl,
+              agentName: match.agentName,
+              size: 40,
+              borderColor: AppColors.border,
+            ),
+            const SizedBox(width: AppSpacing.sm),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -361,47 +565,38 @@ class _CareerPageState extends State<CareerPage> {
                   Row(
                     children: [
                       Text(
-                        match.resultText,
-                        style: AppTextStyles.h4(color: outcomeColor),
+                        outcome,
+                        style: AppTextStyles.mono(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: outcomeColor,
+                        ),
                       ),
-                      const SizedBox(width: AppSpacing.xs),
+                      const SizedBox(width: 5),
                       Text(
-                        '• ${match.scoreDisplay}',
-                        style: AppTextStyles.h4(color: AppColors.textPrimary),
+                        match.scoreDisplay,
+                        style: AppTextStyles.statValue(
+                          color: AppColors.textPrimary,
+                          fontSize: 12,
+                        ),
                       ),
-                      if (match.rankRatingEarned != null || match.competitiveTier != null) ...[
-                        const SizedBox(width: AppSpacing.xs),
+                      if (rankEarned != null) ...[
+                        const SizedBox(width: AppSpacing.sm),
                         ValorantRankIcon(
                           tier: match.competitiveTier,
                           iconUrl: match.rankIconUrl,
                           tierName: match.rankName ?? 'Unrated',
-                          size: 15,
+                          size: 12,
                         ),
                         const SizedBox(width: 3),
                         Flexible(
                           child: Text(
-                            match.rankRatingEarned != null
-                                ? (match.rankRatingEarned! > 0
-                                    ? '+${match.rankRatingEarned} RR'
-                                    : (match.rankRatingEarned! == 0
-                                        ? '+0 RR'
-                                        : '${match.rankRatingEarned} RR'))
-                                : (match.rankName ?? ''),
+                            rankEarned > 0
+                                ? '+$rankEarned RR'
+                                : '$rankEarned RR',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: AppTextStyles.caption(
-                              color: match.rankRatingEarned != null
-                                  ? (match.rankRatingEarned! > 0
-                                      ? AppColors.winGreen
-                                      : (match.rankRatingEarned! == 0
-                                          ? AppColors.drawAmber
-                                          : AppColors.lossRed))
-                                  : AppColors.textSecondary,
-                            ).copyWith(
-                              fontWeight: match.rankRatingEarned != null
-                                  ? FontWeight.w700
-                                  : FontWeight.w600,
-                            ),
+                            style: AppTextStyles.statLabel(color: rankColor),
                           ),
                         ),
                       ],
@@ -409,46 +604,39 @@ class _CareerPageState extends State<CareerPage> {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    '${match.mapName} • ${match.queueDisplayName}',
-                    style: AppTextStyles.bodySmall(color: AppColors.textSecondary),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    timeFormat,
-                    style: AppTextStyles.caption(color: AppColors.textMuted),
+                    '${match.mapName} / ${match.queueDisplayName} / '
+                    '${DateFormat('d MMM').format(match.gameStartTime)}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTextStyles.caption(
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                 ],
               ),
             ),
-
-            // Performance numbers (KDA & ACS)
+            const SizedBox(width: AppSpacing.sm),
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
                   match.kdaDisplay,
-                  style: AppTextStyles.statValue(color: AppColors.textPrimary, fontSize: 15),
+                  style: AppTextStyles.statValue(
+                    color: AppColors.textPrimary,
+                    fontSize: 13,
+                  ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   '${match.averageCombatScore} ACS',
-                  style: AppTextStyles.caption(color: AppColors.cyan).copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '${match.kdRatio.toStringAsFixed(2)} K/D',
-                  style: AppTextStyles.caption(
-                    color: match.kdRatio >= 1.0 ? AppColors.winGreen : AppColors.textSecondary,
-                  ),
+                  style: AppTextStyles.statLabel(color: AppColors.textMuted),
                 ),
               ],
             ),
-            const SizedBox(width: AppSpacing.xs),
+            const SizedBox(width: 2),
             const Icon(
               Icons.chevron_right_rounded,
-              size: 20,
+              size: 17,
               color: AppColors.textMuted,
             ),
           ],
@@ -457,8 +645,50 @@ class _CareerPageState extends State<CareerPage> {
     );
   }
 
+  Widget _buildLoadMoreButton(bool isLoading) {
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.md),
+      child: OutlinedButton(
+        onPressed: isLoading
+            ? null
+            : () => context.read<CareerCubit>().loadMore(),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: AppColors.accent,
+          side: BorderSide(color: AppColors.accent.withValues(alpha: 0.5)),
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+        ),
+        child: isLoading
+            ? const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: AppColors.accent,
+                ),
+              )
+            : Text(context.l10n.careerLoadMore),
+      ),
+    );
+  }
+
+  Widget _buildLoadingSkeleton() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      child: Column(
+        children: const [
+          ShimmerBox(height: 160, borderRadius: AppRadius.lg),
+          SizedBox(height: AppSpacing.md),
+          ShimmerBox(height: 130, borderRadius: AppRadius.lg),
+          SizedBox(height: AppSpacing.lg),
+          ShimmerCardList(itemCount: 4, itemHeight: 82),
+        ],
+      ),
+    );
+  }
+
   Widget _buildSyncErrorBanner(String error) {
-    final isAuth = error.toLowerCase().contains('session') ||
+    final isAuth =
+        error.toLowerCase().contains('session') ||
         error.toLowerCase().contains('unauthorized') ||
         error.toLowerCase().contains('sign in') ||
         error.toLowerCase().contains('login') ||
@@ -470,13 +700,17 @@ class _CareerPageState extends State<CareerPage> {
         vertical: AppSpacing.sm,
       ),
       decoration: BoxDecoration(
-        color: AppColors.card,
+        color: AppColors.surface,
         borderRadius: AppRadius.roundedMd,
-        border: Border.all(color: AppColors.lossRed.withValues(alpha: 0.6)),
+        border: Border.all(color: AppColors.lossRed.withValues(alpha: 0.5)),
       ),
       child: Row(
         children: [
-          const Icon(Icons.warning_amber_rounded, color: AppColors.lossRed, size: 20),
+          const Icon(
+            Icons.warning_amber_rounded,
+            color: AppColors.lossRed,
+            size: 18,
+          ),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Text(
@@ -487,11 +721,11 @@ class _CareerPageState extends State<CareerPage> {
             ),
           ),
           const SizedBox(width: AppSpacing.sm),
-          TextButton(
-            onPressed: isAuth
+          GestureDetector(
+            onTap: isAuth
                 ? () async {
-                    final reauthResult =
-                        await getIt<AuthRepository>().silentReauth();
+                    final reauthResult = await getIt<AuthRepository>()
+                        .silentReauth();
                     if (!mounted) return;
                     if (reauthResult.isSuccess) {
                       context.read<CareerCubit>().refresh();
@@ -500,13 +734,10 @@ class _CareerPageState extends State<CareerPage> {
                     }
                   }
                 : () => context.read<CareerCubit>().refresh(),
+            behavior: HitTestBehavior.opaque,
             child: Text(
               isAuth ? 'PERBARUI' : 'SYNC',
-              style: const TextStyle(
-                color: AppColors.cyan,
-                fontWeight: FontWeight.bold,
-                fontSize: 12,
-              ),
+              style: AppTextStyles.label(color: AppColors.accent),
             ),
           ),
         ],

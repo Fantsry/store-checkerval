@@ -657,6 +657,99 @@ void main() {
       expect(overview.matches.first.competitiveTier, 15);
     });
 
+    test('loadMoreMatches fetches the next page and merges it without duplicates',
+        () async {
+      when(() => mockSecureStorage.getPuuid()).thenAnswer((_) async => tPuuid);
+      when(() => mockLocalStore.saveCachedCareerJson(tPuuid, any()))
+          .thenAnswer((_) async => {});
+
+      when(() => mockRemote.fetchMatchHistory(
+            shard: tShard,
+            puuid: tPuuid,
+            startIndex: 1,
+            endIndex: 11,
+          )).thenAnswer((_) async => [
+            {'MatchID': 'match-102'},
+          ]);
+      when(() => mockRemote.fetchCompetitiveUpdates(
+            shard: tShard,
+            puuid: tPuuid,
+            startIndex: any(named: 'startIndex'),
+            endIndex: any(named: 'endIndex'),
+          )).thenAnswer((_) async => [
+            {
+              'MatchID': 'match-102',
+              'SeasonID': tActiveSeasonId,
+              'TierAfterUpdate': 15,
+              'RankRatingAfterUpdate': 80,
+              'RankRatingEarned': 10,
+            }
+          ]);
+      when(() => mockRemote.fetchMapsMetadata()).thenAnswer((_) async => {
+            '/game/maps/bind/bind': {
+              'displayName': 'Bind',
+              'splash': 'https://media.valorant-api.com/maps/bind/splash.png',
+            }
+          });
+      when(() => mockRemote.fetchAgentsMetadata()).thenAnswer((_) async => {
+            'agent-omen': {
+              'displayName': 'Omen',
+              'displayIcon': 'https://media.valorant-api.com/agents/omen/icon.png',
+            }
+          });
+      when(() => mockRemote.fetchCompetitiveTiersMetadata()).thenAnswer((_) async => {
+            15: {'tierName': 'Platinum 1', 'largeIcon': 'https://media.valorant-api.com/tiers/15.png'},
+          });
+      when(() => mockRemote.fetchMatchDetails(shard: tShard, matchId: 'match-102'))
+          .thenAnswer((_) async => {
+                'matchInfo': {
+                  'matchId': 'match-102',
+                  'mapId': '/Game/Maps/Bind/Bind',
+                  'gameMode': 'bomb',
+                  'queueID': 'competitive',
+                  'gameLengthMillis': 2000000,
+                  'gameStartMillis': 1700000000001,
+                },
+                'players': [
+                  {
+                    'subject': tPuuid,
+                    'teamId': 'Blue',
+                    'characterId': 'agent-omen',
+                    'stats': {
+                      'score': 4000,
+                      'kills': 15,
+                      'deaths': 12,
+                      'assists': 6,
+                      'roundsPlayed': 20,
+                    },
+                    'competitiveTier': 15,
+                  }
+                ],
+                'teams': [
+                  {'teamId': 'Blue', 'won': false, 'roundsWon': 9},
+                  {'teamId': 'Red', 'won': true, 'roundsWon': 13},
+                ],
+                'roundResults': [],
+              });
+
+      final current = tCachedOverview.withMatches(
+        [tMatchSummary],
+        hasMore: true,
+      );
+      final result = await repository.loadMoreMatches(current);
+
+      expect(result.isSuccess, true);
+      final overview = result.valueOrNull!;
+      expect(overview.matches.length, 2);
+      expect(overview.matches.map((m) => m.matchId), containsAll([
+        'match-101',
+        'match-102',
+      ]));
+      expect(overview.hasMore, false);
+      expect(overview.totalWins, 1);
+      expect(overview.totalLosses, 1);
+    });
+
     test('returns failure when no puuid session exists', () async {
       when(() => mockSecureStorage.getPuuid()).thenAnswer((_) async => null);
       when(() => mockSecureStorage.getAccessToken()).thenAnswer((_) async => null);

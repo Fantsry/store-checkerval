@@ -113,7 +113,7 @@ class CareerRepositoryImpl implements CareerRepository {
           shard: shard,
           puuid: puuid,
           startIndex: 0,
-          endIndex: 12,
+          endIndex: 10,
         ),
         _remoteDataSource.fetchCompetitiveUpdates(
           shard: shard,
@@ -152,8 +152,256 @@ class CareerRepositoryImpl implements CareerRepository {
         }
       }
 
+      final matches = await _buildMatchSummaries(
+        shard: shard,
+        puuid: puuid,
+        rawHistory: rawHistory,
+        compUpdateByMatchId: compUpdateByMatchId,
+        compUpdates: compUpdates,
+        mapsMeta: mapsMeta,
+        agentsMeta: agentsMeta,
+        tiersMeta: tiersMeta,
+      );
+
+      if (rawHistory.isNotEmpty && matches.isEmpty) {
+        throw Exception('Failed to load match details for recent matches');
+      }
+
+      // RR is scoped to the active act. Never use `QueueSkills.competitive.Tier`
+      // or a `LatestCompetitiveUpdate` from a previous act as the current rank.
+      final ranked = CompetitiveRankHelper.resolveCurrentRank(
+        mmr: mmrData,
+        activeSeasonId: activeSeasonId,
+        competitiveUpdates: compUpdates,
+      );
+      final currentTier = ranked.tier;
+      final currentRR = ranked.rating;
+      int? peakTier = CompetitiveRankHelper.peakTierFromMmr(mmrData);
+
+      // Peak rank should never be lower than current rank
+      if (currentTier > (peakTier ?? 0)) {
+        peakTier = currentTier;
+      }
+
+      // Tier display names and icons
+      final currentTierInfo = tiersMeta[currentTier];
+      final currentTierName = ranked.isPlacement
+          ? 'Placement'
+          : (!ranked.isRanked
+              ? 'Unrated'
+              : (currentTierInfo?['tierName'] ?? 'Rank $currentTier'));
+      final currentTierIcon = currentTier == 0
+          ? null
+          : (currentTierInfo?['largeIcon'] ?? currentTierInfo?['smallIcon']);
+
+      final peakTierInfo = peakTier != null ? tiersMeta[peakTier] : null;
+      final peakTierName = peakTierInfo?['tierName'];
+      final peakTierIcon = peakTierInfo?['largeIcon'] ?? peakTierInfo?['smallIcon'];
+
+      // Aggregations
+      final totalMatches = matches.length;
+      final totalWins = matches.where((m) => m.won == true).length;
+      final totalLosses = matches.where((m) => m.won == false).length;
+      final winRate = totalMatches > 0 ? (totalWins / totalMatches) * 100 : 0.0;
+
+      int sumScore = 0;
+      int sumKills = 0;
+      int sumDeaths = 0;
+      int sumHs = 0;
+      int sumBs = 0;
+      int sumLs = 0;
+
+      for (final m in matches) {
+        sumScore += m.averageCombatScore;
+        sumKills += m.kills;
+        sumDeaths += m.deaths;
+        sumHs += m.headshots;
+        sumBs += m.bodyshots;
+        sumLs += m.legshots;
+      }
+
+      final avgCombatScore = totalMatches > 0 ? (sumScore / totalMatches).round() : 0;
+      final avgKdRatio = sumDeaths > 0
+          ? sumKills / sumDeaths
+          : (sumKills > 0 ? sumKills.toDouble() : 0.0);
+      final totalHits = sumHs + sumBs + sumLs;
+      final avgHeadshotPct = totalHits > 0 ? (sumHs / totalHits) * 100 : 0.0;
+
+      final careerOverview = CareerOverview(
+        currentTier: currentTier,
+        currentTierName: currentTierName,
+        currentTierIcon: currentTierIcon,
+        currentRankRating: currentRR,
+        isRanked: ranked.isRanked,
+        isPlacement: ranked.isPlacement,
+        gamesNeededForRating: ranked.gamesNeededForRating,
+        seasonId: activeSeasonId,
+        peakTier: peakTier,
+        peakTierName: peakTierName,
+        peakTierIcon: peakTierIcon,
+        totalMatches: totalMatches,
+        totalWins: totalWins,
+        totalLosses: totalLosses,
+        winRate: winRate,
+        avgCombatScore: avgCombatScore,
+        avgKdRatio: avgKdRatio,
+        avgHeadshotPct: avgHeadshotPct,
+        matches: matches,
+        hasMore: rawHistory.length >= 10,
+      );
+
+      // Cache to local storage
+      await _localStore.saveCachedCareerJson(
+        puuid,
+        jsonEncode(careerOverview.toJson()),
+      );
+
+      return Result.success(careerOverview);
+    } catch (e) {
+      final isAuth = (e is DioException && e.response?.statusCode == 401) ||
+          e.toString().contains('401') ||
+          e.toString().toLowerCase().contains('unauthorized');
+
+      // If network fails, check if we have cached data to fall back on
+      final cachedJson = await _localStore.getCachedCareerJson(puuid);
+      if (cachedJson != null && cachedJson.isNotEmpty && !isAuth) {
+        try {
+          final map = jsonDecode(cachedJson) as Map<String, dynamic>;
+          return Result.success(CareerOverview.fromJson(map));
+        } catch (_) {}
+      }
+
+      if (isAuth) {
+        return const Result.failure(
+          AuthFailure(
+            message: 'Riot session expired after Act update. Please sign in again.',
+            statusCode: 401,
+          ),
+        );
+      }
+
+      return Result.failure(
+        ServerFailure(message: 'Failed to retrieve match history: $e'),
+      );
+    }
+  }
+
+  @override
+  Future<Result<CareerOverview>> loadMoreMatches(CareerOverview current) async {
+    try {
+      final puuid = await _storage.getPuuid();
+      final shard = await _storage.getShard() ?? 'ap';
+      if (puuid == null || puuid.isEmpty) {
+        return const Result.failure(
+          AuthFailure(message: 'No active Riot session. Please sign in.'),
+        );
+      }
+      if (!current.hasMore) return Result.success(current);
+
+      final startIndex = current.matches.length;
+      final results = await Future.wait([
+        _remoteDataSource.fetchMatchHistory(
+          shard: shard,
+          puuid: puuid,
+          startIndex: startIndex,
+          endIndex: startIndex + 10,
+        ),
+        _remoteDataSource.fetchCompetitiveUpdates(
+          shard: shard,
+          puuid: puuid,
+          startIndex: startIndex,
+          endIndex: startIndex + 20,
+        ),
+        _remoteDataSource.fetchMapsMetadata(),
+        _remoteDataSource.fetchAgentsMetadata(),
+        _remoteDataSource.fetchCompetitiveTiersMetadata(),
+      ]);
+
+      final rawHistory = results[0] as List<Map<String, dynamic>>;
+      final compUpdates = results[1] as List<Map<String, dynamic>>;
+      final mapsMeta = results[2] as Map<String, Map<String, dynamic>>;
+      final agentsMeta = results[3] as Map<String, Map<String, dynamic>>;
+      final tiersMeta = results[4] as Map<int, Map<String, dynamic>>;
+
+      if (rawHistory.isEmpty) {
+        final updated = current.withMatches(current.matches, hasMore: false);
+        await _localStore.saveCachedCareerJson(
+          puuid,
+          jsonEncode(updated.toJson()),
+        );
+        return Result.success(updated);
+      }
+
+      final compUpdateByMatchId = <String, Map<String, dynamic>>{};
+      for (final update in compUpdates) {
+        final rawId = (update['MatchID'] ??
+                update['MatchId'] ??
+                update['matchId'] ??
+                update['matchID'] ??
+                '')
+            .toString()
+            .trim();
+        if (rawId.isEmpty) continue;
+        compUpdateByMatchId[rawId] = update;
+        compUpdateByMatchId[rawId.toLowerCase()] = update;
+        compUpdateByMatchId[
+            rawId.replaceAll('{', '').replaceAll('}', '').toLowerCase()] = update;
+      }
+
+      final page = await _buildMatchSummaries(
+        shard: shard,
+        puuid: puuid,
+        rawHistory: rawHistory,
+        compUpdateByMatchId: compUpdateByMatchId,
+        compUpdates: compUpdates,
+        mapsMeta: mapsMeta,
+        agentsMeta: agentsMeta,
+        tiersMeta: tiersMeta,
+      );
+
+      if (page.isEmpty) {
+        return Result.failure(
+          ServerFailure(
+            message: 'Gagal memuat detail match berikutnya. Coba lagi.',
+          ),
+        );
+      }
+
+      final merged = <String, MatchSummary>{
+        for (final match in current.matches) match.matchId.toLowerCase(): match,
+        for (final match in page) match.matchId.toLowerCase(): match,
+      }.values.toList()
+        ..sort((a, b) => b.gameStartTime.compareTo(a.gameStartTime));
+
+      final updated = current.withMatches(
+        merged,
+        hasMore: rawHistory.length >= 10,
+      );
+      await _localStore.saveCachedCareerJson(
+        puuid,
+        jsonEncode(updated.toJson()),
+      );
+      return Result.success(updated);
+    } catch (e) {
+      return Result.failure(
+        ServerFailure(message: 'Gagal memuat match selanjutnya: $e'),
+      );
+    }
+  }
+
+  Future<List<MatchSummary>> _buildMatchSummaries({
+    required String shard,
+    required String puuid,
+    required List<Map<String, dynamic>> rawHistory,
+    required Map<String, Map<String, dynamic>> compUpdateByMatchId,
+    required List<Map<String, dynamic>> compUpdates,
+    required Map<String, Map<String, dynamic>> mapsMeta,
+    required Map<String, Map<String, dynamic>> agentsMeta,
+    required Map<int, Map<String, dynamic>> tiersMeta,
+    int pageSize = 10,
+  }) async {
       // Fetch match details for the recent matches in history with persistent caching
-      final matchFutures = rawHistory.take(10).map((h) async {
+      final matchFutures = rawHistory.take(pageSize).map((h) async {
         final matchId = (h['MatchID'] ?? '').toString();
         if (matchId.isEmpty) return null;
 
@@ -247,126 +495,7 @@ class CareerRepositoryImpl implements CareerRepository {
         }
       }
 
-      if (rawHistory.isNotEmpty && matches.isEmpty) {
-        throw Exception('Failed to load match details for recent matches');
-      }
-
-      // RR is scoped to the active act. Never use `QueueSkills.competitive.Tier`
-      // or a `LatestCompetitiveUpdate` from a previous act as the current rank.
-      final ranked = CompetitiveRankHelper.resolveCurrentRank(
-        mmr: mmrData,
-        activeSeasonId: activeSeasonId,
-        competitiveUpdates: compUpdates,
-      );
-      final currentTier = ranked.tier;
-      final currentRR = ranked.rating;
-      int? peakTier = CompetitiveRankHelper.peakTierFromMmr(mmrData);
-
-      // Peak rank should never be lower than current rank
-      if (currentTier > (peakTier ?? 0)) {
-        peakTier = currentTier;
-      }
-
-      // Tier display names and icons
-      final currentTierInfo = tiersMeta[currentTier];
-      final currentTierName = ranked.isPlacement
-          ? 'Placement'
-          : (!ranked.isRanked
-              ? 'Unrated'
-              : (currentTierInfo?['tierName'] ?? 'Rank $currentTier'));
-      final currentTierIcon = currentTier == 0
-          ? null
-          : (currentTierInfo?['largeIcon'] ?? currentTierInfo?['smallIcon']);
-
-      final peakTierInfo = peakTier != null ? tiersMeta[peakTier] : null;
-      final peakTierName = peakTierInfo?['tierName'];
-      final peakTierIcon = peakTierInfo?['largeIcon'] ?? peakTierInfo?['smallIcon'];
-
-      // Aggregations
-      final totalMatches = matches.length;
-      final totalWins = matches.where((m) => m.won == true).length;
-      final totalLosses = matches.where((m) => m.won == false).length;
-      final winRate = totalMatches > 0 ? (totalWins / totalMatches) * 100 : 0.0;
-
-      int sumScore = 0;
-      int sumKills = 0;
-      int sumDeaths = 0;
-      int sumHs = 0;
-      int sumBs = 0;
-      int sumLs = 0;
-
-      for (final m in matches) {
-        sumScore += m.averageCombatScore;
-        sumKills += m.kills;
-        sumDeaths += m.deaths;
-        sumHs += m.headshots;
-        sumBs += m.bodyshots;
-        sumLs += m.legshots;
-      }
-
-      final avgCombatScore = totalMatches > 0 ? (sumScore / totalMatches).round() : 0;
-      final avgKdRatio = sumDeaths > 0
-          ? sumKills / sumDeaths
-          : (sumKills > 0 ? sumKills.toDouble() : 0.0);
-      final totalHits = sumHs + sumBs + sumLs;
-      final avgHeadshotPct = totalHits > 0 ? (sumHs / totalHits) * 100 : 0.0;
-
-      final careerOverview = CareerOverview(
-        currentTier: currentTier,
-        currentTierName: currentTierName,
-        currentTierIcon: currentTierIcon,
-        currentRankRating: currentRR,
-        isRanked: ranked.isRanked,
-        isPlacement: ranked.isPlacement,
-        gamesNeededForRating: ranked.gamesNeededForRating,
-        seasonId: activeSeasonId,
-        peakTier: peakTier,
-        peakTierName: peakTierName,
-        peakTierIcon: peakTierIcon,
-        totalMatches: totalMatches,
-        totalWins: totalWins,
-        totalLosses: totalLosses,
-        winRate: winRate,
-        avgCombatScore: avgCombatScore,
-        avgKdRatio: avgKdRatio,
-        avgHeadshotPct: avgHeadshotPct,
-        matches: matches,
-      );
-
-      // Cache to local storage
-      await _localStore.saveCachedCareerJson(
-        puuid,
-        jsonEncode(careerOverview.toJson()),
-      );
-
-      return Result.success(careerOverview);
-    } catch (e) {
-      final isAuth = (e is DioException && e.response?.statusCode == 401) ||
-          e.toString().contains('401') ||
-          e.toString().toLowerCase().contains('unauthorized');
-
-      // If network fails, check if we have cached data to fall back on
-      final cachedJson = await _localStore.getCachedCareerJson(puuid);
-      if (cachedJson != null && cachedJson.isNotEmpty && !isAuth) {
-        try {
-          final map = jsonDecode(cachedJson) as Map<String, dynamic>;
-          return Result.success(CareerOverview.fromJson(map));
-        } catch (_) {}
-      }
-
-      if (isAuth) {
-        return const Result.failure(
-          AuthFailure(
-            message: 'Riot session expired after Act update. Please sign in again.',
-            statusCode: 401,
-          ),
-        );
-      }
-
-      return Result.failure(
-        ServerFailure(message: 'Failed to retrieve match history: $e'),
-      );
-    }
+    return matches;
   }
 
   MatchSummary? _parseMatchSummary({

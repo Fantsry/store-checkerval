@@ -21,6 +21,7 @@ class CareerOverview extends Equatable {
   final double avgKdRatio;
   final double avgHeadshotPct;
   final List<MatchSummary> matches;
+  final bool hasMore;
 
   const CareerOverview({
     this.currentTier = 0,
@@ -42,6 +43,7 @@ class CareerOverview extends Equatable {
     this.avgKdRatio = 0.0,
     this.avgHeadshotPct = 0.0,
     this.matches = const [],
+    this.hasMore = false,
   });
 
   Map<String, dynamic> toJson() {
@@ -65,6 +67,7 @@ class CareerOverview extends Equatable {
       'avgKdRatio': avgKdRatio,
       'avgHeadshotPct': avgHeadshotPct,
       'matches': matches.map((m) => m.toJson()).toList(),
+      'hasMore': hasMore,
     };
   }
 
@@ -96,6 +99,60 @@ class CareerOverview extends Equatable {
       avgKdRatio: (json['avgKdRatio'] as num?)?.toDouble() ?? 0.0,
       avgHeadshotPct: (json['avgHeadshotPct'] as num?)?.toDouble() ?? 0.0,
       matches: matchesList,
+      hasMore: json['hasMore'] as bool? ?? false,
+    );
+  }
+
+  CareerOverview withMatches(
+    List<MatchSummary> updatedMatches, {
+    bool? hasMore,
+  }) {
+    final totalMatches = updatedMatches.length;
+    final totalWins = updatedMatches.where((m) => m.won == true).length;
+    final totalLosses = updatedMatches.where((m) => m.won == false).length;
+    final winRate =
+        totalMatches > 0 ? (totalWins / totalMatches) * 100 : 0.0;
+
+    var sumScore = 0;
+    var sumKills = 0;
+    var sumDeaths = 0;
+    var sumHs = 0;
+    var sumBs = 0;
+    var sumLs = 0;
+    for (final m in updatedMatches) {
+      sumScore += m.averageCombatScore;
+      sumKills += m.kills;
+      sumDeaths += m.deaths;
+      sumHs += m.headshots;
+      sumBs += m.bodyshots;
+      sumLs += m.legshots;
+    }
+
+    final totalHits = sumHs + sumBs + sumLs;
+    return CareerOverview(
+      currentTier: currentTier,
+      currentTierName: currentTierName,
+      currentTierIcon: currentTierIcon,
+      currentRankRating: currentRankRating,
+      isRanked: isRanked,
+      isPlacement: isPlacement,
+      gamesNeededForRating: gamesNeededForRating,
+      seasonId: seasonId,
+      peakTier: peakTier,
+      peakTierName: peakTierName,
+      peakTierIcon: peakTierIcon,
+      totalMatches: totalMatches,
+      totalWins: totalWins,
+      totalLosses: totalLosses,
+      winRate: winRate,
+      avgCombatScore:
+          totalMatches > 0 ? (sumScore / totalMatches).round() : 0,
+      avgKdRatio: sumDeaths > 0
+          ? sumKills / sumDeaths
+          : (sumKills > 0 ? sumKills.toDouble() : 0.0),
+      avgHeadshotPct: totalHits > 0 ? (sumHs / totalHits) * 100 : 0.0,
+      matches: updatedMatches,
+      hasMore: hasMore ?? this.hasMore,
     );
   }
 
@@ -120,5 +177,6 @@ class CareerOverview extends Equatable {
         avgKdRatio,
         avgHeadshotPct,
         matches,
+        hasMore,
       ];
 }

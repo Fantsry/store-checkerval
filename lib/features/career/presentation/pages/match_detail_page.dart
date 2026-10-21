@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:valorant_store_tracker/core/share/share_preview_sheet.dart';
 import 'package:valorant_store_tracker/features/career/domain/entities/match_summary.dart';
 import 'package:valorant_store_tracker/features/career/presentation/widgets/map_kill_overlay_widget.dart';
+import 'package:valorant_store_tracker/features/career/presentation/widgets/match_share_card.dart';
 import 'package:valorant_store_tracker/ui/theme/app_colors.dart';
 import 'package:valorant_store_tracker/ui/theme/app_radius.dart';
 import 'package:valorant_store_tracker/ui/theme/app_spacing.dart';
@@ -14,6 +16,7 @@ import 'package:valorant_store_tracker/ui/widgets/section_header.dart';
 import 'package:valorant_store_tracker/ui/widgets/stat_badge.dart';
 import 'package:valorant_store_tracker/ui/widgets/stat_box.dart';
 import 'package:valorant_store_tracker/features/live_match/presentation/widgets/gem_rank_icon.dart';
+import 'package:valorant_store_tracker/l10n/l10n.dart';
 
 class MatchDetailPage extends StatefulWidget {
   final MatchSummary match;
@@ -41,9 +44,20 @@ class _MatchDetailPageState extends State<MatchDetailPage> {
       backgroundColor: AppColors.background,
       appBar: AppBar(
         title: Text(
-          'MATCH DETAILS',
+          'Match details',
           style: AppTextStyles.h3(color: AppColors.textPrimary),
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(
+              Icons.ios_share_rounded,
+              color: AppColors.textSecondary,
+            ),
+            onPressed: () => _shareMatch(match),
+            tooltip: context.l10n.shareMatch,
+          ),
+          const SizedBox(width: AppSpacing.sm),
+        ],
       ),
       body: SafeArea(
         child: Column(
@@ -80,6 +94,16 @@ class _MatchDetailPageState extends State<MatchDetailPage> {
     );
   }
 
+  Future<void> _shareMatch(MatchSummary match) async {
+    await showSharePreviewSheet(
+      context,
+      card: MatchShareCard(match: match),
+      shareText:
+          '${match.resultText} on ${match.mapName} with ${match.agentName} (${match.scoreDisplay}) — tracked with Store Checker Val.',
+      fileName: 'valorant_match_${DateTime.now().millisecondsSinceEpoch}',
+    );
+  }
+
   Widget _buildMatchHeroHeader(MatchSummary match, Color outcomeColor) {
     return Container(
       padding: const EdgeInsets.symmetric(
@@ -99,10 +123,7 @@ class _MatchDetailPageState extends State<MatchDetailPage> {
             children: [
               Row(
                 children: [
-                  StatBadge(
-                    text: match.resultText,
-                    color: outcomeColor,
-                  ),
+                  StatBadge(text: match.resultText, color: outcomeColor),
                   const SizedBox(width: AppSpacing.sm),
                   ValorantRankIcon(
                     tier: match.competitiveTier,
@@ -113,13 +134,15 @@ class _MatchDetailPageState extends State<MatchDetailPage> {
                   const SizedBox(width: 4),
                   Text(
                     match.queueDisplayName.toUpperCase(),
-                    style: AppTextStyles.statLabel(color: AppColors.textSecondary),
+                    style: AppTextStyles.statLabel(
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                 ],
               ),
               Text(
                 match.mapName.toUpperCase(),
-                style: AppTextStyles.statLabel(color: AppColors.cyan),
+                style: AppTextStyles.statLabel(color: AppColors.accent),
               ),
             ],
           ),
@@ -172,10 +195,14 @@ class _MatchDetailPageState extends State<MatchDetailPage> {
                     ),
                   ),
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.md,
+                    ),
                     child: Text(
                       ':',
-                      style: AppTextStyles.scoreHuge(color: AppColors.textSecondary),
+                      style: AppTextStyles.scoreHuge(
+                        color: AppColors.textSecondary,
+                      ),
                     ),
                   ),
                   Text(
@@ -194,13 +221,18 @@ class _MatchDetailPageState extends State<MatchDetailPage> {
                 children: [
                   Text(
                     match.kdaDisplay,
-                    style: AppTextStyles.statValue(color: AppColors.textPrimary, fontSize: 16),
+                    style: AppTextStyles.statValue(
+                      color: AppColors.textPrimary,
+                      fontSize: 16,
+                    ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     '${match.kdRatio.toStringAsFixed(2)} K/D',
                     style: AppTextStyles.caption(
-                      color: match.kdRatio >= 1.0 ? AppColors.winGreen : AppColors.lossRed,
+                      color: match.kdRatio >= 1.0
+                          ? AppColors.winGreen
+                          : AppColors.lossRed,
                     ).copyWith(fontWeight: FontWeight.w600),
                   ),
                 ],
@@ -220,16 +252,20 @@ class _MatchDetailPageState extends State<MatchDetailPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Allies
-          _buildTeamHeader('FRIENDLY TEAM', AppColors.cyan, match.scoreWon),
+          _buildTeamHeader('FRIENDLY TEAM', AppColors.accent, match.scoreWon),
           const SizedBox(height: AppSpacing.sm),
-          ...match.teammates.map((player) => _buildPlayerRow(player, isAlly: true)),
+          ...match.teammates.map(
+            (player) => _buildPlayerRow(player, isAlly: true),
+          ),
 
           const SizedBox(height: AppSpacing.xl),
 
           // Enemies
           _buildTeamHeader('ENEMY TEAM', AppColors.lossRed, match.scoreLost),
           const SizedBox(height: AppSpacing.sm),
-          ...match.enemies.map((player) => _buildPlayerRow(player, isAlly: false)),
+          ...match.enemies.map(
+            (player) => _buildPlayerRow(player, isAlly: false),
+          ),
         ],
       ),
     );
@@ -250,10 +286,7 @@ class _MatchDetailPageState extends State<MatchDetailPage> {
               ),
             ),
             const SizedBox(width: AppSpacing.sm),
-            Text(
-              title,
-              style: AppTextStyles.statLabel(color: teamColor),
-            ),
+            Text(title, style: AppTextStyles.statLabel(color: teamColor)),
           ],
         ),
         Text(
@@ -274,12 +307,12 @@ class _MatchDetailPageState extends State<MatchDetailPage> {
         vertical: AppSpacing.sm,
       ),
       decoration: BoxDecoration(
-        color: isSelf
-            ? AppColors.cyan.withValues(alpha: 0.12)
-            : AppColors.card,
+        color: isSelf ? AppColors.accent.withValues(alpha: 0.12) : AppColors.card,
         borderRadius: AppRadius.roundedMd,
         border: Border.all(
-          color: isSelf ? AppColors.cyan.withValues(alpha: 0.5) : AppColors.border,
+          color: isSelf
+              ? AppColors.accent.withValues(alpha: 0.5)
+              : AppColors.border,
           width: isSelf ? 1.5 : 1,
         ),
       ),
@@ -294,8 +327,10 @@ class _MatchDetailPageState extends State<MatchDetailPage> {
                 agentName: player.agentName,
                 size: 38,
                 borderColor: isSelf
-                    ? AppColors.cyan
-                    : (isAlly ? AppColors.cyan.withValues(alpha: 0.3) : AppColors.lossRed.withValues(alpha: 0.3)),
+                    ? AppColors.accent
+                    : (isAlly
+                          ? AppColors.accent.withValues(alpha: 0.3)
+                          : AppColors.lossRed.withValues(alpha: 0.3)),
               ),
               Positioned(
                 right: -3,
@@ -307,8 +342,10 @@ class _MatchDetailPageState extends State<MatchDetailPage> {
                     shape: BoxShape.circle,
                     border: Border.all(
                       color: isSelf
-                          ? AppColors.cyan
-                          : (isAlly ? AppColors.cyan.withValues(alpha: 0.6) : AppColors.lossRed.withValues(alpha: 0.6)),
+                          ? AppColors.accent
+                          : (isAlly
+                                ? AppColors.accent.withValues(alpha: 0.6)
+                                : AppColors.lossRed.withValues(alpha: 0.6)),
                       width: 1,
                     ),
                   ),
@@ -334,12 +371,19 @@ class _MatchDetailPageState extends State<MatchDetailPage> {
                   children: [
                     Flexible(
                       child: Text(
-                        player.gameName.isNotEmpty ? player.gameName : player.agentName,
-                        style: AppTextStyles.bodyMedium(
-                          color: isSelf ? AppColors.cyan : AppColors.textPrimary,
-                        ).copyWith(
-                          fontWeight: isSelf ? FontWeight.w700 : FontWeight.w500,
-                        ),
+                        player.gameName.isNotEmpty
+                            ? player.gameName
+                            : player.agentName,
+                        style:
+                            AppTextStyles.bodyMedium(
+                              color: isSelf
+                                  ? AppColors.accent
+                                  : AppColors.textPrimary,
+                            ).copyWith(
+                              fontWeight: isSelf
+                                  ? FontWeight.w700
+                                  : FontWeight.w500,
+                            ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -348,7 +392,7 @@ class _MatchDetailPageState extends State<MatchDetailPage> {
                       const SizedBox(width: 4),
                       const StatBadge(
                         text: 'YOU',
-                        color: AppColors.cyan,
+                        color: AppColors.accent,
                         fontSize: 8,
                       ),
                     ],
@@ -371,10 +415,9 @@ class _MatchDetailPageState extends State<MatchDetailPage> {
                                 ? player.rankName!
                                 : 'UNRATED')
                             .toUpperCase(),
-                        style: AppTextStyles.caption(color: AppColors.textSecondary).copyWith(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 11,
-                        ),
+                        style: AppTextStyles.caption(
+                          color: AppColors.textSecondary,
+                        ).copyWith(fontWeight: FontWeight.w600, fontSize: 11),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -393,7 +436,10 @@ class _MatchDetailPageState extends State<MatchDetailPage> {
               children: [
                 Text(
                   '${player.averageCombatScore}',
-                  style: AppTextStyles.statValue(color: AppColors.textPrimary, fontSize: 14),
+                  style: AppTextStyles.statValue(
+                    color: AppColors.textPrimary,
+                    fontSize: 14,
+                  ),
                 ),
                 Text(
                   'ACS',
@@ -411,7 +457,10 @@ class _MatchDetailPageState extends State<MatchDetailPage> {
               children: [
                 Text(
                   '${player.kills}/${player.deaths}/${player.assists}',
-                  style: AppTextStyles.statValue(color: AppColors.textPrimary, fontSize: 13),
+                  style: AppTextStyles.statValue(
+                    color: AppColors.textPrimary,
+                    fontSize: 13,
+                  ),
                 ),
                 Text(
                   '${player.deaths > 0 ? (player.kills / player.deaths).toStringAsFixed(2) : player.kills} K/D',
@@ -440,7 +489,10 @@ class _MatchDetailPageState extends State<MatchDetailPage> {
       );
     }
 
-    final safeRoundIndex = _selectedRoundIndex.clamp(0, match.rounds.length - 1);
+    final safeRoundIndex = _selectedRoundIndex.clamp(
+      0,
+      match.rounds.length - 1,
+    );
     final selectedRound = match.rounds[safeRoundIndex];
     final isRoundWon = selectedRound.won ?? false;
 
@@ -450,7 +502,10 @@ class _MatchDetailPageState extends State<MatchDetailPage> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // Round timeline scrubber
-          SectionHeader(title: 'ROUND TIMELINE', subtitle: 'Select a round to inspect events'),
+          SectionHeader(
+            title: 'ROUND TIMELINE',
+            subtitle: 'Select a round to inspect events',
+          ),
           const SizedBox(height: AppSpacing.sm),
           RoundTimelineWidget(
             rounds: match.rounds,
@@ -467,7 +522,6 @@ class _MatchDetailPageState extends State<MatchDetailPage> {
           // Selected round outcome card
           AscendCard(
             borderColor: isRoundWon ? AppColors.winGreen : AppColors.lossRed,
-            gradient: isRoundWon ? AppColors.winGradient : AppColors.lossGradient,
             padding: const EdgeInsets.all(AppSpacing.md),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -476,7 +530,9 @@ class _MatchDetailPageState extends State<MatchDetailPage> {
                   children: [
                     StatBadge(
                       text: isRoundWon ? 'ROUND WON' : 'ROUND LOST',
-                      color: isRoundWon ? AppColors.winGreen : AppColors.lossRed,
+                      color: isRoundWon
+                          ? AppColors.winGreen
+                          : AppColors.lossRed,
                     ),
                     const SizedBox(width: AppSpacing.sm),
                     Text(
@@ -487,7 +543,9 @@ class _MatchDetailPageState extends State<MatchDetailPage> {
                 ),
                 Text(
                   selectedRound.roundResult.toUpperCase(),
-                  style: AppTextStyles.statLabel(color: AppColors.textSecondary),
+                  style: AppTextStyles.statLabel(
+                    color: AppColors.textSecondary,
+                  ),
                 ),
               ],
             ),
@@ -498,7 +556,8 @@ class _MatchDetailPageState extends State<MatchDetailPage> {
           // Round Kills feed
           SectionHeader(
             title: 'KILL FEED',
-            subtitle: '${selectedRound.kills.length} Eliminations in Round ${selectedRound.roundNum}',
+            subtitle:
+                '${selectedRound.kills.length} Eliminations in Round ${selectedRound.roundNum}',
           ),
           const SizedBox(height: AppSpacing.sm),
           if (selectedRound.kills.isEmpty)
@@ -522,7 +581,10 @@ class _MatchDetailPageState extends State<MatchDetailPage> {
           // Minimap kill overlay widget if available
           if (match.hasMinimapData) ...[
             const SizedBox(height: AppSpacing.xl),
-            SectionHeader(title: 'TACTICAL MAP', subtitle: 'Spatial Kill Heatmap'),
+            SectionHeader(
+              title: 'TACTICAL MAP',
+              subtitle: 'Spatial Kill Heatmap',
+            ),
             const SizedBox(height: AppSpacing.sm),
             MapKillOverlayWidget(
               match: match,
@@ -538,8 +600,12 @@ class _MatchDetailPageState extends State<MatchDetailPage> {
   Widget _buildPerformanceTab(MatchSummary match) {
     final totalShots = match.totalShots;
     final hsPct = match.headshotPercentage;
-    final bodyPct = totalShots > 0 ? ((match.bodyshots / totalShots) * 100).round() : 0;
-    final legPct = totalShots > 0 ? ((match.legshots / totalShots) * 100).round() : 0;
+    final bodyPct = totalShots > 0
+        ? ((match.bodyshots / totalShots) * 100).round()
+        : 0;
+    final legPct = totalShots > 0
+        ? ((match.legshots / totalShots) * 100).round()
+        : 0;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(AppSpacing.lg),
@@ -554,7 +620,7 @@ class _MatchDetailPageState extends State<MatchDetailPage> {
                   label: 'COMBAT SCORE',
                   value: '${match.score}',
                   subtitle: '${match.averageCombatScore} ACS',
-                  valueColor: AppColors.cyan,
+                  valueColor: AppColors.accent,
                 ),
               ),
               const SizedBox(width: AppSpacing.sm),
@@ -579,14 +645,32 @@ class _MatchDetailPageState extends State<MatchDetailPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                SectionHeader(title: 'SHOT ACCURACY', subtitle: 'Target Distribution'),
+                SectionHeader(
+                  title: 'SHOT ACCURACY',
+                  subtitle: 'Target Distribution',
+                ),
                 const SizedBox(height: AppSpacing.md),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
-                    _buildAccuracyMetric('HEAD', '$hsPct%', AppColors.red, match.headshots),
-                    _buildAccuracyMetric('BODY', '$bodyPct%', AppColors.cyan, match.bodyshots),
-                    _buildAccuracyMetric('LEGS', '$legPct%', AppColors.textSecondary, match.legshots),
+                    _buildAccuracyMetric(
+                      'HEAD',
+                      '$hsPct%',
+                      AppColors.accentSoft,
+                      match.headshots,
+                    ),
+                    _buildAccuracyMetric(
+                      'BODY',
+                      '$bodyPct%',
+                      AppColors.accent,
+                      match.bodyshots,
+                    ),
+                    _buildAccuracyMetric(
+                      'LEGS',
+                      '$legPct%',
+                      AppColors.textSecondary,
+                      match.legshots,
+                    ),
                   ],
                 ),
                 const SizedBox(height: AppSpacing.lg),
@@ -600,12 +684,12 @@ class _MatchDetailPageState extends State<MatchDetailPage> {
                         if (hsPct > 0)
                           Expanded(
                             flex: hsPct,
-                            child: Container(color: AppColors.red),
+                            child: Container(color: AppColors.accentSoft),
                           ),
                         if (bodyPct > 0)
                           Expanded(
                             flex: bodyPct,
-                            child: Container(color: AppColors.cyan),
+                            child: Container(color: AppColors.accent),
                           ),
                         if (legPct > 0)
                           Expanded(
@@ -628,21 +712,32 @@ class _MatchDetailPageState extends State<MatchDetailPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                SectionHeader(title: 'MATCH STATISTICS', subtitle: 'Telemetry Overview'),
+                SectionHeader(
+                  title: 'MATCH STATISTICS',
+                  subtitle: 'Telemetry Overview',
+                ),
                 const SizedBox(height: AppSpacing.md),
                 _buildStatDetailRow('Rounds Played', '${match.roundsPlayed}'),
-                _buildStatDetailRow('Match Duration', '${(match.gameLengthMillis / 60000).round()} min'),
+                _buildStatDetailRow(
+                  'Match Duration',
+                  '${(match.gameLengthMillis / 60000).round()} min',
+                ),
                 _buildStatDetailRow('Total Kills', '${match.kills}'),
                 _buildStatDetailRow('Total Deaths', '${match.deaths}'),
                 _buildStatDetailRow('Total Assists', '${match.assists}'),
-                _buildStatDetailRow('K/D Ratio', match.kdRatio.toStringAsFixed(2)),
+                _buildStatDetailRow(
+                  'K/D Ratio',
+                  match.kdRatio.toStringAsFixed(2),
+                ),
                 if (match.rankRatingEarned != null)
                   _buildStatDetailRow(
                     'Rank Rating Delta',
                     match.rankRatingEarned! >= 0
                         ? '+${match.rankRatingEarned} RR'
                         : '${match.rankRatingEarned} RR',
-                    valueColor: match.rankRatingEarned! >= 0 ? AppColors.winGreen : AppColors.lossRed,
+                    valueColor: match.rankRatingEarned! >= 0
+                        ? AppColors.winGreen
+                        : AppColors.lossRed,
                   ),
               ],
             ),
@@ -653,13 +748,15 @@ class _MatchDetailPageState extends State<MatchDetailPage> {
     );
   }
 
-  Widget _buildAccuracyMetric(String label, String value, Color color, int count) {
+  Widget _buildAccuracyMetric(
+    String label,
+    String value,
+    Color color,
+    int count,
+  ) {
     return Column(
       children: [
-        Text(
-          value,
-          style: AppTextStyles.h2(color: color),
-        ),
+        Text(value, style: AppTextStyles.h2(color: color)),
         Text(
           label,
           style: AppTextStyles.statLabel(color: AppColors.textSecondary),

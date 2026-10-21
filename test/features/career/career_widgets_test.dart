@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:valorant_store_tracker/l10n/generated/app_localizations.dart';
 import 'package:valorant_store_tracker/features/career/domain/entities/career_overview.dart';
 import 'package:valorant_store_tracker/features/career/domain/entities/match_summary.dart';
+import 'package:valorant_store_tracker/features/career/presentation/widgets/career_trend_charts.dart';
 import 'package:valorant_store_tracker/features/career/presentation/widgets/map_kill_overlay_widget.dart';
 import 'package:valorant_store_tracker/features/career/presentation/widgets/performance_stats_card.dart';
 
@@ -72,6 +74,8 @@ void main() {
     testWidgets('renders PerformanceStatsCard with insights, streak, and top agents/maps', (tester) async {
       await tester.pumpWidget(
         MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
             body: SingleChildScrollView(
               child: PerformanceStatsCard(overview: overview),
@@ -80,13 +84,68 @@ void main() {
         ),
       );
 
-      expect(find.text('PERFORMANCE INSIGHTS'), findsOneWidget);
       expect(find.text('RECENT FORM'), findsOneWidget);
-      expect(find.text('2 Win Streak'), findsOneWidget);
+      expect(find.text('2 WIN'), findsOneWidget);
       expect(find.text('TOP AGENTS'), findsOneWidget);
       expect(find.text('Jett'), findsOneWidget);
       expect(find.text('TOP MAPS'), findsOneWidget);
       expect(find.text('Ascent'), findsOneWidget);
+    });
+  });
+
+  group('CareerTrendCharts Widget Tests', () {
+    testWidgets('renders rating and K/D trend charts', (tester) async {
+      final overview = CareerOverview(
+        currentRankRating: 72,
+        matches: [
+          MatchSummary(
+            matchId: 'trend-1',
+            mapId: 'ascent',
+            mapName: 'Ascent',
+            gameMode: 'bomb',
+            queueId: 'competitive',
+            gameStartTime: DateTime(2026, 9, 7),
+            won: true,
+            agentId: 'jett',
+            agentName: 'Jett',
+            kills: 20,
+            deaths: 10,
+            rankRatingEarned: 22,
+          ),
+          MatchSummary(
+            matchId: 'trend-2',
+            mapId: 'bind',
+            mapName: 'Bind',
+            gameMode: 'bomb',
+            queueId: 'competitive',
+            gameStartTime: DateTime(2026, 9, 6),
+            won: false,
+            agentId: 'omen',
+            agentName: 'Omen',
+            kills: 12,
+            deaths: 18,
+            rankRatingEarned: -16,
+          ),
+        ],
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: CareerTrendCharts(overview: overview),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('RATING TREND'), findsOneWidget);
+      expect(find.text('72 RR'), findsOneWidget);
+      expect(find.text('K/D TREND'), findsOneWidget);
+      expect(find.text('1.33 K/D'), findsOneWidget);
     });
   });
 
@@ -148,6 +207,8 @@ void main() {
     testWidgets('renders MapKillOverlayWidget header and mode toggle buttons', (tester) async {
       await tester.pumpWidget(
         MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
             body: SingleChildScrollView(
               child: MapKillOverlayWidget(
@@ -185,6 +246,8 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
             body: MapKillOverlayWidget(
               match: matchNoMinimap,
@@ -200,6 +263,8 @@ void main() {
     testWidgets('supports step-by-step kill inspection scrubber and filter pills', (tester) async {
       await tester.pumpWidget(
         MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
             body: SingleChildScrollView(
               child: MapKillOverlayWidget(

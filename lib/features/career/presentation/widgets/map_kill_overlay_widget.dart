@@ -35,8 +35,8 @@ class _MapKillOverlayWidgetState extends State<MapKillOverlayWidget> {
   MatchRoundKill? _selectedKill;
 
   // Blue for Friendly, Red for Enemy
-  static const Color _colorFriendly = Color(0xFF00E5FF);
-  static const Color _colorEnemy = Color(0xFFFF4655);
+  static const Color _colorFriendly = AppColors.accent;
+  static const Color _colorEnemy = AppColors.lossRed;
 
   @override
   void initState() {
@@ -143,13 +143,6 @@ class _MapKillOverlayWidgetState extends State<MapKillOverlayWidget> {
         color: AppColors.surface,
         borderRadius: AppRadius.roundedMd,
         border: Border.all(color: AppColors.border),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.35),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -492,15 +485,6 @@ class _MapKillOverlayWidgetState extends State<MapKillOverlayWidget> {
               color: isSelected ? const Color(0xFFFFD700) : ringColor,
               width: isSelected ? 2.5 : 2.0,
             ),
-            boxShadow: [
-              BoxShadow(
-                color: (isSelected ? const Color(0xFFFFD700) : ringColor).withValues(
-                  alpha: isSelected ? 0.8 : 0.45,
-                ),
-                blurRadius: isSelected ? 8 : 4,
-                spreadRadius: isSelected ? 1.5 : 0.5,
-              ),
-            ],
           ),
           child: Stack(
             children: [
@@ -654,14 +638,6 @@ class _MapKillOverlayWidgetState extends State<MapKillOverlayWidget> {
                   color: isSelected ? const Color(0xFFFFD700) : AppColors.border,
                   width: isSelected ? 1.5 : 1,
                 ),
-                boxShadow: isSelected
-                    ? [
-                        BoxShadow(
-                          color: const Color(0xFFFFD700).withValues(alpha: 0.35),
-                          blurRadius: 6,
-                        ),
-                      ]
-                    : null,
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -1098,12 +1074,6 @@ class _LegendDot extends StatelessWidget {
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             color: color,
-            boxShadow: [
-              BoxShadow(
-                color: color.withValues(alpha: 0.5),
-                blurRadius: 3,
-              ),
-            ],
           ),
         ),
         const SizedBox(width: 4),

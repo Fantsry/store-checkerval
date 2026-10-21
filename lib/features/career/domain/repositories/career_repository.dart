@@ -8,4 +8,7 @@ abstract class CareerRepository {
 
   /// Fetches detailed match data for a single match.
   Future<Result<MatchSummary>> getMatchDetail(String matchId);
+
+  /// Loads the next page of match history and merges it into [current].
+  Future<Result<CareerOverview>> loadMoreMatches(CareerOverview current);
 }

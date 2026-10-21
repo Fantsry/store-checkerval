@@ -74,6 +74,38 @@ void main() {
     matches: [tCompMatch, tDmMatch],
   );
 
+  final tMoreOverview = CareerOverview(
+    currentTier: 16,
+    currentTierName: 'Platinum 2',
+    currentRankRating: 76,
+    totalMatches: 2,
+    hasMore: true,
+    matches: [tCompMatch, tDmMatch],
+  );
+
+  final tExtraMatch = MatchSummary(
+    matchId: 'match-3',
+    mapId: 'haven',
+    mapName: 'Haven',
+    gameMode: 'bomb',
+    queueId: 'competitive',
+    gameStartTime: DateTime(2026, 9, 6),
+    won: false,
+    agentId: 'omen-uuid',
+    agentName: 'Omen',
+    kills: 14,
+    deaths: 16,
+    assists: 7,
+    scoreWon: 11,
+    scoreLost: 13,
+    roundsPlayed: 24,
+    averageCombatScore: 190,
+  );
+
+  setUpAll(() {
+    registerFallbackValue(tMoreOverview);
+  });
+
   setUp(() {
     mockCareerRepository = MockCareerRepository();
     careerCubit = CareerCubit(careerRepository: mockCareerRepository);
@@ -149,6 +181,56 @@ void main() {
       ],
       verify: (_) {
         verify(() => mockCareerRepository.getCareerOverview(forceRefresh: true)).called(1);
+      },
+    );
+
+    blocTest<CareerCubit, CareerState>(
+      'loadMore appends the next page and preserves the queue filter',
+      build: () {
+        when(() => mockCareerRepository.loadMoreMatches(tMoreOverview))
+            .thenAnswer(
+          (_) async => Result.success(
+            tMoreOverview.withMatches(
+              [tCompMatch, tDmMatch, tExtraMatch],
+              hasMore: false,
+            ),
+          ),
+        );
+        return careerCubit;
+      },
+      seed: () => CareerLoaded(
+        overview: tMoreOverview,
+        selectedQueueFilter: 'competitive',
+      ),
+      act: (cubit) => cubit.loadMore(),
+      expect: () => [
+        CareerLoaded(
+          overview: tMoreOverview,
+          selectedQueueFilter: 'competitive',
+          isLoadingMore: true,
+        ),
+        CareerLoaded(
+          overview: tMoreOverview.withMatches(
+            [tCompMatch, tDmMatch, tExtraMatch],
+            hasMore: false,
+          ),
+          selectedQueueFilter: 'competitive',
+        ),
+      ],
+      verify: (_) {
+        verify(() => mockCareerRepository.loadMoreMatches(tMoreOverview))
+            .called(1);
+      },
+    );
+
+    blocTest<CareerCubit, CareerState>(
+      'loadMore does nothing when there are no more matches',
+      build: () => careerCubit,
+      seed: () => CareerLoaded(overview: tOverview),
+      act: (cubit) => cubit.loadMore(),
+      expect: () => const <CareerState>[],
+      verify: (_) {
+        verifyNever(() => mockCareerRepository.loadMoreMatches(any()));
       },
     );
 
