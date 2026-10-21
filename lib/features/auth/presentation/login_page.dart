@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:go_router/go_router.dart';
-import 'package:valorant_store_tracker/app/theme.dart';
+import 'package:valorant_store_tracker/ui/theme/app_colors.dart';
 import 'package:valorant_store_tracker/core/constants/api_constants.dart';
 import 'package:valorant_store_tracker/features/auth/presentation/cubit/auth_cubit.dart';
 import 'package:valorant_store_tracker/features/auth/presentation/cubit/auth_state.dart';
@@ -85,11 +85,11 @@ class _LoginPageState extends State<LoginPage> {
 
         if (mounted) {
           context.read<AuthCubit>().loginWithTokens(
-                accessToken: accessToken,
-                idToken: idToken,
-                cookieJar: cookieJar,
-                manualRegion: _manualRegion,
-              );
+            accessToken: accessToken,
+            idToken: idToken,
+            cookieJar: cookieJar,
+            manualRegion: _manualRegion,
+          );
         }
       }
     }
@@ -131,7 +131,7 @@ class _LoginPageState extends State<LoginPage> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(state.message),
-              backgroundColor: AppTheme.valorantRed,
+              backgroundColor: AppColors.lossRed,
             ),
           );
         }
@@ -143,7 +143,8 @@ class _LoginPageState extends State<LoginPage> {
           canPop: false,
           onPopInvokedWithResult: (didPop, result) async {
             if (didPop) return;
-            if (_webViewController != null && await _webViewController!.canGoBack()) {
+            if (_webViewController != null &&
+                await _webViewController!.canGoBack()) {
               await _webViewController!.goBack();
               return;
             }
@@ -156,9 +157,9 @@ class _LoginPageState extends State<LoginPage> {
             }
           },
           child: Scaffold(
-            backgroundColor: AppTheme.backgroundDark,
+            backgroundColor: AppColors.background,
             appBar: AppBar(
-              backgroundColor: AppTheme.cardDark,
+              backgroundColor: AppColors.surface,
               elevation: 0,
               leading: IconButton(
                 icon: const Icon(Icons.arrow_back_rounded),
@@ -170,32 +171,14 @@ class _LoginPageState extends State<LoginPage> {
                   }
                 },
               ),
-              title: Row(
-                children: [
-                  Container(
-                    width: 3,
-                    height: 20,
-                    margin: const EdgeInsets.only(right: 8),
-                    decoration: BoxDecoration(
-                      color: AppTheme.accentMagenta,
-                      borderRadius: BorderRadius.circular(1.5),
-                    ),
-                  ),
-                  const Icon(
-                    Icons.lock_outline_rounded,
-                    size: 16,
-                    color: AppTheme.accentMagenta,
-                  ),
-                  const SizedBox(width: 6),
-                  const Text(
-                    'RIOT SIGN IN',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 1.5,
-                    ),
-                  ),
-                ],
+              title: const Text(
+                'Riot sign in',
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: -0.2,
+                  color: AppColors.textPrimary,
+                ),
               ),
               actions: [
                 IconButton(
@@ -204,7 +187,7 @@ class _LoginPageState extends State<LoginPage> {
                   onPressed: () => _webViewController?.reload(),
                 ),
                 PopupMenuButton<String>(
-                  color: AppTheme.cardDark,
+                  color: AppColors.surface,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
                     side: BorderSide(
@@ -230,7 +213,7 @@ class _LoginPageState extends State<LoginPage> {
                           fontSize: 11,
                           fontWeight: FontWeight.w800,
                           letterSpacing: 1,
-                          color: AppTheme.textMuted,
+                          color: AppColors.textMuted,
                         ),
                       ),
                     ),
@@ -244,7 +227,7 @@ class _LoginPageState extends State<LoginPage> {
                                 : Icons.public_rounded,
                             size: 20,
                             color: _manualRegion == null
-                                ? AppTheme.accentMagenta
+                                ? AppColors.accent
                                 : Colors.white70,
                           ),
                           const SizedBox(width: 8),
@@ -270,7 +253,7 @@ class _LoginPageState extends State<LoginPage> {
                                   : Icons.circle_outlined,
                               size: 20,
                               color: _manualRegion == region
-                                  ? AppTheme.accentMagenta
+                                  ? AppColors.accent
                                   : Colors.white70,
                             ),
                             const SizedBox(width: 8),
@@ -283,7 +266,11 @@ class _LoginPageState extends State<LoginPage> {
                       value: 'clear',
                       child: Row(
                         children: [
-                          Icon(Icons.delete_sweep_rounded, size: 20, color: AppTheme.accentMagenta),
+                          Icon(
+                            Icons.delete_sweep_rounded,
+                            size: 20,
+                            color: AppColors.accent,
+                          ),
                           SizedBox(width: 8),
                           Text('Ganti Akun / Hapus Sesi'),
                         ],
@@ -298,7 +285,7 @@ class _LoginPageState extends State<LoginPage> {
                       child: LinearProgressIndicator(
                         value: _webProgress,
                         backgroundColor: Colors.transparent,
-                        color: AppTheme.accentMagenta,
+                        color: AppColors.accent,
                         minHeight: 3,
                       ),
                     )
@@ -332,17 +319,22 @@ class _LoginPageState extends State<LoginPage> {
                       _webProgress = progress / 100.0;
                     });
                   },
-                  shouldOverrideUrlLoading: (controller, navigationAction) async {
-                    final uri = navigationAction.request.url?.uriValue;
-                    if (uri != null &&
-                        (uri.toString().contains('playvalorant.com/opt_in') ||
-                            uri.fragment.contains('access_token') ||
-                            uri.queryParameters.containsKey('access_token'))) {
-                      _handleUrlChange(uri);
-                      return NavigationActionPolicy.CANCEL;
-                    }
-                    return NavigationActionPolicy.ALLOW;
-                  },
+                  shouldOverrideUrlLoading:
+                      (controller, navigationAction) async {
+                        final uri = navigationAction.request.url?.uriValue;
+                        if (uri != null &&
+                            (uri.toString().contains(
+                                  'playvalorant.com/opt_in',
+                                ) ||
+                                uri.fragment.contains('access_token') ||
+                                uri.queryParameters.containsKey(
+                                  'access_token',
+                                ))) {
+                          _handleUrlChange(uri);
+                          return NavigationActionPolicy.CANCEL;
+                        }
+                        return NavigationActionPolicy.ALLOW;
+                      },
                   onLoadStop: (controller, url) async {
                     _handleUrlChange(url?.uriValue);
                   },
@@ -363,18 +355,11 @@ class _LoginPageState extends State<LoginPage> {
                         ),
                         margin: const EdgeInsets.symmetric(horizontal: 32),
                         decoration: BoxDecoration(
-                          color: AppTheme.cardDark,
+                          color: AppColors.surface,
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(
-                            color: AppTheme.accentMagenta.withValues(alpha: 0.35),
+                            color: AppColors.accent.withValues(alpha: 0.35),
                           ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.5),
-                              blurRadius: 20,
-                              offset: const Offset(0, 10),
-                            ),
-                          ],
                         ),
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
@@ -383,29 +368,29 @@ class _LoginPageState extends State<LoginPage> {
                               width: 44,
                               height: 44,
                               child: CircularProgressIndicator(
-                                color: AppTheme.accentMagenta,
+                                color: AppColors.accent,
                                 strokeWidth: 3,
                               ),
                             ),
                             const SizedBox(height: 20),
                             const Text(
-                              'MENGHUBUNGKAN AKUN RIOT...',
+                              'CONNECTING RIOT ACCOUNT',
                               textAlign: TextAlign.center,
                               style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w900,
                                 letterSpacing: 1.0,
-                                color: AppTheme.textPrimary,
+                                color: AppColors.textPrimary,
                               ),
                             ),
                             const SizedBox(height: 8),
                             Text(
                               (state is AuthLoading ? state.message : null) ??
-                                  'Mengambil sesi & rotasi skin store...',
+                                  'Fetching session and daily store...',
                               textAlign: TextAlign.center,
                               style: const TextStyle(
                                 fontSize: 12,
-                                color: AppTheme.textSecondary,
+                                color: AppColors.textSecondary,
                               ),
                             ),
                           ],
@@ -416,8 +401,8 @@ class _LoginPageState extends State<LoginPage> {
               ],
             ),
           ),
-      );
-    },
+        );
+      },
     );
   }
 }
