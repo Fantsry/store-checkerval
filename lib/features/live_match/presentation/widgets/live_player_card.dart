@@ -6,6 +6,7 @@ import 'package:valorant_store_tracker/ui/theme/app_colors.dart';
 import 'package:valorant_store_tracker/ui/theme/app_radius.dart';
 import 'package:valorant_store_tracker/ui/theme/app_spacing.dart';
 import 'package:valorant_store_tracker/ui/theme/app_text_styles.dart';
+import 'package:valorant_store_tracker/ui/widgets/player_banner.dart';
 
 class LivePlayerCard extends StatefulWidget {
   final LivePlayerInfo player;
@@ -43,37 +44,17 @@ class _LivePlayerCardState extends State<LivePlayerCard> {
           borderRadius: AppRadius.roundedLg,
           child: Stack(
             children: [
-              if (player.cardWideArt != null &&
-                  player.cardWideArt!.isNotEmpty) ...[
-                Positioned.fill(
-                  child: CachedNetworkImage(
-                    imageUrl: player.cardWideArt!,
-                    fit: BoxFit.cover,
-                    alignment: isEnemy
-                        ? Alignment.centerRight
-                        : Alignment.centerLeft,
-                    errorWidget: (_, __, ___) => const SizedBox.shrink(),
-                  ),
+              Positioned.fill(
+                child: PlayerBannerArt(
+                  wideArt: player.cardWideArt,
+                  largeArt: player.cardLargeArt,
+                  smallArt: player.cardSmallArt,
+                  alignment: isEnemy
+                      ? Alignment.centerRight
+                      : Alignment.centerLeft,
+                  showFallbackIcon: false,
                 ),
-                Positioned.fill(
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: isEnemy
-                            ? Alignment.centerRight
-                            : Alignment.centerLeft,
-                        end: isEnemy
-                            ? Alignment.centerLeft
-                            : Alignment.centerRight,
-                        colors: [
-                          AppColors.background.withValues(alpha: 0.94),
-                          AppColors.background.withValues(alpha: 0.72),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+              ),
               Positioned(
                 top: 0,
                 bottom: 0,

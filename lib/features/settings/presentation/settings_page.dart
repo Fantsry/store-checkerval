@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -25,6 +24,7 @@ import 'package:valorant_store_tracker/ui/theme/app_radius.dart';
 import 'package:valorant_store_tracker/ui/theme/app_spacing.dart';
 import 'package:valorant_store_tracker/ui/theme/app_text_styles.dart';
 import 'package:valorant_store_tracker/ui/widgets/ascend_card.dart';
+import 'package:valorant_store_tracker/ui/widgets/player_banner.dart';
 import 'package:valorant_store_tracker/ui/widgets/section_header.dart';
 import 'package:valorant_store_tracker/ui/widgets/vp_chip.dart';
 
@@ -40,11 +40,17 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _nightMarketAlertsEnabled = true;
   bool _accessoryAlertsEnabled = true;
   bool _chatAlertsEnabled = true;
+  bool _profileRefreshRequested = false;
 
   @override
   void initState() {
     super.initState();
     _loadSettings();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _profileRefreshRequested) return;
+      _profileRefreshRequested = true;
+      context.read<ProfileCubit>().loadProfile(forceRefresh: true);
+    });
   }
 
   Future<void> _loadSettings() async {
@@ -601,94 +607,42 @@ class _SettingsPageState extends State<SettingsPage> {
   Widget _buildPlayerCard() {
     return BlocBuilder<ProfileCubit, ProfileState>(
       builder: (context, state) {
-        final UserProfile? profile = state is ProfileLoaded
-            ? state.profile
-            : null;
+        final UserProfile? profile = switch (state) {
+          ProfileLoaded(:final profile) => profile,
+          ProfileLoading(:final cachedProfile) => cachedProfile,
+          ProfileError(:final cachedProfile) => cachedProfile,
+          _ => null,
+        };
 
-        return DataPanel(
-          padding: const EdgeInsets.all(AppSpacing.lg),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+        return PlayerBannerCard(
+          wideArt: profile?.cardWideArt,
+          largeArt: profile?.cardLargeArt,
+          smallArt: profile?.cardSmallArt,
+          displayName: profile?.displayName ?? 'Valorant Agent',
+          title: profile?.titleText,
+          badge: 'PROFILE',
+          meta:
+              '${profile?.region.toUpperCase() ?? 'AP'} / '
+              'LVL ${profile?.accountLevel ?? 1}',
+          height: 208,
+          footer: Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Row(
-                children: [
-                  Container(
-                    width: 46,
-                    height: 46,
-                    decoration: BoxDecoration(
-                      color: AppColors.background,
-                      borderRadius: AppRadius.roundedSm,
-                      border: Border.all(color: AppColors.border),
-                    ),
-                    child: ClipRRect(
-                      borderRadius: AppRadius.roundedSm,
-                      child: profile?.cardSmallArt != null
-                          ? CachedNetworkImage(
-                              imageUrl: profile!.cardSmallArt!,
-                              fit: BoxFit.cover,
-                            )
-                          : const Icon(
-                              Icons.person_outline,
-                              color: AppColors.textMuted,
-                              size: 20,
-                            ),
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.md),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          profile?.displayName ?? 'Valorant Agent',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: AppTextStyles.h3(color: AppColors.textPrimary),
-                        ),
-                        if (profile?.titleText != null)
-                          Text(
-                            profile!.titleText!,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: AppTextStyles.caption(
-                              color: AppColors.accentSoft,
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.sm),
-                  Text(
-                    '${profile?.region.toUpperCase() ?? 'AP'} / '
-                    'LVL ${profile?.accountLevel ?? 1}',
-                    style: AppTextStyles.statLabel(
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ],
+              VpChip(
+                amount: profile?.walletAvailable == true
+                    ? profile!.valorantPoints
+                    : null,
+                fontSize: 11,
+                compact: true,
               ),
-              const SizedBox(height: AppSpacing.md),
-              const Divider(height: 1, color: AppColors.border),
-              const SizedBox(height: AppSpacing.md),
-              Row(
-                children: [
-                  VpChip(
-                    amount: profile?.walletAvailable == true
-                        ? profile!.valorantPoints
-                        : null,
-                    fontSize: 11,
-                    compact: true,
-                  ),
-                  const SizedBox(width: AppSpacing.sm),
-                  VpChip(
-                    amount: profile?.walletAvailable == true
-                        ? profile!.radianitePoints
-                        : null,
-                    isRadianite: true,
-                    fontSize: 11,
-                    compact: true,
-                  ),
-                ],
+              const SizedBox(width: AppSpacing.sm),
+              VpChip(
+                amount: profile?.walletAvailable == true
+                    ? profile!.radianitePoints
+                    : null,
+                isRadianite: true,
+                fontSize: 11,
+                compact: true,
               ),
             ],
           ),

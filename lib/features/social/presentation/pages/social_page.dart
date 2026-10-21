@@ -9,6 +9,7 @@ import 'package:valorant_store_tracker/features/social/domain/entities/friend_en
 import 'package:valorant_store_tracker/features/social/presentation/cubit/social_cubit.dart';
 import 'package:valorant_store_tracker/features/social/presentation/cubit/social_state.dart';
 import 'package:valorant_store_tracker/features/social/presentation/widgets/add_friend_dialog.dart';
+import 'package:valorant_store_tracker/features/social/presentation/widgets/friend_profile_header.dart';
 import 'package:valorant_store_tracker/features/social/presentation/widgets/social_chat_sheet.dart';
 import 'package:valorant_store_tracker/ui/theme/app_colors.dart';
 import 'package:valorant_store_tracker/ui/theme/app_radius.dart';
@@ -735,7 +736,10 @@ class _SocialPageState extends State<SocialPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      _buildDetailArt(friend, sheetContext),
+                      FriendProfileHeader(
+                        friend: friend,
+                        onClose: () => Navigator.of(sheetContext).pop(),
+                      ),
                       Padding(
                         padding: const EdgeInsets.all(AppSpacing.lg),
                         child: Column(
@@ -884,60 +888,6 @@ class _SocialPageState extends State<SocialPage> {
           },
         );
       },
-    );
-  }
-
-  Widget _buildDetailArt(FriendEntity friend, BuildContext sheetContext) {
-    return SizedBox(
-      height: 170,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          if (friend.cardWideArt != null)
-            CachedNetworkImage(
-              imageUrl: friend.cardWideArt!,
-              fit: BoxFit.cover,
-              alignment: Alignment.topCenter,
-              errorWidget: (_, __, ___) =>
-                  const ColoredBox(color: AppColors.surface),
-            )
-          else
-            const ColoredBox(color: AppColors.surface),
-          const DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [Colors.transparent, AppColors.background],
-                stops: [0.35, 1],
-              ),
-            ),
-          ),
-          Positioned(
-            right: AppSpacing.md,
-            top: AppSpacing.md,
-            child: IconButton(
-              onPressed: () => Navigator.of(sheetContext).pop(),
-              icon: const Icon(
-                Icons.close_rounded,
-                color: AppColors.textPrimary,
-                size: 20,
-              ),
-              style: IconButton.styleFrom(
-                backgroundColor: Colors.black.withValues(alpha: 0.35),
-              ),
-            ),
-          ),
-          Positioned(
-            left: AppSpacing.lg,
-            bottom: AppSpacing.md,
-            child: Text(
-              'PLAYER PROFILE',
-              style: AppTextStyles.statLabel(color: AppColors.textSecondary),
-            ),
-          ),
-        ],
-      ),
     );
   }
 

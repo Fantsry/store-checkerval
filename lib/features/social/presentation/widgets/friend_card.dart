@@ -12,6 +12,7 @@ import 'package:valorant_store_tracker/ui/theme/app_radius.dart';
 import 'package:valorant_store_tracker/ui/theme/app_spacing.dart';
 import 'package:valorant_store_tracker/ui/theme/app_text_styles.dart';
 import 'package:valorant_store_tracker/ui/widgets/ascend_card.dart';
+import 'package:valorant_store_tracker/ui/widgets/player_banner.dart';
 
 class FriendCard extends StatefulWidget {
   final FriendEntity friend;
@@ -186,8 +187,8 @@ class _FriendCardState extends State<FriendCard>
   @override
   Widget build(BuildContext context) {
     final friend = widget.friend;
-    final hasWideArt = friend.cardWideArt != null && friend.cardWideArt!.isNotEmpty;
-    final hasSmallArt = friend.cardSmallArt != null && friend.cardSmallArt!.isNotEmpty;
+    final hasSmallArt =
+        friend.cardSmallArt != null && friend.cardSmallArt!.isNotEmpty;
     final isPlaying = friend.isPlaying;
 
     return AscendCard(
@@ -205,37 +206,13 @@ class _FriendCardState extends State<FriendCard>
         child: Stack(
           children: [
             // ─── 1. Player Card Wide Banner Background ───────────────
-            if (hasWideArt)
-              Positioned.fill(
-                child: CachedNetworkImage(
-                  imageUrl: friend.cardWideArt!,
-                  fit: BoxFit.cover,
-                  alignment: Alignment.centerRight,
-                  errorWidget: (_, __, ___) => const SizedBox.shrink(),
-                ),
-              ),
-
-            // ─── 2. Gradient Overlay for Readability ────────────────
             Positioned.fill(
-              child: Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.centerLeft,
-                    end: Alignment.centerRight,
-                    stops: hasWideArt ? const [0.0, 0.45, 0.8, 1.0] : null,
-                    colors: hasWideArt
-                        ? [
-                            AppColors.background.withValues(alpha: 0.98),
-                            AppColors.background.withValues(alpha: 0.85),
-                            AppColors.background.withValues(alpha: 0.45),
-                            Colors.black.withValues(alpha: 0.35),
-                          ]
-                        : [
-                            AppColors.card.withValues(alpha: 0.98),
-                            AppColors.cardElevated.withValues(alpha: 0.95),
-                          ],
-                  ),
-                ),
+              child: PlayerBannerArt(
+                wideArt: friend.cardWideArt,
+                largeArt: friend.cardLargeArt,
+                smallArt: friend.cardSmallArt,
+                alignment: Alignment.centerRight,
+                showFallbackIcon: false,
               ),
             ),
 

@@ -5,9 +5,9 @@ import 'package:valorant_store_tracker/features/live_match/domain/entities/live_
 import 'package:valorant_store_tracker/features/live_match/domain/entities/live_player_info.dart';
 import 'package:valorant_store_tracker/features/live_match/presentation/cubit/live_match_cubit.dart';
 import 'package:valorant_store_tracker/features/live_match/presentation/cubit/live_match_state.dart';
+import 'package:valorant_store_tracker/features/live_match/presentation/widgets/live_match_hud_header.dart';
 import 'package:valorant_store_tracker/features/live_match/presentation/widgets/live_player_card.dart';
 import 'package:valorant_store_tracker/ui/theme/app_colors.dart';
-import 'package:valorant_store_tracker/ui/theme/app_radius.dart';
 import 'package:valorant_store_tracker/ui/theme/app_spacing.dart';
 import 'package:valorant_store_tracker/ui/theme/app_text_styles.dart';
 import 'package:valorant_store_tracker/ui/widgets/ascend_card.dart';
@@ -15,7 +15,6 @@ import 'package:valorant_store_tracker/ui/widgets/custom_tab_bar.dart';
 import 'package:valorant_store_tracker/ui/widgets/empty_state_view.dart';
 import 'package:valorant_store_tracker/ui/widgets/error_state_view.dart';
 import 'package:valorant_store_tracker/ui/widgets/section_header.dart';
-import 'package:valorant_store_tracker/ui/widgets/stat_badge.dart';
 
 class LiveMatchPage extends StatefulWidget {
   const LiveMatchPage({super.key});
@@ -92,7 +91,7 @@ class _LiveMatchPageState extends State<LiveMatchPage>
                       _buildInLobbyState()
                     else ...[
                       SliverToBoxAdapter(
-                        child: _buildHudHeader(state.matchData),
+                        child: LiveMatchHudHeader(matchData: state.matchData),
                       ),
                       SliverToBoxAdapter(
                         child: LayoutBuilder(
@@ -253,141 +252,6 @@ class _LiveMatchPageState extends State<LiveMatchPage>
     );
   }
 
-  Widget _buildHudHeader(LiveMatchData matchData) {
-    final isPreGame = matchData.phase == LiveMatchPhase.preGame;
-    final hasScore = matchData.blueScore != null && matchData.redScore != null;
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.lg,
-        AppSpacing.sm,
-        AppSpacing.lg,
-        AppSpacing.sm,
-      ),
-      child: ClipRRect(
-        borderRadius: AppRadius.roundedLg,
-        child: Container(
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            border: Border.all(color: AppColors.border),
-          ),
-          child: Stack(
-            children: [
-              if (matchData.mapSplash != null)
-                Positioned.fill(
-                  child: Image.network(
-                    matchData.mapSplash!,
-                    fit: BoxFit.cover,
-                    alignment: Alignment.center,
-                    errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-                  ),
-                ),
-              Positioned.fill(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        AppColors.background.withValues(alpha: 0.92),
-                        AppColors.background.withValues(alpha: 0.72),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.all(AppSpacing.lg),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        _LiveDot(
-                          color: isPreGame
-                              ? AppColors.drawAmber
-                              : AppColors.accent,
-                        ),
-                        const SizedBox(width: AppSpacing.sm),
-                        Text(
-                          isPreGame ? 'AGENT SELECT' : 'LIVE',
-                          style: AppTextStyles.statLabel(
-                            color: isPreGame
-                                ? AppColors.drawAmber
-                                : AppColors.accent,
-                          ),
-                        ),
-                        const Spacer(),
-                        if (matchData.playerSide != null)
-                          StatBadge(
-                            text: matchData.playerSide!,
-                            color: AppColors.accent,
-                            outlined: true,
-                            fontSize: 9,
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: AppSpacing.md),
-                    Text(
-                      matchData.mapName,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppTextStyles.h1(color: AppColors.textPrimary),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      matchData.modeName,
-                      style: AppTextStyles.statLabel(
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.lg),
-                    if (hasScore)
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          _ScoreBlock(
-                            label: 'ALLY',
-                            score: matchData.blueScore!,
-                            color: AppColors.accent,
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: AppSpacing.md,
-                            ),
-                            child: Text(
-                              '–',
-                              style: AppTextStyles.scoreHuge(
-                                color: AppColors.textMuted,
-                              ).copyWith(fontSize: 40),
-                            ),
-                          ),
-                          _ScoreBlock(
-                            label: 'ENEMY',
-                            score: matchData.redScore!,
-                            color: AppColors.lossRed,
-                          ),
-                        ],
-                      )
-                    else
-                      Text(
-                        isPreGame
-                            ? 'Waiting for agents to lock in'
-                            : 'Live score pending',
-                        style: AppTextStyles.bodyMedium(
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildLoadingState() {
     return SliverFillRemaining(
       hasScrollBody: false,
@@ -520,79 +384,5 @@ class _LiveMatchPageState extends State<LiveMatchPage>
     if (allySide == 'Attack') return 'Defense';
     if (allySide == 'Defense') return 'Attack';
     return null;
-  }
-}
-
-class _ScoreBlock extends StatelessWidget {
-  final String label;
-  final int score;
-  final Color color;
-
-  const _ScoreBlock({
-    required this.label,
-    required this.score,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: AppTextStyles.statLabel(color: color)),
-        Text(
-          '$score',
-          style: AppTextStyles.scoreHuge(color: AppColors.textPrimary),
-        ),
-      ],
-    );
-  }
-}
-
-class _LiveDot extends StatefulWidget {
-  final Color color;
-
-  const _LiveDot({required this.color});
-
-  @override
-  State<_LiveDot> createState() => _LiveDotState();
-}
-
-class _LiveDotState extends State<_LiveDot>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1400),
-    )..repeat(reverse: true);
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, child) {
-        return Container(
-          width: 7,
-          height: 7,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: widget.color.withValues(
-              alpha: 0.45 + (_controller.value * 0.55),
-            ),
-          ),
-        );
-      },
-    );
   }
 }
