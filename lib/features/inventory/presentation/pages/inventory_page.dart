@@ -2,9 +2,14 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
+import 'package:valorant_store_tracker/app/di.dart';
+import 'package:valorant_store_tracker/core/share/share_preview_sheet.dart';
+import 'package:valorant_store_tracker/core/storage/secure_storage_service.dart';
 import 'package:valorant_store_tracker/features/inventory/domain/entities/inventory_overview.dart';
 import 'package:valorant_store_tracker/features/inventory/presentation/cubit/inventory_cubit.dart';
 import 'package:valorant_store_tracker/features/inventory/presentation/cubit/inventory_state.dart';
+import 'package:valorant_store_tracker/features/inventory/presentation/widgets/inventory_share_card.dart';
+import 'package:valorant_store_tracker/l10n/l10n.dart';
 import 'package:valorant_store_tracker/ui/theme/app_colors.dart';
 import 'package:valorant_store_tracker/ui/theme/app_radius.dart';
 import 'package:valorant_store_tracker/ui/theme/app_spacing.dart';
@@ -14,7 +19,6 @@ import 'package:valorant_store_tracker/ui/widgets/empty_state_view.dart';
 import 'package:valorant_store_tracker/ui/widgets/error_state_view.dart';
 import 'package:valorant_store_tracker/ui/widgets/section_header.dart';
 import 'package:valorant_store_tracker/ui/widgets/shimmer_loading.dart';
-import 'package:valorant_store_tracker/ui/widgets/stat_badge.dart';
 
 class InventoryPage extends StatefulWidget {
   const InventoryPage({super.key});
@@ -41,17 +45,60 @@ class _InventoryPageState extends State<InventoryPage> {
     super.dispose();
   }
 
+  Future<void> _shareCollection() async {
+    final state = context.read<InventoryCubit>().state;
+    if (state is! InventoryLoaded) return;
+
+    var playerName = '';
+    if (getIt.isRegistered<SecureStorageService>()) {
+      final storage = getIt<SecureStorageService>();
+      final gameName = await storage.getGameName();
+      final tagLine = await storage.getTagLine();
+      if (gameName != null && gameName.isNotEmpty) {
+        playerName = tagLine != null && tagLine.isNotEmpty
+            ? '$gameName#$tagLine'
+            : gameName;
+      }
+    }
+    if (!mounted) return;
+
+    final overview = state.overview;
+    await showSharePreviewSheet(
+      context,
+      card: InventoryShareCard(overview: overview, playerName: playerName),
+      shareText:
+          'My Valorant collection: ${overview.totalSkinsCount} skins worth ${overview.formattedEstimatedIdr} — tracked with Store Checker Val.',
+      fileName: 'valorant_collection_${DateTime.now().millisecondsSinceEpoch}',
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: Text('COLLECTION', style: AppTextStyles.h2(color: AppColors.textPrimary)),
+        title: Text(
+          'Collection',
+          style: AppTextStyles.h2(color: AppColors.textPrimary),
+        ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh_rounded, color: AppColors.textSecondary),
-            onPressed: () => context.read<InventoryCubit>().loadInventory(forceRefresh: true),
-            tooltip: 'Refresh Collection',
+            icon: const Icon(
+              Icons.ios_share_rounded,
+              color: AppColors.textSecondary,
+            ),
+            onPressed: _shareCollection,
+            tooltip: context.l10n.shareCollection,
+          ),
+          IconButton(
+            icon: const Icon(
+              Icons.refresh_rounded,
+              color: AppColors.textSecondary,
+            ),
+            onPressed: () => context.read<InventoryCubit>().loadInventory(
+              forceRefresh: true,
+            ),
+            tooltip: context.l10n.refreshCollection,
           ),
           const SizedBox(width: AppSpacing.sm),
         ],
@@ -60,7 +107,7 @@ class _InventoryPageState extends State<InventoryPage> {
         child: RefreshIndicator(
           onRefresh: () async =>
               context.read<InventoryCubit>().loadInventory(forceRefresh: true),
-          color: AppColors.red,
+          color: AppColors.accent,
           backgroundColor: AppColors.card,
           child: BlocBuilder<InventoryCubit, InventoryState>(
             builder: (context, state) {
@@ -71,8 +118,9 @@ class _InventoryPageState extends State<InventoryPage> {
               if (state is InventoryError) {
                 return ErrorStateView(
                   message: state.message,
-                  onRetry: () =>
-                      context.read<InventoryCubit>().loadInventory(forceRefresh: true),
+                  onRetry: () => context.read<InventoryCubit>().loadInventory(
+                    forceRefresh: true,
+                  ),
                 );
               }
 
@@ -96,12 +144,13 @@ class _InventoryPageState extends State<InventoryPage> {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           _buildAccountValueCard(overview),
-                          const SizedBox(height: AppSpacing.lg),
+                          const SizedBox(height: AppSpacing.xl),
                           _buildSearchAndFilters(state),
-                          const SizedBox(height: AppSpacing.lg),
+                          const SizedBox(height: AppSpacing.xl),
                           SectionHeader(
-                            title: 'ARMORY ARSENAL',
-                            subtitle: '${skins.length} Skins Matching Filter',
+                            index: '01',
+                            title: 'ARMORY',
+                            subtitle: '${skins.length} skins matching filter',
                           ),
                           const SizedBox(height: AppSpacing.sm),
                         ],
@@ -114,25 +163,26 @@ class _InventoryPageState extends State<InventoryPage> {
                       child: EmptyStateView(
                         icon: Icons.shield_outlined,
                         title: 'NO SKINS FOUND',
-                        description: 'Try adjusting your search query or filter tags.',
+                        description:
+                            'Try adjusting your search query or filter tags.',
                       ),
                     )
                   else
                     SliverPadding(
-                      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.lg,
+                      ),
                       sliver: SliverGrid(
-                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          mainAxisSpacing: AppSpacing.md,
-                          crossAxisSpacing: AppSpacing.md,
-                          childAspectRatio: 0.82,
-                        ),
-                        delegate: SliverChildBuilderDelegate(
-                          (context, index) {
-                            return _buildSkinGridItem(skins[index]);
-                          },
-                          childCount: skins.length,
-                        ),
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 2,
+                              mainAxisSpacing: AppSpacing.md,
+                              crossAxisSpacing: AppSpacing.md,
+                              childAspectRatio: 0.8,
+                            ),
+                        delegate: SliverChildBuilderDelegate((context, index) {
+                          return _buildSkinGridItem(skins[index]);
+                        }, childCount: skins.length),
                       ),
                     ),
                   const SliverToBoxAdapter(
@@ -152,7 +202,7 @@ class _InventoryPageState extends State<InventoryPage> {
       padding: const EdgeInsets.all(AppSpacing.lg),
       child: Column(
         children: const [
-          ShimmerBox(height: 140, borderRadius: AppRadius.xl),
+          ShimmerBox(height: 150, borderRadius: AppRadius.lg),
           SizedBox(height: AppSpacing.lg),
           ShimmerBox(height: 50, borderRadius: AppRadius.md),
           SizedBox(height: AppSpacing.lg),
@@ -166,22 +216,21 @@ class _InventoryPageState extends State<InventoryPage> {
     final formatter = NumberFormat('#,###');
     final formattedVp = formatter.format(overview.totalVpSpent);
 
-    return AscendCard(
+    return DataPanel(
       padding: const EdgeInsets.all(AppSpacing.lg),
-      borderRadius: AppRadius.xl,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
                 'ACCOUNT VALUATION',
-                style: AppTextStyles.statLabel(color: AppColors.textSecondary),
+                style: AppTextStyles.statLabel(color: AppColors.textMuted),
               ),
-              StatBadge(
-                text: '${overview.totalSkinsCount} TOTAL SKINS',
-                color: AppColors.cyan,
+              const Spacer(),
+              Text(
+                '${overview.totalSkinsCount} SKINS',
+                style: AppTextStyles.statLabel(color: AppColors.accent),
               ),
             ],
           ),
@@ -190,15 +239,9 @@ class _InventoryPageState extends State<InventoryPage> {
             crossAxisAlignment: CrossAxisAlignment.baseline,
             textBaseline: TextBaseline.alphabetic,
             children: [
-              const Icon(
-                Icons.monetization_on_outlined,
-                size: 26,
-                color: AppColors.vpGold,
-              ),
-              const SizedBox(width: AppSpacing.xs),
               Text(
                 formattedVp,
-                style: AppTextStyles.scoreLarge(color: AppColors.vpGold),
+                style: AppTextStyles.scoreLarge(color: AppColors.textPrimary),
               ),
               const SizedBox(width: AppSpacing.xs),
               Text(
@@ -207,24 +250,57 @@ class _InventoryPageState extends State<InventoryPage> {
               ),
             ],
           ),
+          const SizedBox(height: 2),
+          Text(
+            'EST. ${overview.formattedEstimatedIdr}',
+            style: AppTextStyles.statLabel(color: AppColors.vpGold),
+          ),
           const SizedBox(height: AppSpacing.md),
-          Container(height: 1, color: AppColors.border),
-          const SizedBox(height: AppSpacing.sm),
+          const Divider(height: 1, color: AppColors.border),
+          const SizedBox(height: AppSpacing.md),
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Store Edition: ${overview.storeSkinsCount}',
-                style: AppTextStyles.caption(color: AppColors.textSecondary),
+              Expanded(
+                child: _buildValuationStat(
+                  'STORE EDITION',
+                  '${overview.storeSkinsCount}',
+                ),
               ),
-              Text(
-                'Battlepass: ${overview.battlepassSkinsCount}',
-                style: AppTextStyles.caption(color: AppColors.textSecondary),
+              Container(width: 1, height: 26, color: AppColors.border),
+              Expanded(
+                child: _buildValuationStat(
+                  'BATTLE PASS',
+                  '${overview.battlepassSkinsCount}',
+                  alignEnd: true,
+                ),
               ),
             ],
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildValuationStat(
+    String label,
+    String value, {
+    bool alignEnd = false,
+  }) {
+    return Column(
+      crossAxisAlignment: alignEnd
+          ? CrossAxisAlignment.end
+          : CrossAxisAlignment.start,
+      children: [
+        Text(label, style: AppTextStyles.statLabel(color: AppColors.textMuted)),
+        const SizedBox(height: 2),
+        Text(
+          value,
+          style: AppTextStyles.statValue(
+            color: AppColors.textPrimary,
+            fontSize: 14,
+          ),
+        ),
+      ],
     );
   }
 
@@ -238,7 +314,10 @@ class _InventoryPageState extends State<InventoryPage> {
           style: AppTextStyles.bodyMedium(color: AppColors.textPrimary),
           decoration: InputDecoration(
             hintText: 'Search by skin or weapon name...',
-            prefixIcon: const Icon(Icons.search_rounded, color: AppColors.textSecondary),
+            prefixIcon: const Icon(
+              Icons.search_rounded,
+              color: AppColors.textSecondary,
+            ),
             suffixIcon: _searchController.text.isNotEmpty
                 ? IconButton(
                     icon: const Icon(Icons.clear_rounded, size: 18),
@@ -259,25 +338,26 @@ class _InventoryPageState extends State<InventoryPage> {
               _buildFilterChip(
                 label: 'ALL',
                 isSelected: state.sourceFilter == InventorySourceFilter.all,
-                onTap: () => context
-                    .read<InventoryCubit>()
-                    .filterBySource(InventorySourceFilter.all),
+                onTap: () => context.read<InventoryCubit>().filterBySource(
+                  InventorySourceFilter.all,
+                ),
               ),
               const SizedBox(width: AppSpacing.xs),
               _buildFilterChip(
                 label: 'STORE ONLY',
                 isSelected: state.sourceFilter == InventorySourceFilter.store,
-                onTap: () => context
-                    .read<InventoryCubit>()
-                    .filterBySource(InventorySourceFilter.store),
+                onTap: () => context.read<InventoryCubit>().filterBySource(
+                  InventorySourceFilter.store,
+                ),
               ),
               const SizedBox(width: AppSpacing.xs),
               _buildFilterChip(
                 label: 'BATTLEPASS',
-                isSelected: state.sourceFilter == InventorySourceFilter.battlepass,
-                onTap: () => context
-                    .read<InventoryCubit>()
-                    .filterBySource(InventorySourceFilter.battlepass),
+                isSelected:
+                    state.sourceFilter == InventorySourceFilter.battlepass,
+                onTap: () => context.read<InventoryCubit>().filterBySource(
+                  InventorySourceFilter.battlepass,
+                ),
               ),
             ],
           ),
@@ -289,17 +369,22 @@ class _InventoryPageState extends State<InventoryPage> {
           child: Row(
             children: state.overview.tierBreakdown.entries.map((entry) {
               final tier = entry.key;
-              final isSelected = state.selectedTier?.toLowerCase() == tier.toLowerCase();
+              final isSelected =
+                  state.selectedTier?.toLowerCase() == tier.toLowerCase();
               return Padding(
                 padding: const EdgeInsets.only(right: AppSpacing.xs),
                 child: GestureDetector(
-                  onTap: () => context.read<InventoryCubit>().filterByTier(tier),
+                  onTap: () =>
+                      context.read<InventoryCubit>().filterByTier(tier),
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 150),
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 5,
+                    ),
                     decoration: BoxDecoration(
                       color: isSelected
-                          ? AppColors.getTierColor(tier).withValues(alpha: 0.25)
+                          ? AppColors.getTierColor(tier).withValues(alpha: 0.12)
                           : AppColors.surface,
                       borderRadius: AppRadius.roundedSm,
                       border: Border.all(
@@ -330,10 +415,9 @@ class _InventoryPageState extends State<InventoryPage> {
           children: [
             Text(
               'SHOWING ${state.filteredSkins.length} OF ${state.overview.totalSkinsCount} SKINS',
-              style: AppTextStyles.caption(color: AppColors.textSecondary).copyWith(
-                fontWeight: FontWeight.w700,
-                letterSpacing: 0.8,
-              ),
+              style: AppTextStyles.caption(
+                color: AppColors.textSecondary,
+              ).copyWith(fontWeight: FontWeight.w700, letterSpacing: 0.8),
             ),
             if (state.selectedTier != null ||
                 state.sourceFilter != InventorySourceFilter.all ||
@@ -341,15 +425,17 @@ class _InventoryPageState extends State<InventoryPage> {
               GestureDetector(
                 onTap: () {
                   _searchController.clear();
-                  context.read<InventoryCubit>().filterBySource(InventorySourceFilter.all);
+                  context.read<InventoryCubit>().filterBySource(
+                    InventorySourceFilter.all,
+                  );
                   context.read<InventoryCubit>().filterByTier(null);
                   context.read<InventoryCubit>().searchSkins('');
                 },
                 child: Text(
                   'RESET',
-                  style: AppTextStyles.statLabel(color: AppColors.red).copyWith(
-                    fontWeight: FontWeight.w800,
-                  ),
+                  style: AppTextStyles.statLabel(
+                    color: AppColors.accent,
+                  ).copyWith(fontWeight: FontWeight.w700),
                 ),
               ),
           ],
@@ -369,17 +455,19 @@ class _InventoryPageState extends State<InventoryPage> {
         duration: const Duration(milliseconds: 150),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.red.withValues(alpha: 0.2) : AppColors.surface,
+          color: isSelected
+              ? AppColors.accent.withValues(alpha: 0.1)
+              : AppColors.surface,
           borderRadius: AppRadius.roundedSm,
           border: Border.all(
-            color: isSelected ? AppColors.red : AppColors.border,
+            color: isSelected ? AppColors.accent : AppColors.border,
             width: 1,
           ),
         ),
         child: Text(
           label,
           style: AppTextStyles.badge(
-            color: isSelected ? AppColors.red : AppColors.textSecondary,
+            color: isSelected ? AppColors.accent : AppColors.textSecondary,
           ),
         ),
       ),
@@ -389,29 +477,38 @@ class _InventoryPageState extends State<InventoryPage> {
   Widget _buildSkinGridItem(OwnedSkinItem skin) {
     final tierColor = AppColors.getTierColor(skin.tierName);
 
-    return AscendCard(
+    return DataPanel(
       padding: const EdgeInsets.all(AppSpacing.md),
-      borderRadius: AppRadius.lg,
-      borderColor: skin.isEquipped ? AppColors.cyan.withValues(alpha: 0.5) : AppColors.border,
-      hasGlow: skin.isEquipped,
-      glowColor: AppColors.cyan,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              if (skin.tierName != null)
-                StatBadge(
-                  text: skin.tierName!,
-                  color: tierColor,
-                  fontSize: 8,
+              Expanded(
+                child: Text(
+                  (skin.tierName ?? 'SELECT').toUpperCase(),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTextStyles.statLabel(color: tierColor),
                 ),
+              ),
               if (skin.isEquipped)
-                const StatBadge(
-                  text: 'EQUIPPED',
-                  color: AppColors.cyan,
-                  fontSize: 8,
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 5,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.accent.withValues(alpha: 0.1),
+                    borderRadius: AppRadius.roundedSm,
+                    border: Border.all(
+                      color: AppColors.accent.withValues(alpha: 0.45),
+                    ),
+                  ),
+                  child: Text(
+                    'EQUIPPED',
+                    style: AppTextStyles.statLabel(color: AppColors.accent),
+                  ),
                 ),
             ],
           ),
@@ -420,44 +517,57 @@ class _InventoryPageState extends State<InventoryPage> {
             child: skin.displayIcon != null && skin.displayIcon!.isNotEmpty
                 ? CachedNetworkImage(
                     imageUrl: skin.displayIcon!,
-                    height: 64,
+                    height: 62,
                     fit: BoxFit.contain,
                     errorWidget: (_, __, ___) => const Icon(
                       Icons.shield_outlined,
-                      size: 40,
+                      size: 38,
                       color: AppColors.textMuted,
                     ),
                   )
                 : const Icon(
                     Icons.shield_outlined,
-                    size: 40,
+                    size: 38,
                     color: AppColors.textMuted,
                   ),
           ),
           const Spacer(),
           Text(
             skin.displayName,
-            style: AppTextStyles.h4(color: AppColors.textPrimary).copyWith(
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-            ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
+            style: AppTextStyles.h4(
+              color: AppColors.textPrimary,
+            ).copyWith(fontSize: 12),
           ),
           const SizedBox(height: 2),
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                skin.weapon.toUpperCase(),
-                style: AppTextStyles.caption(color: AppColors.textSecondary),
+              Expanded(
+                child: Text(
+                  skin.weapon,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTextStyles.statLabel(color: AppColors.textMuted),
+                ),
               ),
               if (skin.cost > 0)
                 Text(
                   '${skin.cost} VP',
-                  style: AppTextStyles.caption(color: AppColors.vpGold),
+                  style: AppTextStyles.statValue(
+                    color: AppColors.textSecondary,
+                    fontSize: 10,
+                  ),
                 ),
             ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Container(
+            height: 2,
+            decoration: BoxDecoration(
+              color: tierColor.withValues(alpha: 0.7),
+              borderRadius: BorderRadius.circular(1),
+            ),
           ),
         ],
       ),

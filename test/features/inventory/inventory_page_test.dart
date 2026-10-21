@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:valorant_store_tracker/l10n/generated/app_localizations.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:valorant_store_tracker/core/error/result.dart';
 import 'package:valorant_store_tracker/features/inventory/domain/entities/inventory_overview.dart';
@@ -75,6 +76,8 @@ void main() {
 
   Widget buildWidget() {
     return MaterialApp(
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
       home: BlocProvider.value(
         value: cubit,
         child: const InventoryPage(),
