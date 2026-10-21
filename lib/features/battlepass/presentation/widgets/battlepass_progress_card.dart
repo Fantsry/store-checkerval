@@ -1,8 +1,11 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:valorant_store_tracker/app/theme.dart';
 import 'package:valorant_store_tracker/features/battlepass/domain/entities/battlepass_overview.dart';
+import 'package:valorant_store_tracker/ui/theme/app_colors.dart';
+import 'package:valorant_store_tracker/ui/theme/app_radius.dart';
+import 'package:valorant_store_tracker/ui/theme/app_spacing.dart';
+import 'package:valorant_store_tracker/ui/theme/app_text_styles.dart';
+import 'package:valorant_store_tracker/ui/widgets/ascend_card.dart';
 
 class BattlepassProgressCard extends StatelessWidget {
   final BattlepassOverview overview;
@@ -13,213 +16,198 @@ class BattlepassProgressCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final tierProgress = overview.tierProgressFraction;
     final overallProgress = overview.overallProgressFraction;
+    final completed = overview.currentTier >= overview.maxTier;
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppTheme.cardDark,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: AppTheme.accentMagenta.withValues(alpha: 0.35),
-          width: 1.2,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: AppTheme.accentMagenta.withValues(alpha: 0.08),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
+    return DataPanel(
+      padding: const EdgeInsets.all(AppSpacing.lg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header: Act Title & Tier Badge
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      overview.battlepassName.toUpperCase(),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 1.2,
-                        color: AppTheme.textPrimary,
-                      ),
+                      'ACT BATTLEPASS',
+                      style: AppTextStyles.statLabel(color: AppColors.accent),
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 3),
                     Text(
-                      'OVERALL ACT PROGRESS: ${(overallProgress * 100).toInt()}%',
-                      style: GoogleFonts.rajdhani(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.8,
-                        color: AppTheme.textSecondary,
-                      ),
+                      overview.battlepassName,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTextStyles.h3(color: AppColors.textPrimary),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: AppSpacing.md),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.sm,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
-                  color: AppTheme.accentMagenta,
-                  borderRadius: BorderRadius.circular(4),
+                  color: AppColors.accent,
+                  borderRadius: AppRadius.roundedSm,
                 ),
                 child: Text(
-                  overview.currentTier == 0
-                      ? 'TIER 1 (START)'
-                      : 'TIER ${overview.currentTier}',
-                  style: GoogleFonts.rajdhani(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 1,
-                    color: Colors.white,
+                  'TIER ${overview.currentTier}',
+                  style: AppTextStyles.statValue(
+                    color: AppColors.onAccent,
+                    fontSize: 12,
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 16),
-
-          // Tier XP Progress Bar
+          const SizedBox(height: AppSpacing.xl),
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                overview.currentTier >= overview.maxTier
-                    ? 'BATTLEPASS COMPLETED'
-                    : 'TIER ${overview.currentTier + 1} PROGRESS',
-                style: const TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.8,
-                  color: AppTheme.textSecondary,
-                ),
+                '${(overallProgress * 100).round()}%',
+                style: AppTextStyles.scoreHuge(
+                  color: AppColors.textPrimary,
+                ).copyWith(fontSize: 40),
               ),
-              Text(
-                '${overview.currentTierXp} / ${overview.tierXpRequired} XP',
-                style: GoogleFonts.rajdhani(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w800,
-                  color: const Color(0xFFE5B94E),
+              const SizedBox(width: AppSpacing.sm),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Text(
+                  'ACT PROGRESS',
+                  style: AppTextStyles.statLabel(color: AppColors.textMuted),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.sm),
           ClipRRect(
-            borderRadius: BorderRadius.circular(4),
+            borderRadius: BorderRadius.circular(2),
+            child: LinearProgressIndicator(
+              value: overallProgress,
+              minHeight: 3,
+              backgroundColor: AppColors.border,
+              valueColor: const AlwaysStoppedAnimation<Color>(
+                AppColors.accent,
+              ),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      completed
+                          ? 'BATTLEPASS COMPLETED'
+                          : 'TIER ${overview.currentTier + 1} PROGRESS',
+                      style: AppTextStyles.statLabel(
+                        color: AppColors.textMuted,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${overview.currentTierXp} / ${overview.tierXpRequired} XP',
+                      style: AppTextStyles.statValue(
+                        color: AppColors.textPrimary,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    'TOTAL EARNED',
+                    style: AppTextStyles.statLabel(
+                      color: AppColors.textMuted,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${overview.totalXpEarned} XP',
+                    style: AppTextStyles.statValue(
+                      color: AppColors.vpGold,
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(2),
             child: LinearProgressIndicator(
               value: tierProgress,
-              minHeight: 8,
-              backgroundColor: Colors.black.withValues(alpha: 0.4),
-              valueColor: const AlwaysStoppedAnimation<Color>(AppTheme.accentMagenta),
+              minHeight: 3,
+              backgroundColor: AppColors.border,
+              valueColor: const AlwaysStoppedAnimation<Color>(
+                AppColors.accentSoft,
+              ),
             ),
           ),
-          const SizedBox(height: 12),
-
-          // Total XP stats
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'TOTAL EARNED: ${overview.totalXpEarned} XP',
-                style: GoogleFonts.rajdhani(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.5,
-                  color: AppTheme.textSecondary,
-                ),
-              ),
-              Text(
-                'MAX TIER: ${overview.maxTier}',
-                style: GoogleFonts.rajdhani(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.5,
-                  color: AppTheme.textSecondary,
-                ),
-              ),
-            ],
-          ),
-
-          // Upcoming Rewards Preview
           if (overview.nextRewards.isNotEmpty) ...[
-            const SizedBox(height: 14),
-            Container(
-              height: 1,
-              color: Colors.white.withValues(alpha: 0.06),
+            const SizedBox(height: AppSpacing.lg),
+            const Divider(height: 1, color: AppColors.border),
+            const SizedBox(height: AppSpacing.md),
+            Row(
+              children: [
+                Text(
+                  'UPCOMING REWARDS',
+                  style: AppTextStyles.statLabel(color: AppColors.textMuted),
+                ),
+                const Spacer(),
+                Text(
+                  'MAX TIER ${overview.maxTier}',
+                  style: AppTextStyles.statLabel(color: AppColors.textMuted),
+                ),
+              ],
             ),
-            const SizedBox(height: 12),
-            const Text(
-              'UPCOMING TIER REWARDS',
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w900,
-                letterSpacing: 1.2,
-                color: AppTheme.textSecondary,
-              ),
-            ),
-            const SizedBox(height: 10),
+            const SizedBox(height: AppSpacing.sm),
             SizedBox(
-              height: 85,
+              height: 82,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 itemCount: overview.nextRewards.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                separatorBuilder: (_, __) =>
+                    const SizedBox(width: AppSpacing.sm),
                 itemBuilder: (context, index) {
                   final reward = overview.nextRewards[index];
                   return Container(
-                    width: 115,
-                    padding: const EdgeInsets.all(8),
+                    width: 110,
+                    padding: const EdgeInsets.all(AppSpacing.sm),
                     decoration: BoxDecoration(
-                      color: AppTheme.surfaceDark,
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(
-                        color: reward.isFree
-                            ? AppTheme.accentMagenta.withValues(alpha: 0.5)
-                            : Colors.white.withValues(alpha: 0.06),
-                      ),
+                      color: AppColors.background,
+                      borderRadius: AppRadius.roundedSm,
+                      border: Border.all(color: AppColors.border),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text(
-                              'TIER ${reward.tier}',
-                              style: GoogleFonts.rajdhani(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w800,
-                                color: AppTheme.textSecondary,
+                              'T${reward.tier}',
+                              style: AppTextStyles.statLabel(
+                                color: AppColors.textMuted,
                               ),
                             ),
+                            const Spacer(),
                             if (reward.isFree)
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 4,
-                                  vertical: 1,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: AppTheme.accentMagenta.withValues(alpha: 0.2),
-                                  borderRadius: BorderRadius.circular(3),
-                                ),
-                                child: const Text(
-                                  'FREE',
-                                  style: TextStyle(
-                                    fontSize: 8,
-                                    fontWeight: FontWeight.w900,
-                                    color: AppTheme.accentMagenta,
-                                  ),
+                              Text(
+                                'FREE',
+                                style: AppTextStyles.statLabel(
+                                  color: AppColors.accent,
                                 ),
                               ),
                           ],
@@ -232,14 +220,14 @@ class BattlepassProgressCard extends StatelessWidget {
                                     fit: BoxFit.contain,
                                     errorWidget: (_, __, ___) => const Icon(
                                       Icons.card_giftcard_rounded,
-                                      size: 20,
-                                      color: AppTheme.textSecondary,
+                                      size: 18,
+                                      color: AppColors.textMuted,
                                     ),
                                   )
                                 : const Icon(
                                     Icons.card_giftcard_rounded,
-                                    size: 20,
-                                    color: AppTheme.textSecondary,
+                                    size: 18,
+                                    color: AppColors.textMuted,
                                   ),
                           ),
                         ),
@@ -247,10 +235,8 @@ class BattlepassProgressCard extends StatelessWidget {
                           reward.displayName,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            color: AppTheme.textPrimary,
+                          style: AppTextStyles.caption(
+                            color: AppColors.textSecondary,
                           ),
                         ),
                       ],

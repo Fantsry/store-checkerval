@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:shimmer/shimmer.dart';
-import 'package:valorant_store_tracker/app/theme.dart';
 import 'package:valorant_store_tracker/features/battlepass/presentation/cubit/battlepass_cubit.dart';
 import 'package:valorant_store_tracker/features/battlepass/presentation/cubit/battlepass_state.dart';
 import 'package:valorant_store_tracker/features/battlepass/presentation/widgets/battlepass_progress_card.dart';
 import 'package:valorant_store_tracker/features/battlepass/presentation/widgets/missions_section.dart';
+import 'package:valorant_store_tracker/ui/theme/app_colors.dart';
+import 'package:valorant_store_tracker/ui/theme/app_radius.dart';
+import 'package:valorant_store_tracker/ui/theme/app_spacing.dart';
+import 'package:valorant_store_tracker/ui/theme/app_text_styles.dart';
+import 'package:valorant_store_tracker/ui/widgets/error_state_view.dart';
+import 'package:valorant_store_tracker/ui/widgets/shimmer_loading.dart';
 
 class BattlepassPage extends StatefulWidget {
   const BattlepassPage({super.key});
@@ -25,197 +29,117 @@ class _BattlepassPageState extends State<BattlepassPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(gradient: AppTheme.backgroundGradient),
-        child: SafeArea(
-          child: BlocBuilder<BattlepassCubit, BattlepassState>(
-            builder: (context, state) {
-              return RefreshIndicator(
-                color: AppTheme.accentMagenta,
-                backgroundColor: AppTheme.surfaceDark,
-                onRefresh: () async {
-                  await context
-                      .read<BattlepassCubit>()
-                      .loadBattlepass(forceRefresh: true);
-                },
-                child: CustomScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  slivers: [
-                    // Header
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        title: Text(
+          'Battlepass',
+          style: AppTextStyles.h2(color: AppColors.textPrimary),
+        ),
+        actions: [
+          IconButton(
+            onPressed: () {
+              context.read<BattlepassCubit>().loadBattlepass(forceRefresh: true);
+            },
+            icon: const Icon(
+              Icons.refresh_rounded,
+              color: AppColors.textSecondary,
+            ),
+            tooltip: 'Refresh battlepass',
+          ),
+          const SizedBox(width: AppSpacing.sm),
+        ],
+      ),
+      body: SafeArea(
+        child: BlocBuilder<BattlepassCubit, BattlepassState>(
+          builder: (context, state) {
+            return RefreshIndicator(
+              color: AppColors.accent,
+              backgroundColor: AppColors.card,
+              onRefresh: () async {
+                await context
+                    .read<BattlepassCubit>()
+                    .loadBattlepass(forceRefresh: true);
+              },
+              child: CustomScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                slivers: [
+                  if (state is BattlepassLoading)
+                    const SliverToBoxAdapter(
+                      child: Padding(
+                        padding: EdgeInsets.all(AppSpacing.lg),
+                        child: ShimmerBox(
+                          height: 190,
+                          borderRadius: AppRadius.lg,
+                        ),
+                      ),
+                    )
+                  else if (state is BattlepassError)
+                    SliverFillRemaining(
+                      hasScrollBody: false,
+                      child: ErrorStateView(
+                        message: state.message,
+                        onRetry: () {
+                          context
+                              .read<BattlepassCubit>()
+                              .loadBattlepass(forceRefresh: true);
+                        },
+                        actionLabel: 'SIGN IN',
+                        onAction: () => context.pushNamed('login'),
+                      ),
+                    )
+                  else if (state is BattlepassLoaded) ...[
                     SliverToBoxAdapter(
                       child: Padding(
-                        padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Row(
-                              children: [
-                                Container(
-                                  width: 3,
-                                  height: 38,
-                                  margin: const EdgeInsets.only(right: 12),
-                                  decoration: BoxDecoration(
-                                    color: AppTheme.accentMagenta,
-                                    borderRadius: BorderRadius.circular(1.5),
-                                  ),
-                                ),
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'BATTLEPASS',
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .headlineLarge
-                                          ?.copyWith(
-                                            letterSpacing: 2.5,
-                                            fontWeight: FontWeight.w900,
-                                          ),
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      'ACT PROGRESS & MISSIONS',
-                                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                        letterSpacing: 0.8,
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                            Container(
-                              decoration: BoxDecoration(
-                                color: AppTheme.cardDark,
-                                borderRadius: BorderRadius.circular(6),
-                                border: Border.all(
-                                  color: Colors.white.withValues(alpha: 0.08),
-                                ),
-                              ),
-                              child: IconButton(
-                                onPressed: () {
-                                  context
-                                      .read<BattlepassCubit>()
-                                      .loadBattlepass(forceRefresh: true);
-                                },
-                                icon: const Icon(
-                                  Icons.refresh_rounded,
-                                  size: 18,
-                                  color: AppTheme.textPrimary,
-                                ),
-                              ),
-                            ),
-                          ],
+                        padding: const EdgeInsets.fromLTRB(
+                          AppSpacing.lg,
+                          AppSpacing.sm,
+                          AppSpacing.lg,
+                          AppSpacing.xl,
+                        ),
+                        child: BattlepassProgressCard(
+                          overview: state.overview,
                         ),
                       ),
                     ),
-
-                    if (state is BattlepassLoading) ...[
-                      SliverToBoxAdapter(
-                        child: Padding(
-                          padding: const EdgeInsets.all(20),
-                          child: Shimmer.fromColors(
-                            baseColor:
-                                AppTheme.surfaceLight.withValues(alpha: 0.4),
-                            highlightColor: AppTheme.surfaceColor,
-                            child: Container(
-                              height: 180,
-                              decoration: BoxDecoration(
-                                color: AppTheme.cardDark,
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                            ),
-                          ),
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(
+                          AppSpacing.lg,
+                          0,
+                          AppSpacing.lg,
+                          AppSpacing.xl,
+                        ),
+                        child: MissionsSection(
+                          index: '01',
+                          title: 'DAILY CHECKPOINTS',
+                          subtitle: 'Resets daily at 00:00 UTC',
+                          missions: state.overview.dailyMissions,
+                          icon: Icons.today_rounded,
                         ),
                       ),
-                    ] else if (state is BattlepassError) ...[
-                      SliverToBoxAdapter(
-                        child: Padding(
-                          padding: const EdgeInsets.all(40),
-                          child: Center(
-                            child: Column(
-                              children: [
-                                const Icon(
-                                  Icons.error_outline_rounded,
-                                  size: 48,
-                                  color: AppTheme.valorantRed,
-                                ),
-                                const SizedBox(height: 16),
-                                Text(
-                                  state.message,
-                                  textAlign: TextAlign.center,
-                                  style: const TextStyle(
-                                    color: AppTheme.textSecondary,
-                                  ),
-                                ),
-                                const SizedBox(height: 20),
-                                Wrap(
-                                  spacing: 12,
-                                  children: [
-                                    ElevatedButton.icon(
-                                      onPressed: () =>
-                                          context.pushNamed('login'),
-                                      icon: const Icon(Icons.login_rounded),
-                                      label: const Text('SIGN IN WITH RIOT'),
-                                    ),
-                                    OutlinedButton(
-                                      onPressed: () {
-                                        context
-                                            .read<BattlepassCubit>()
-                                            .loadBattlepass(forceRefresh: true);
-                                      },
-                                      child: const Text('RETRY'),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
+                    ),
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(
+                          AppSpacing.lg,
+                          0,
+                          AppSpacing.lg,
+                          AppSpacing.xxl,
+                        ),
+                        child: MissionsSection(
+                          index: '02',
+                          title: 'WEEKLY MISSIONS',
+                          subtitle: 'Cumulative act XP',
+                          missions: state.overview.weeklyMissions,
+                          icon: Icons.calendar_view_week_rounded,
                         ),
                       ),
-                    ] else if (state is BattlepassLoaded) ...[
-                      // Battlepass Progress Card
-                      SliverToBoxAdapter(
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
-                          child: BattlepassProgressCard(
-                            overview: state.overview,
-                          ),
-                        ),
-                      ),
-
-                      // Daily Missions
-                      SliverToBoxAdapter(
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                          child: MissionsSection(
-                            title: 'Daily Checkpoints',
-                            subtitle: 'Resets daily at 00:00 UTC',
-                            missions: state.overview.dailyMissions,
-                            icon: Icons.today_rounded,
-                          ),
-                        ),
-                      ),
-
-                      // Weekly Missions
-                      SliverToBoxAdapter(
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-                          child: MissionsSection(
-                            title: 'Weekly Missions',
-                            subtitle: 'Cumulative Act XP',
-                            missions: state.overview.weeklyMissions,
-                            icon: Icons.calendar_view_week_rounded,
-                          ),
-                        ),
-                      ),
-                    ],
+                    ),
                   ],
-                ),
-              );
-            },
-          ),
+                ],
+              ),
+            );
+          },
         ),
       ),
     );
