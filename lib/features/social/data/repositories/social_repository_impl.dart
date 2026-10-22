@@ -4,6 +4,7 @@ import 'package:valorant_store_tracker/core/error/result.dart';
 import 'package:valorant_store_tracker/core/storage/local_store_service.dart';
 import 'package:valorant_store_tracker/core/storage/secure_storage_service.dart';
 import 'package:valorant_store_tracker/core/utils/competitive_rank_helper.dart';
+import 'package:valorant_store_tracker/core/utils/valorant_card_assets.dart';
 import 'package:valorant_store_tracker/features/career/data/datasources/career_remote_datasource.dart';
 import 'package:valorant_store_tracker/features/career/domain/entities/match_summary.dart';
 import 'package:valorant_store_tracker/features/career/domain/repositories/career_repository.dart';
@@ -111,9 +112,18 @@ class SocialRepositoryImpl implements SocialRepository {
         } catch (_) {}
       }
 
+      final hasLegacyDefaultCard = friends.any(
+        (friend) =>
+            friend.cardUuid == null &&
+            (friend.cardWideArt?.contains(
+                  ValorantCardAssets.defaultCardUuid,
+                ) ??
+                false),
+      );
+
       // If user is authenticated, sync real friends from Riot XMPP
       if (selfPuuid != null && selfPuuid.isNotEmpty) {
-        if (friends.isEmpty || forceRefresh) {
+        if (friends.isEmpty || forceRefresh || hasLegacyDefaultCard) {
           final syncResult = await syncRiotFriends(clearMocks: true);
           if (syncResult.isSuccess && syncResult.valueOrNull != null) {
             return syncResult;
@@ -212,11 +222,7 @@ class SocialRepositoryImpl implements SocialRepository {
       final identityMap =
           identityRes['identity'] as Map<String, dynamic>? ?? {};
 
-      final cardUuid =
-          (identityMap['PlayerCardID'] ??
-                  identityMap['playerCardId'] ??
-                  identityMap['cardId'])
-              ?.toString();
+      final cardUuid = ValorantCardAssets.cardIdFrom(identityMap);
 
       var accountLevel = 1;
       final levelRaw =
@@ -225,9 +231,7 @@ class SocialRepositoryImpl implements SocialRepository {
 
       // Fetch Card Details from Valorant-API
       Map<String, dynamic>? cardData;
-      if (cardUuid != null &&
-          cardUuid.isNotEmpty &&
-          cardUuid != '00000000-0000-0000-0000-000000000000') {
+      if (cardUuid != null) {
         cardData = await _profileDataSource.fetchPlayerCardDetails(cardUuid);
       }
 
@@ -264,9 +268,9 @@ class SocialRepositoryImpl implements SocialRepository {
         accountLevel: accountLevel,
         cardUuid: cardUuid,
         cardName: cardData?['displayName']?.toString(),
-        cardWideArt: cardData?['wideArt']?.toString(),
-        cardSmallArt: cardData?['smallArt']?.toString(),
-        cardLargeArt: cardData?['largeArt']?.toString(),
+        cardWideArt: ValorantCardAssets.wideArt(cardUuid),
+        cardSmallArt: ValorantCardAssets.smallArt(cardUuid),
+        cardLargeArt: ValorantCardAssets.largeArt(cardUuid),
         rankTier: rankTier,
         rankName: rankName ?? 'Unranked',
         rankIcon: rankIcon,
@@ -433,6 +437,7 @@ class SocialRepositoryImpl implements SocialRepository {
 
         // Fetch card identity and account level
         Map<String, dynamic>? cardData;
+        String? cardUuid;
         var accountLevel = 1;
         try {
           final identityRes = await _profileDataSource.fetchPlayerIdentity(
@@ -442,9 +447,8 @@ class SocialRepositoryImpl implements SocialRepository {
           final idMap = identityRes['identity'] as Map<String, dynamic>? ?? {};
           final level = idMap['AccountLevel'] ?? idMap['accountLevel'];
           if (level is num) accountLevel = level.toInt();
-          final cardUuid = (idMap['PlayerCardID'] ?? idMap['playerCardId'])
-              ?.toString();
-          if (cardUuid != null && cardUuid.isNotEmpty) {
+          cardUuid = ValorantCardAssets.cardIdFrom(idMap);
+          if (cardUuid != null) {
             cardData = await _profileDataSource.fetchPlayerCardDetails(
               cardUuid,
             );
@@ -456,15 +460,11 @@ class SocialRepositoryImpl implements SocialRepository {
           gameName: t.gameName.isNotEmpty ? t.gameName : 'Teammate',
           tagLine: t.tagLine,
           accountLevel: accountLevel,
-          cardUuid: cardData?['uuid']?.toString(),
-          cardName: cardData?['displayName']?.toString() ?? 'Player Card',
-          cardWideArt:
-              cardData?['wideArt']?.toString() ??
-              'https://media.valorant-api.com/playercards/9fb348bc-41a0-91ad-8a3e-818035c4e561/wideart.png',
-          cardSmallArt:
-              cardData?['smallArt']?.toString() ??
-              'https://media.valorant-api.com/playercards/9fb348bc-41a0-91ad-8a3e-818035c4e561/smallart.png',
-          cardLargeArt: cardData?['largeArt']?.toString(),
+          cardUuid: cardUuid,
+          cardName: cardData?['displayName']?.toString(),
+          cardWideArt: ValorantCardAssets.wideArt(cardUuid),
+          cardSmallArt: ValorantCardAssets.smallArt(cardUuid),
+          cardLargeArt: ValorantCardAssets.largeArt(cardUuid),
           rankTier: t.competitiveTier,
           rankName: t.rankName ?? 'Unranked',
           rankIcon: t.rankIconUrl,
@@ -679,6 +679,14 @@ class SocialRepositoryImpl implements SocialRepository {
                 metaResults[0] as Map<String, Map<String, dynamic>>;
             final tiersMeta = metaResults[2] as Map<int, Map<String, dynamic>>;
             final activeSeasonId = await _fetchActiveSeasonId();
+            final cachedFriends = <String, FriendEntity>{};
+            try {
+              for (final raw in await _localStore.getSavedFriendsJson()) {
+                final map = jsonDecode(raw) as Map<String, dynamic>;
+                final friend = FriendEntity.fromJson(map);
+                cachedFriends[friend.puuid] = friend;
+              }
+            } catch (_) {}
 
             for (final puuid in puuidsToResolve) {
               final rosterItem = rosterMap[puuid];
@@ -736,28 +744,39 @@ class SocialRepositoryImpl implements SocialRepository {
               // Fetch Equipped Card Banner & Account Level
               Map<String, dynamic>? cardData;
               int accountLevel = presence?.accountLevel ?? 1;
-              String? cardUuid = presence?.playerCardId;
+              final cachedFriend = cachedFriends[puuid];
+              var cardUuid = ValorantCardAssets.normalizeCardUuid(
+                presence?.playerCardId,
+              );
               try {
-                if (cardUuid == null || cardUuid.isEmpty) {
+                if (cardUuid == null) {
                   final idRes = await _profileDataSource.fetchPlayerIdentity(
                     shard: shard,
                     puuid: puuid,
                   );
                   final idMap =
                       idRes['identity'] as Map<String, dynamic>? ?? {};
-                  cardUuid = (idMap['PlayerCardID'] ?? idMap['playerCardId'])
-                      ?.toString();
+                  cardUuid = ValorantCardAssets.cardIdFrom(idMap);
                   final lvl = idMap['AccountLevel'] ?? idMap['accountLevel'];
                   if (lvl is num) accountLevel = lvl.toInt();
                 }
-                if (cardUuid != null &&
-                    cardUuid.isNotEmpty &&
-                    cardUuid != '00000000-0000-0000-0000-000000000000') {
+              } catch (_) {}
+
+              final cachedCardUuid = ValorantCardAssets.normalizeCardUuid(
+                cachedFriend?.cardUuid,
+              );
+              if (cardUuid == null &&
+                  cachedCardUuid != null &&
+                  !ValorantCardAssets.isDefaultCard(cachedCardUuid)) {
+                cardUuid = cachedCardUuid;
+              }
+              if (cardUuid != null) {
+                try {
                   cardData = await _profileDataSource.fetchPlayerCardDetails(
                     cardUuid,
                   );
-                }
-              } catch (_) {}
+                } catch (_) {}
+              }
 
               // Rank & MMR. Presence only carries tier; the act-aware RR must
               // always come from the MMR endpoint so friends do not show 0 RR.
@@ -809,24 +828,18 @@ class SocialRepositoryImpl implements SocialRepository {
                 }
               } catch (_) {}
 
+              final cardName = cardData?['displayName']?.toString() ??
+                  (cachedCardUuid == cardUuid ? cachedFriend?.cardName : null);
               final friend = FriendEntity(
                 puuid: puuid,
                 gameName: gameName,
                 tagLine: tagLine,
                 accountLevel: accountLevel,
                 cardUuid: cardUuid,
-                cardName: cardData?['displayName']?.toString() ?? 'Player Card',
-                cardWideArt:
-                    cardData?['wideArt']?.toString() ??
-                    (cardUuid != null && cardUuid.isNotEmpty
-                        ? 'https://media.valorant-api.com/playercards/$cardUuid/wideart.png'
-                        : 'https://media.valorant-api.com/playercards/9fb348bc-41a0-91ad-8a3e-818035c4e561/wideart.png'),
-                cardSmallArt:
-                    cardData?['smallArt']?.toString() ??
-                    (cardUuid != null && cardUuid.isNotEmpty
-                        ? 'https://media.valorant-api.com/playercards/$cardUuid/smallart.png'
-                        : 'https://media.valorant-api.com/playercards/9fb348bc-41a0-91ad-8a3e-818035c4e561/smallart.png'),
-                cardLargeArt: cardData?['largeArt']?.toString(),
+                cardName: cardName,
+                cardWideArt: ValorantCardAssets.wideArt(cardUuid),
+                cardSmallArt: ValorantCardAssets.smallArt(cardUuid),
+                cardLargeArt: ValorantCardAssets.largeArt(cardUuid),
                 rankTier: rankTier,
                 rankName: rankName ?? 'Unranked',
                 rankIcon: rankIcon,

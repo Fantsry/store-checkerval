@@ -30,15 +30,42 @@ class StoreCubit extends Cubit<StoreState> {
        super(const StoreInitial());
 
   Future<void> fetchStore({bool forceRefresh = false}) async {
-    if (forceRefresh || state is! StoreLoaded) {
+    final current = state is StoreLoaded ? state as StoreLoaded : null;
+
+    if (current == null) {
       emit(const StoreLoading());
+    } else if (forceRefresh) {
+      emit(
+        StoreLoaded(
+          store: current.store,
+          wallet: current.wallet,
+          isOffline: current.isOffline,
+          isRefreshing: true,
+        ),
+      );
     }
 
     final storeResult = await _storeRepository.getDailyStore(
       forceRefresh: forceRefresh,
     );
-    final walletResult = await _storeRepository.getUserWallet();
 
+    final failure = storeResult.failureOrNull;
+    if (failure != null) {
+      if (current != null) {
+        emit(
+          StoreLoaded(
+            store: current.store,
+            wallet: current.wallet,
+            isOffline: current.isOffline,
+          ),
+        );
+      } else {
+        emit(StoreError(failure.message));
+      }
+      return;
+    }
+
+    final walletResult = await _storeRepository.getUserWallet();
     final wallet = walletResult.valueOrNull ?? const UserWallet();
 
     storeResult.when(

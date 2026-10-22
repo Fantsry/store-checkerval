@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:valorant_store_tracker/core/constants/api_constants.dart';
+import 'package:valorant_store_tracker/core/utils/valorant_card_assets.dart';
 
 abstract class ProfileRemoteDataSource {
   Future<Map<String, String>> fetchPlayerName({
@@ -154,19 +155,20 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
       'kr',
     }.toList();
 
+    Map<String, dynamic>? defaultCardResult;
+
     for (final s in shardsToTry) {
       try {
         final response = await _dio.get(
           ApiConstants.playerLoadoutUrl(s, cleanPuuid),
           options: Options(
             headers: {'Accept': 'application/json'},
-            validateStatus: (status) => status != null && status < 500,
+            validateStatus: (status) =>
+                status == 200 || status == 403 || status == 404,
           ),
         );
 
-        if (response.statusCode != 200) {
-          continue;
-        }
+        if (response.statusCode != 200) continue;
 
         dynamic body = response.data;
         if (body is String) {
@@ -174,42 +176,70 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
             body = jsonDecode(body);
           } catch (_) {}
         }
+        if (body is! Map) continue;
 
-        if (body is Map) {
-          // Check standard Riot structure and any nested variations
-          dynamic identity = body['Identity'] ??
-              body['identity'] ??
-              body['PlayerIdentity'] ??
-              body['playerIdentity'];
+        final bodyMap = Map<String, dynamic>.from(body);
+        dynamic identity = bodyMap['Identity'] ??
+            bodyMap['identity'] ??
+            bodyMap['PlayerIdentity'] ??
+            bodyMap['playerIdentity'];
 
-          if (identity == null && body['data'] is Map) {
-            identity = body['data']['Identity'] ??
-                body['data']['identity'] ??
-                body['data']['PlayerIdentity'];
-          }
-
-          if (identity == null && body['loadout'] is Map) {
-            identity = body['loadout']['Identity'] ??
-                body['loadout']['identity'];
-          }
-
-          // Fall back to root body if it directly holds identity fields
-          identity ??= body;
-
-          if (identity is Map) {
-            final identityMap = Map<String, dynamic>.from(identity);
-            return {
-              'identity': identityMap,
-              'resolvedShard': s,
-            };
-          }
+        if (identity == null && bodyMap['data'] is Map) {
+          identity = bodyMap['data']['Identity'] ??
+              bodyMap['data']['identity'] ??
+              bodyMap['data']['PlayerIdentity'];
         }
-      } catch (_) {
-        // Try next shard on failure
-      }
+        if (identity == null && bodyMap['loadout'] is Map) {
+          identity = bodyMap['loadout']['Identity'] ??
+              bodyMap['loadout']['identity'];
+        }
+
+        identity ??= bodyMap;
+        if (identity is! Map) continue;
+
+        final identityMap = Map<String, dynamic>.from(identity);
+        final subject = _findSubject(identityMap, bodyMap);
+        if (subject != null &&
+            subject.toLowerCase() != cleanPuuid.toLowerCase()) {
+          continue;
+        }
+
+        final cardId = ValorantCardAssets.cardIdFrom(identityMap) ??
+            ValorantCardAssets.cardIdFrom(bodyMap);
+        final result = <String, dynamic>{
+          'identity': identityMap,
+          'resolvedShard': s,
+          'statusCode': 200,
+          'cardId': cardId,
+        };
+
+        if (cardId != null && !ValorantCardAssets.isDefaultCard(cardId)) {
+          return result;
+        }
+        defaultCardResult ??= result;
+      } catch (_) {}
     }
 
-    return {'identity': <String, dynamic>{}, 'resolvedShard': shard};
+    return defaultCardResult ??
+        {
+          'identity': <String, dynamic>{},
+          'resolvedShard': shard,
+          'statusCode': null,
+          'cardId': null,
+        };
+  }
+
+  static String? _findSubject(
+    Map<String, dynamic> identity,
+    Map<String, dynamic> body,
+  ) {
+    for (final map in [identity, body]) {
+      for (final key in ['Subject', 'subject', 'Puuid', 'puuid']) {
+        final value = map[key]?.toString().trim();
+        if (value != null && value.isNotEmpty) return value;
+      }
+    }
+    return null;
   }
 
   @override

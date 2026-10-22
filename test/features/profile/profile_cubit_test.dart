@@ -46,6 +46,21 @@ void main() {
     shard: 'na',
   );
 
+  const tFreshProfile = UserProfile(
+    puuid: 'puuid-12345678',
+    gameName: 'TenZ',
+    tagLine: 'SEN',
+    accountLevel: 151,
+    cardUuid: 'fresh-card-uuid-arcane',
+    cardName: 'Arcane Card',
+    cardSmallArt: 'https://media.valorant-api.com/playercards/fresh-card-uuid-arcane/smallart.png',
+    cardWideArt: 'https://media.valorant-api.com/playercards/fresh-card-uuid-arcane/wideart.png',
+    cardLargeArt: 'https://media.valorant-api.com/playercards/fresh-card-uuid-arcane/largeart.png',
+    titleText: 'VCT Champion',
+    region: 'na',
+    shard: 'na',
+  );
+
   setUp(() {
     mockProfileRepository = MockProfileRepository();
     profileCubit = ProfileCubit(profileRepository: mockProfileRepository);
@@ -61,18 +76,23 @@ void main() {
     });
 
     blocTest<ProfileCubit, ProfileState>(
-      'emits [ProfileLoaded] from cache then updates when fresh in-game profile arrives',
+      'emits cached profile then the fresh in-game card on a normal load',
       build: () {
         when(() => mockProfileRepository.getCachedProfile())
             .thenAnswer((_) async => tInGameProfile);
         when(() => mockProfileRepository.getUserProfile(forceRefresh: any(named: 'forceRefresh')))
-            .thenAnswer((_) async => const Result.success(tInGameProfile));
+            .thenAnswer((_) async => const Result.success(tFreshProfile));
         return profileCubit;
       },
       act: (cubit) => cubit.loadProfile(),
       expect: () => [
         const ProfileLoaded(tInGameProfile),
+        const ProfileLoaded(tFreshProfile),
       ],
+      verify: (_) {
+        verify(() => mockProfileRepository.getUserProfile(forceRefresh: true))
+            .called(1);
+      },
     );
 
     blocTest<ProfileCubit, ProfileState>(

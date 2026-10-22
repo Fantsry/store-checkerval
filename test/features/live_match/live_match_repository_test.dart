@@ -245,6 +245,72 @@ void main() {
       expect(match.redTeam.first.puuid, equals('enemy-puuid'));
     });
 
+    test('parses player card IDs from lowercase PlayerIdentity payloads',
+        () async {
+      const selfCardId = '2f4d8e5e-88b3-da7d-4ae9-d1b3bc4c0837';
+      const allyCardId = '8edf22c5-4489-ab41-769a-07adb4c454d6';
+
+      when(() => mockRemote.fetchCoreGamePlayer(
+            region: tRegion,
+            shard: tShard,
+            puuid: tPuuid,
+          )).thenAnswer((_) async => {'MatchID': 'match-card-123'});
+      when(() => mockRemote.fetchCoreGameMatch(
+            region: tRegion,
+            shard: tShard,
+            matchId: 'match-card-123',
+          )).thenAnswer((_) async => {
+            'MapID': '/game/maps/ascent/ascent',
+            'ModeID': '/game/gamemodes/competitive',
+            'Players': [
+              {
+                'Subject': tPuuid,
+                'TeamID': 'Blue',
+                'CharacterID': 'agent-jett-id',
+                'PlayerIdentity': {'playerCardId': selfCardId},
+              },
+              {
+                'Subject': 'ally-puuid',
+                'TeamID': 'Blue',
+                'CharacterID': 'agent-reyna-id',
+                'PlayerIdentity': {'player_card_id': allyCardId},
+              },
+            ],
+          });
+      when(() => mockRemote.fetchPlayerNames(
+            shard: tShard,
+            puuids: any(named: 'puuids'),
+          )).thenAnswer((_) async => [
+            {'Subject': tPuuid, 'GameName': 'SelfPlayer', 'TagLine': '123'},
+            {'Subject': 'ally-puuid', 'GameName': 'AllyPlayer', 'TagLine': '456'},
+          ]);
+      when(() => mockRemote.fetchPlayerMmr(
+            shard: tShard,
+            puuid: any(named: 'puuid'),
+          )).thenAnswer((_) async => {});
+
+      final result = await repository.checkLiveMatch();
+
+      expect(result.isSuccess, isTrue);
+      final match = result.valueOrNull!;
+      final self = match.blueTeam.singleWhere((p) => p.puuid == tPuuid);
+      final ally = match.blueTeam.singleWhere((p) => p.puuid == 'ally-puuid');
+      expect(self.cardUuid, equals(selfCardId));
+      expect(
+        self.cardWideArt,
+        equals(
+          'https://media.valorant-api.com/playercards/$selfCardId/wideart.png',
+        ),
+      );
+      expect(ally.cardUuid, equals(allyCardId));
+      expect(
+        ally.cardWideArt,
+        equals(
+          'https://media.valorant-api.com/playercards/$allyCardId/wideart.png',
+        ),
+      );
+    });
+
     test('checkLiveMatch computes 10 match win/loss and rank icons from competitive updates',
         () async {
       when(() => mockRemote.fetchCoreGamePlayer(

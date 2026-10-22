@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:valorant_store_tracker/core/error/failures.dart';
 import 'package:valorant_store_tracker/core/error/result.dart';
 import 'package:valorant_store_tracker/features/live_match/domain/entities/live_match_data.dart';
 import 'package:valorant_store_tracker/features/live_match/domain/entities/live_player_info.dart';
@@ -133,5 +134,21 @@ void main() {
         await cubit.scanLiveMatch();
       },
     );
+
+    test('silent refresh keeps the loaded match when scanning fails', () async {
+      when(
+        () => mockRepository.checkLiveMatch(),
+      ).thenAnswer((_) async => const Result.success(testMatch));
+      await cubit.scanLiveMatch();
+
+      when(() => mockRepository.checkLiveMatch()).thenAnswer(
+        (_) async =>
+            const Result.failure(ServerFailure(message: 'Riot unavailable')),
+      );
+      await cubit.scanLiveMatch(silent: true);
+
+      expect(cubit.state, isA<LiveMatchLoaded>());
+      expect((cubit.state as LiveMatchLoaded).matchData.mapName, 'Ascent');
+    });
   });
 }

@@ -47,32 +47,37 @@ void main() {
     blocTest<StoreCubit, StoreState>(
       'emits [StoreLoading, StoreLoaded] when fetchStore succeeds',
       build: () {
-        when(() => mockStoreRepository.getDailyStore(
-              forceRefresh: any(named: 'forceRefresh'),
-            )).thenAnswer((_) async => Result.success(tStore));
-        when(() => mockStoreRepository.getUserWallet())
-            .thenAnswer((_) async => const Result.success(tWallet));
+        when(
+          () => mockStoreRepository.getDailyStore(
+            forceRefresh: any(named: 'forceRefresh'),
+          ),
+        ).thenAnswer((_) async => Result.success(tStore));
+        when(
+          () => mockStoreRepository.getUserWallet(),
+        ).thenAnswer((_) async => const Result.success(tWallet));
         return storeCubit;
       },
       act: (cubit) => cubit.fetchStore(),
       expect: () => [
         const StoreLoading(),
-        StoreLoaded(
-          store: tStore,
-          wallet: tWallet,
-        ),
+        StoreLoaded(store: tStore, wallet: tWallet),
       ],
     );
 
     blocTest<StoreCubit, StoreState>(
       'emits [StoreLoading, StoreError] when fetchStore fails',
       build: () {
-        when(() => mockStoreRepository.getDailyStore(
-              forceRefresh: any(named: 'forceRefresh'),
-            )).thenAnswer((_) async =>
-            const Result.failure(ServerFailure(message: 'Store unavailable')));
-        when(() => mockStoreRepository.getUserWallet())
-            .thenAnswer((_) async => const Result.success(tWallet));
+        when(
+          () => mockStoreRepository.getDailyStore(
+            forceRefresh: any(named: 'forceRefresh'),
+          ),
+        ).thenAnswer(
+          (_) async =>
+              const Result.failure(ServerFailure(message: 'Store unavailable')),
+        );
+        when(
+          () => mockStoreRepository.getUserWallet(),
+        ).thenAnswer((_) async => const Result.success(tWallet));
         return storeCubit;
       },
       act: (cubit) => cubit.fetchStore(),
@@ -83,23 +88,40 @@ void main() {
     );
 
     blocTest<StoreCubit, StoreState>(
-      'emits [StoreLoading, StoreLoaded] on fetchStore(forceRefresh: true) even if already loaded',
+      'keeps the current store visible while force refreshing',
       seed: () => StoreLoaded(store: tStore, wallet: tWallet),
       build: () {
-        when(() => mockStoreRepository.getDailyStore(
-              forceRefresh: true,
-            )).thenAnswer((_) async => Result.success(tStore));
-        when(() => mockStoreRepository.getUserWallet())
-            .thenAnswer((_) async => const Result.success(tWallet));
+        when(
+          () => mockStoreRepository.getDailyStore(forceRefresh: true),
+        ).thenAnswer((_) async => Result.success(tStore));
+        when(
+          () => mockStoreRepository.getUserWallet(),
+        ).thenAnswer((_) async => const Result.success(tWallet));
         return storeCubit;
       },
       act: (cubit) => cubit.fetchStore(forceRefresh: true),
       expect: () => [
-        const StoreLoading(),
-        StoreLoaded(
-          store: tStore,
-          wallet: tWallet,
-        ),
+        StoreLoaded(store: tStore, wallet: tWallet, isRefreshing: true),
+        StoreLoaded(store: tStore, wallet: tWallet),
+      ],
+    );
+
+    blocTest<StoreCubit, StoreState>(
+      'keeps the current store when a force refresh fails',
+      seed: () => StoreLoaded(store: tStore, wallet: tWallet),
+      build: () {
+        when(
+          () => mockStoreRepository.getDailyStore(forceRefresh: true),
+        ).thenAnswer(
+          (_) async =>
+              const Result.failure(ServerFailure(message: 'Store unavailable')),
+        );
+        return storeCubit;
+      },
+      act: (cubit) => cubit.fetchStore(forceRefresh: true),
+      expect: () => [
+        StoreLoaded(store: tStore, wallet: tWallet, isRefreshing: true),
+        StoreLoaded(store: tStore, wallet: tWallet),
       ],
     );
 

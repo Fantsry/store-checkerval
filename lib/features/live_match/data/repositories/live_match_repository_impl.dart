@@ -4,6 +4,7 @@ import 'package:valorant_store_tracker/core/error/failures.dart';
 import 'package:valorant_store_tracker/core/error/result.dart';
 import 'package:valorant_store_tracker/core/storage/secure_storage_service.dart';
 import 'package:valorant_store_tracker/core/utils/competitive_rank_helper.dart';
+import 'package:valorant_store_tracker/core/utils/valorant_card_assets.dart';
 import 'package:valorant_store_tracker/features/career/data/datasources/career_remote_datasource.dart';
 import 'package:valorant_store_tracker/features/live_match/data/datasources/live_match_remote_datasource.dart';
 import 'package:valorant_store_tracker/features/live_match/domain/entities/live_match_data.dart';
@@ -34,6 +35,15 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
     } catch (_) {
       return null;
     }
+  }
+
+  static Map<String, dynamic> _playerIdentityOf(Map<dynamic, dynamic> player) {
+    final raw = player['PlayerIdentity'] ??
+        player['playerIdentity'] ??
+        player['Identity'] ??
+        player['identity'];
+    if (raw is Map) return Map<String, dynamic>.from(raw);
+    return Map<String, dynamic>.from(player);
   }
 
   String? _extractMatchId(Map<String, dynamic>? data) {
@@ -373,19 +383,15 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
           activeSeasonId: activeSeasonId,
         );
 
-        final playerIdentity = p['PlayerIdentity'] as Map?;
-        final cardId = (playerIdentity?['PlayerCardID'] ?? '').toString();
+        final playerIdentity = _playerIdentityOf(p);
+        final cardId = ValorantCardAssets.cardIdFrom(
+          Map<String, dynamic>.from(p),
+        );
         final accountLevel =
-            (playerIdentity?['AccountLevel'] as num?)?.toInt() ?? 1;
-        final cardWideArt = cardId.isNotEmpty
-            ? 'https://media.valorant-api.com/playercards/$cardId/wideart.png'
-            : null;
-        final cardSmallArt = cardId.isNotEmpty
-            ? 'https://media.valorant-api.com/playercards/$cardId/smallart.png'
-            : null;
-        final cardLargeArt = cardId.isNotEmpty
-            ? 'https://media.valorant-api.com/playercards/$cardId/largeart.png'
-            : null;
+            (playerIdentity['AccountLevel'] as num?)?.toInt() ?? 1;
+        final cardWideArt = ValorantCardAssets.wideArt(cardId);
+        final cardSmallArt = ValorantCardAssets.smallArt(cardId);
+        final cardLargeArt = ValorantCardAssets.largeArt(cardId);
 
         final isSelf = sub == selfPuuid;
         final player = LivePlayerInfo(
@@ -401,7 +407,7 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
           peakRankTierName: peakRank,
           peakRankIcon: peakRankIcon,
           accountLevel: accountLevel,
-          cardUuid: cardId.isNotEmpty ? cardId : null,
+          cardUuid: cardId,
           cardWideArt: cardWideArt,
           cardSmallArt: cardSmallArt,
           cardLargeArt: cardLargeArt,
@@ -588,19 +594,15 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
           activeSeasonId: activeSeasonId,
         );
 
-        final playerIdentity = p['PlayerIdentity'] as Map?;
-        final cardId = (playerIdentity?['PlayerCardID'] ?? '').toString();
+        final playerIdentity = _playerIdentityOf(p);
+        final cardId = ValorantCardAssets.cardIdFrom(
+          Map<String, dynamic>.from(p),
+        );
         final accountLevel =
-            (playerIdentity?['AccountLevel'] as num?)?.toInt() ?? 1;
-        final cardWideArt = cardId.isNotEmpty
-            ? 'https://media.valorant-api.com/playercards/$cardId/wideart.png'
-            : null;
-        final cardSmallArt = cardId.isNotEmpty
-            ? 'https://media.valorant-api.com/playercards/$cardId/smallart.png'
-            : null;
-        final cardLargeArt = cardId.isNotEmpty
-            ? 'https://media.valorant-api.com/playercards/$cardId/largeart.png'
-            : null;
+            (playerIdentity['AccountLevel'] as num?)?.toInt() ?? 1;
+        final cardWideArt = ValorantCardAssets.wideArt(cardId);
+        final cardSmallArt = ValorantCardAssets.smallArt(cardId);
+        final cardLargeArt = ValorantCardAssets.largeArt(cardId);
 
         allyTeam.add(
           LivePlayerInfo(
@@ -616,7 +618,7 @@ class LiveMatchRepositoryImpl implements LiveMatchRepository {
             peakRankTierName: peakRank,
             peakRankIcon: peakRankIcon,
             accountLevel: accountLevel,
-            cardUuid: cardId.isNotEmpty ? cardId : null,
+            cardUuid: cardId,
             cardWideArt: cardWideArt,
             cardSmallArt: cardSmallArt,
             cardLargeArt: cardLargeArt,

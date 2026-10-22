@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -14,6 +16,7 @@ import 'package:valorant_store_tracker/features/settings/presentation/settings_p
 import 'package:valorant_store_tracker/l10n/l10n.dart';
 import 'package:valorant_store_tracker/ui/theme/app_theme.dart';
 import 'package:valorant_store_tracker/ui/widgets/player_banner.dart';
+import 'package:valorant_store_tracker/ui/widgets/shimmer_loading.dart';
 
 class MockLocalStoreService extends Mock implements LocalStoreService {}
 
@@ -50,19 +53,24 @@ void main() {
     getIt.registerSingleton<SecureStorageService>(secureStorage);
 
     when(() => localStore.getLocale()).thenAnswer((_) async => 'en');
-    when(() => localStore.areNightMarketAlertsEnabled())
-        .thenAnswer((_) async => true);
-    when(() => localStore.areAccessoryAlertsEnabled())
-        .thenAnswer((_) async => true);
+    when(
+      () => localStore.areNightMarketAlertsEnabled(),
+    ).thenAnswer((_) async => true);
+    when(
+      () => localStore.areAccessoryAlertsEnabled(),
+    ).thenAnswer((_) async => true);
     when(() => localStore.areChatAlertsEnabled()).thenAnswer((_) async => true);
-    when(() => secureStorage.areNotificationsEnabled())
-        .thenAnswer((_) async => true);
+    when(
+      () => secureStorage.areNotificationsEnabled(),
+    ).thenAnswer((_) async => true);
     await settingsCubit.load();
 
-    when(() => profileRepository.getCachedProfile())
-        .thenAnswer((_) async => null);
-    when(() => profileRepository.getUserProfile(forceRefresh: true))
-        .thenAnswer((_) async => const Result.success(profile));
+    when(
+      () => profileRepository.getCachedProfile(),
+    ).thenAnswer((_) async => null);
+    when(
+      () => profileRepository.getUserProfile(forceRefresh: true),
+    ).thenAnswer((_) async => const Result.success(profile));
   });
 
   tearDown(() async {
@@ -71,8 +79,9 @@ void main() {
     await getIt.reset();
   });
 
-  testWidgets('renders the wide player banner and refreshes profile once',
-      (tester) async {
+  testWidgets('renders the wide player banner and refreshes profile once', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       MultiBlocProvider(
         providers: [
@@ -97,6 +106,38 @@ void main() {
     await tester.pump();
 
     verifyNever(() => profileRepository.getUserProfile(forceRefresh: false));
-    verify(() => profileRepository.getUserProfile(forceRefresh: true)).called(1);
+    verify(
+      () => profileRepository.getUserProfile(forceRefresh: true),
+    ).called(1);
+  });
+
+  testWidgets('shows a banner skeleton only when no cached profile exists', (
+    tester,
+  ) async {
+    final pendingProfile = Completer<Result<UserProfile>>();
+    when(
+      () => profileRepository.getUserProfile(forceRefresh: true),
+    ).thenAnswer((_) => pendingProfile.future);
+
+    await tester.pumpWidget(
+      MultiBlocProvider(
+        providers: [
+          BlocProvider<ProfileCubit>.value(value: profileCubit),
+          BlocProvider<AppSettingsCubit>.value(value: settingsCubit),
+        ],
+        child: MaterialApp(
+          theme: DarkTheme.darkTheme,
+          locale: const Locale('en'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: const SettingsPage(),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.byType(ShimmerBox), findsOneWidget);
+    expect(find.byType(PlayerBannerCard), findsNothing);
   });
 }

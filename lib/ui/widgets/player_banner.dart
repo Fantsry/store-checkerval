@@ -41,55 +41,69 @@ class PlayerBannerArt extends StatelessWidget {
       smallArt: smallArt,
     );
 
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        const ColoredBox(color: AppColors.surface),
-        if (showFallbackIcon)
-          Align(
-            key: const Key('player-banner-fallback'),
-            alignment: alignment,
-            child: Padding(
-              padding: const EdgeInsets.only(right: AppSpacing.xl),
-              child: Icon(
-                Icons.person_rounded,
-                size: 64,
-                color: AppColors.textMuted.withValues(alpha: 0.35),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final cacheWidth = constraints.hasBoundedWidth
+            ? (constraints.maxWidth * MediaQuery.devicePixelRatioOf(context))
+                  .round()
+                  .clamp(320, 2400)
+                  .toInt()
+            : null;
+
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            const ColoredBox(color: AppColors.surface),
+            if (showFallbackIcon)
+              Align(
+                key: const Key('player-banner-fallback'),
+                alignment: alignment,
+                child: Padding(
+                  padding: const EdgeInsets.only(right: AppSpacing.xl),
+                  child: Icon(
+                    Icons.person_rounded,
+                    size: 64,
+                    color: AppColors.textMuted.withValues(alpha: 0.35),
+                  ),
+                ),
+              ),
+            if (artUrl != null)
+              CachedNetworkImage(
+                imageUrl: artUrl,
+                fit: BoxFit.cover,
+                alignment: alignment,
+                fadeInDuration: const Duration(milliseconds: 180),
+                fadeInCurve: Curves.easeOut,
+                memCacheWidth: cacheWidth,
+                errorWidget: (_, __, ___) => const SizedBox.shrink(),
+              ),
+            const DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                  colors: [
+                    Color(0xE60C0E11),
+                    Color(0x990C0E11),
+                    Color(0x1A0C0E11),
+                  ],
+                  stops: [0, 0.48, 1],
+                ),
               ),
             ),
-          ),
-        if (artUrl != null)
-          CachedNetworkImage(
-            imageUrl: artUrl,
-            fit: BoxFit.cover,
-            alignment: alignment,
-            errorWidget: (_, __, ___) => const SizedBox.shrink(),
-          ),
-        const DecoratedBox(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.centerLeft,
-              end: Alignment.centerRight,
-              colors: [
-                Color(0xE60C0E11),
-                Color(0x990C0E11),
-                Color(0x1A0C0E11),
-              ],
-              stops: [0, 0.48, 1],
+            const DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Colors.transparent, Color(0xD90C0E11)],
+                  stops: [0.35, 1],
+                ),
+              ),
             ),
-          ),
-        ),
-        const DecoratedBox(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [Colors.transparent, Color(0xD90C0E11)],
-              stops: [0.35, 1],
-            ),
-          ),
-        ),
-      ],
+          ],
+        );
+      },
     );
   }
 }

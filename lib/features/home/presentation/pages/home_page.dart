@@ -114,19 +114,27 @@ class _HomePageState extends State<HomePage> {
   Widget _buildProfileHero() {
     return BlocBuilder<ProfileCubit, ProfileState>(
       builder: (context, profileState) {
-        if (profileState is ProfileLoading) {
+        final UserProfile? profile = switch (profileState) {
+          ProfileLoaded(:final profile) => profile,
+          ProfileLoading(:final cachedProfile) => cachedProfile,
+          ProfileError(:final cachedProfile) => cachedProfile,
+          _ => null,
+        };
+
+        if (profile == null &&
+            (profileState is ProfileLoading ||
+                profileState is ProfileInitial)) {
           return const ShimmerBox(height: 220, borderRadius: AppRadius.lg);
         }
 
-        final UserProfile? profile = profileState is ProfileLoaded
-            ? profileState.profile
-            : null;
-
         return BlocBuilder<CareerCubit, CareerState>(
           builder: (context, careerState) {
-            final career = careerState is CareerLoaded
-                ? careerState.overview
-                : null;
+            final career = switch (careerState) {
+              CareerLoaded(:final overview) => overview,
+              CareerLoading(:final cachedOverview) => cachedOverview,
+              CareerError(:final cachedOverview) => cachedOverview,
+              _ => null,
+            };
             final rankName = career?.currentTierName ?? 'Unrated';
             final currentRR = career?.currentRankRating ?? 0;
             final tier = career?.currentTier;
@@ -135,6 +143,10 @@ class _HomePageState extends State<HomePage> {
                 ? profile!.cardWideArt
                 : profile?.cardLargeArt;
             final matches = career?.matches ?? const <MatchSummary>[];
+            final cacheWidth =
+                (MediaQuery.sizeOf(context).width *
+                        MediaQuery.devicePixelRatioOf(context))
+                    .round();
 
             return DataPanel(
               padding: EdgeInsets.zero,
@@ -147,6 +159,9 @@ class _HomePageState extends State<HomePage> {
                         child: CachedNetworkImage(
                           imageUrl: art,
                           fit: BoxFit.cover,
+                          memCacheWidth: cacheWidth,
+                          fadeInDuration: const Duration(milliseconds: 180),
+                          fadeInCurve: Curves.easeOut,
                           errorWidget: (_, __, ___) =>
                               Container(color: AppColors.card),
                         ),
@@ -212,7 +227,13 @@ class _HomePageState extends State<HomePage> {
             ),
             child: ClipRRect(
               borderRadius: AppRadius.roundedSm,
-              child: CachedNetworkImage(imageUrl: avatar, fit: BoxFit.cover),
+              child: CachedNetworkImage(
+                imageUrl: avatar,
+                fit: BoxFit.cover,
+                memCacheWidth: 160,
+                fadeInDuration: const Duration(milliseconds: 180),
+                fadeInCurve: Curves.easeOut,
+              ),
             ),
           )
         else
@@ -734,15 +755,20 @@ class _HomePageState extends State<HomePage> {
   Widget _buildCareerSnapshot() {
     return BlocBuilder<CareerCubit, CareerState>(
       builder: (context, state) {
-        if (state is CareerLoading) {
-          return const ShimmerBox(height: 190, borderRadius: AppRadius.lg);
-        }
+        final career = switch (state) {
+          CareerLoaded(:final overview) => overview,
+          CareerLoading(:final cachedOverview) => cachedOverview,
+          CareerError(:final cachedOverview) => cachedOverview,
+          _ => null,
+        };
 
-        if (state is! CareerLoaded) {
+        if (career == null) {
+          if (state is CareerLoading || state is CareerInitial) {
+            return const ShimmerBox(height: 190, borderRadius: AppRadius.lg);
+          }
           return const SizedBox.shrink();
         }
 
-        final career = state.overview;
         final lastMatch = career.matches.isNotEmpty
             ? career.matches.first
             : null;

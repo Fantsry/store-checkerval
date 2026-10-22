@@ -18,6 +18,7 @@ import 'package:valorant_store_tracker/features/profile/presentation/cubit/profi
 import 'package:valorant_store_tracker/features/profile/presentation/cubit/profile_state.dart';
 import 'package:valorant_store_tracker/features/settings/data/backup_service.dart';
 import 'package:valorant_store_tracker/features/settings/presentation/cubit/app_settings_cubit.dart';
+import 'package:valorant_store_tracker/features/settings/presentation/widgets/card_diagnostics_panel.dart';
 import 'package:valorant_store_tracker/features/wishlist/presentation/cubit/wishlist_cubit.dart';
 import 'package:valorant_store_tracker/ui/theme/app_colors.dart';
 import 'package:valorant_store_tracker/ui/theme/app_radius.dart';
@@ -26,6 +27,7 @@ import 'package:valorant_store_tracker/ui/theme/app_text_styles.dart';
 import 'package:valorant_store_tracker/ui/widgets/ascend_card.dart';
 import 'package:valorant_store_tracker/ui/widgets/player_banner.dart';
 import 'package:valorant_store_tracker/ui/widgets/section_header.dart';
+import 'package:valorant_store_tracker/ui/widgets/shimmer_loading.dart';
 import 'package:valorant_store_tracker/ui/widgets/vp_chip.dart';
 
 class SettingsPage extends StatefulWidget {
@@ -614,38 +616,51 @@ class _SettingsPageState extends State<SettingsPage> {
           _ => null,
         };
 
-        return PlayerBannerCard(
-          wideArt: profile?.cardWideArt,
-          largeArt: profile?.cardLargeArt,
-          smallArt: profile?.cardSmallArt,
-          displayName: profile?.displayName ?? 'Valorant Agent',
-          title: profile?.titleText,
-          badge: 'PROFILE',
-          meta:
-              '${profile?.region.toUpperCase() ?? 'AP'} / '
-              'LVL ${profile?.accountLevel ?? 1}',
-          height: 208,
-          footer: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              VpChip(
-                amount: profile?.walletAvailable == true
-                    ? profile!.valorantPoints
-                    : null,
-                fontSize: 11,
-                compact: true,
+        if (profile == null && state is ProfileLoading) {
+          return const ShimmerBox(height: 208, borderRadius: AppRadius.lg);
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            PlayerBannerCard(
+              wideArt: profile?.cardWideArt,
+              largeArt: profile?.cardLargeArt,
+              smallArt: profile?.cardSmallArt,
+              displayName: profile?.displayName ?? 'Valorant Agent',
+              title: profile?.titleText,
+              badge: 'PROFILE',
+              meta:
+                  '${profile?.region.toUpperCase() ?? 'AP'} / '
+                  'LVL ${profile?.accountLevel ?? 1}',
+              height: 208,
+              footer: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  VpChip(
+                    amount: profile?.walletAvailable == true
+                        ? profile!.valorantPoints
+                        : null,
+                    fontSize: 11,
+                    compact: true,
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  VpChip(
+                    amount: profile?.walletAvailable == true
+                        ? profile!.radianitePoints
+                        : null,
+                    isRadianite: true,
+                    fontSize: 11,
+                    compact: true,
+                  ),
+                ],
               ),
-              const SizedBox(width: AppSpacing.sm),
-              VpChip(
-                amount: profile?.walletAvailable == true
-                    ? profile!.radianitePoints
-                    : null,
-                isRadianite: true,
-                fontSize: 11,
-                compact: true,
-              ),
+            ),
+            if (const bool.fromEnvironment('CARD_DIAGNOSTICS')) ...[
+              const SizedBox(height: AppSpacing.sm),
+              const CardDiagnosticsPanel(),
             ],
-          ),
+          ],
         );
       },
     );

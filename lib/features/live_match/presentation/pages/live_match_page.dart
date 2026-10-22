@@ -39,6 +39,11 @@ class _LiveMatchPageState extends State<LiveMatchPage>
     context.read<LiveMatchCubit>().scanLiveMatch();
   }
 
+  Future<void> _refresh() {
+    final cubit = context.read<LiveMatchCubit>();
+    return cubit.scanLiveMatch(silent: cubit.state is LiveMatchLoaded);
+  }
+
   @override
   void dispose() {
     _radarController.dispose();
@@ -61,9 +66,7 @@ class _LiveMatchPageState extends State<LiveMatchPage>
               color: AppColors.textSecondary,
             ),
             tooltip: 'Scan now',
-            onPressed: () {
-              context.read<LiveMatchCubit>().scanLiveMatch();
-            },
+            onPressed: _refresh,
           ),
           const SizedBox(width: AppSpacing.sm),
         ],
@@ -74,9 +77,7 @@ class _LiveMatchPageState extends State<LiveMatchPage>
             return RefreshIndicator(
               color: AppColors.accent,
               backgroundColor: AppColors.card,
-              onRefresh: () async {
-                await context.read<LiveMatchCubit>().scanLiveMatch();
-              },
+              onRefresh: _refresh,
               child: CustomScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 slivers: [
@@ -350,9 +351,7 @@ class _LiveMatchPageState extends State<LiveMatchPage>
                 ),
                 const SizedBox(height: AppSpacing.md),
                 OutlinedButton.icon(
-                  onPressed: () {
-                    context.read<LiveMatchCubit>().scanLiveMatch();
-                  },
+                  onPressed: _refresh,
                   icon: const Icon(Icons.refresh_rounded, size: 16),
                   label: const Text('CHECK NOW'),
                 ),
@@ -373,9 +372,7 @@ class _LiveMatchPageState extends State<LiveMatchPage>
         description:
             'Join Agent Select or a live game in Valorant on PC, then scan again.',
         buttonText: 'SCAN NOW',
-        onButtonPressed: () {
-          context.read<LiveMatchCubit>().scanLiveMatch();
-        },
+        onButtonPressed: _refresh,
       ),
     );
   }

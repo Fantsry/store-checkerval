@@ -3,6 +3,7 @@ import 'package:valorant_store_tracker/core/error/failures.dart';
 import 'package:valorant_store_tracker/core/error/result.dart';
 import 'package:valorant_store_tracker/core/storage/local_store_service.dart';
 import 'package:valorant_store_tracker/core/storage/secure_storage_service.dart';
+import 'package:valorant_store_tracker/core/utils/valorant_card_assets.dart';
 import 'package:valorant_store_tracker/features/profile/data/datasources/profile_remote_datasource.dart';
 import 'package:valorant_store_tracker/features/profile/domain/entities/user_profile.dart';
 import 'package:valorant_store_tracker/features/profile/domain/repositories/profile_repository.dart';
@@ -33,14 +34,13 @@ class ProfileRepositoryImpl implements ProfileRepository {
   }
 
   static bool _isDefaultBanner(UserProfile profile) {
-    const defaultCardUuid = '9fb348bc-41a0-91ad-8a3e-818035c4e561';
-    final cardUuid = profile.cardUuid?.toLowerCase();
     final cardName = profile.cardName?.toLowerCase();
     final wideArt = profile.cardWideArt?.toLowerCase();
 
-    return cardUuid == defaultCardUuid ||
+    return ValorantCardAssets.isDefaultCard(profile.cardUuid) ||
         cardName == 'valorant card' ||
-        (wideArt != null && wideArt.contains(defaultCardUuid));
+        (wideArt != null &&
+            wideArt.contains(ValorantCardAssets.defaultCardUuid));
   }
 
   @override
@@ -59,8 +59,6 @@ class ProfileRepositoryImpl implements ProfileRepository {
             isDefaultBanner;
 
         if (!isStaleOrPlaceholder) {
-          // Trigger background refresh silently to sync in-game changes
-          _fetchAndCacheFreshProfile().ignore();
           return Result.success(cached);
         }
       }
@@ -184,20 +182,7 @@ class ProfileRepositoryImpl implements ProfileRepository {
       final identityMap =
           identityRes['identity'] as Map<String, dynamic>? ?? {};
 
-      final rawCardUuid = _findString(identityMap, [
-        'PlayerCardID',
-        'playerCardId',
-        'PlayerCardId',
-        'playercard_id',
-        'player_card_id',
-        'cardId',
-        'CardID',
-        'cardUuid',
-        'CardUuid',
-        'uuid',
-        'PlayerCard',
-        'playerCard',
-      ]);
+      final rawCardUuid = ValorantCardAssets.cardIdFrom(identityMap);
 
       final titleUuid = _findString(identityMap, [
         'PlayerTitleID',
@@ -242,28 +227,23 @@ class ProfileRepositoryImpl implements ProfileRepository {
       }
 
       // 4. Fetch Card Metadata from Valorant-API for the player's equipped in-game card
-      Map<String, dynamic>? cardData;
-      String? effectiveCardUuid;
-
-      if (rawCardUuid != null &&
-          rawCardUuid.isNotEmpty &&
-          rawCardUuid != '00000000-0000-0000-0000-000000000000') {
-        effectiveCardUuid = rawCardUuid;
-        cardData = await _remoteDataSource.fetchPlayerCardDetails(rawCardUuid);
-      }
-
-      // Fallback: If network failed to reach valorant-api, reuse previous non-default cached card
       final cached = await _localStore.getCachedProfile(puuid: puuid);
-      if (cardData == null && cached != null && !_isDefaultBanner(cached) && cached.cardWideArt != null) {
-        cardData = {
-          'uuid': cached.cardUuid ?? effectiveCardUuid ?? '',
-          'displayName': cached.cardName ?? 'Player Card',
-          'smallArt': cached.cardSmallArt,
-          'wideArt': cached.cardWideArt,
-          'largeArt': cached.cardLargeArt,
-        };
-        effectiveCardUuid ??= cached.cardUuid;
+      Map<String, dynamic>? cardData;
+      if (rawCardUuid != null) {
+        cardData =
+            await _remoteDataSource.fetchPlayerCardDetails(rawCardUuid);
       }
+
+      final cachedCardUuid =
+          ValorantCardAssets.normalizeCardUuid(cached?.cardUuid);
+      final useCachedCard = rawCardUuid == null &&
+          cached != null &&
+          cachedCardUuid != null &&
+          !_isDefaultBanner(cached);
+      final effectiveCardUuid =
+          rawCardUuid ?? (useCachedCard ? cachedCardUuid : null);
+      final cardName = cardData?['displayName']?.toString() ??
+          (cachedCardUuid == effectiveCardUuid ? cached?.cardName : null);
 
       // 5. Fetch Title Text from Valorant-API
       String? titleText;
@@ -293,11 +273,11 @@ class ProfileRepositoryImpl implements ProfileRepository {
         tagLine: tagLine,
         accountLevel: accountLevel,
         accountXp: accountXp,
-        cardUuid: cardData?['uuid'] as String? ?? effectiveCardUuid,
-        cardName: cardData?['displayName'] as String?,
-        cardSmallArt: cardData?['smallArt'] as String?,
-        cardWideArt: cardData?['wideArt'] as String?,
-        cardLargeArt: cardData?['largeArt'] as String?,
+        cardUuid: effectiveCardUuid,
+        cardName: cardName,
+        cardSmallArt: ValorantCardAssets.smallArt(effectiveCardUuid),
+        cardWideArt: ValorantCardAssets.wideArt(effectiveCardUuid),
+        cardLargeArt: ValorantCardAssets.largeArt(effectiveCardUuid),
         titleUuid: titleUuid,
         titleText: titleText,
         region: region,

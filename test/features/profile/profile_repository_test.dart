@@ -63,6 +63,39 @@ void main() {
     );
   });
 
+  void stubProfileNetwork({
+    required String cardUuid,
+    Map<String, dynamic>? cardDetails,
+  }) {
+    when(() => mockSecureStorage.getPuuid()).thenAnswer((_) async => tPuuid);
+    when(() => mockSecureStorage.getShard()).thenAnswer((_) async => 'ap');
+    when(() => mockSecureStorage.getRegion()).thenAnswer((_) async => 'ap');
+    when(() => mockSecureStorage.getGameName()).thenAnswer((_) async => 'Irfan');
+    when(() => mockSecureStorage.getTagLine()).thenAnswer((_) async => 'VAL');
+    when(() => mockSecureStorage.setShard(any())).thenAnswer((_) async {});
+    when(() => mockSecureStorage.setGameName(any())).thenAnswer((_) async {});
+    when(() => mockSecureStorage.setTagLine(any())).thenAnswer((_) async {});
+
+    when(() => mockRemote.fetchPlayerName(shard: 'ap', puuid: tPuuid))
+        .thenAnswer((_) async =>
+            {'gameName': 'Irfan', 'tagLine': 'VAL', 'resolvedShard': 'ap'});
+    when(() => mockRemote.fetchPlayerIdentity(shard: 'ap', puuid: tPuuid))
+        .thenAnswer((_) async => {
+              'identity': {'PlayerCardID': cardUuid, 'AccountLevel': 105},
+              'resolvedShard': 'ap',
+            });
+    when(() => mockRemote.fetchAccountXp(shard: 'ap', puuid: tPuuid))
+        .thenAnswer((_) async => {});
+    when(() => mockRemote.fetchPlayerCardDetails(cardUuid))
+        .thenAnswer((_) async => cardDetails);
+    when(() => mockRemote.fetchWallet(shard: 'ap', puuid: tPuuid))
+        .thenAnswer((_) async => {});
+    when(() => mockLocalStore.saveCachedProfile(
+          any(),
+          puuid: any(named: 'puuid'),
+        )).thenAnswer((_) async {});
+  }
+
   group('ProfileRepositoryImpl', () {
     test('returns cached profile immediately when valid and not default banner', () async {
       when(() => mockSecureStorage.getPuuid()).thenAnswer((_) async => tPuuid);
@@ -75,6 +108,70 @@ void main() {
       expect(result.valueOrNull, equals(tCachedValidProfile));
       // Primary response is cached
       expect(result.valueOrNull?.cardUuid, equals(tInGameCardUuid));
+    });
+
+    test('keeps the raw loadout card and its direct art when metadata lookup fails',
+        () async {
+      const rawCardUuid = '2f4d8e5e-88b3-da7d-4ae9-d1b3bc4c0837';
+      when(() => mockSecureStorage.getPuuid()).thenAnswer((_) async => tPuuid);
+      when(() => mockLocalStore.getCachedProfile(puuid: any(named: 'puuid')))
+          .thenAnswer((_) async => tCachedValidProfile);
+      stubProfileNetwork(cardUuid: rawCardUuid);
+
+      final result = await repository.getUserProfile(forceRefresh: true);
+
+      expect(result.isSuccess, isTrue);
+      final profile = result.valueOrNull!;
+      expect(profile.cardUuid, equals(rawCardUuid));
+      expect(
+        profile.cardWideArt,
+        equals(
+          'https://media.valorant-api.com/playercards/$rawCardUuid/wideart.png',
+        ),
+      );
+      expect(
+        profile.cardSmallArt,
+        equals(
+          'https://media.valorant-api.com/playercards/$rawCardUuid/smallart.png',
+        ),
+      );
+      expect(profile.cardWideArt, isNot(equals(tCachedValidProfile.cardWideArt)));
+    });
+
+    test('does not replace a real default loadout card with a cached card',
+        () async {
+      const defaultCardUuid = '9fb348bc-41a0-91ad-8a3e-818035c4e561';
+      when(() => mockSecureStorage.getPuuid()).thenAnswer((_) async => tPuuid);
+      when(() => mockLocalStore.getCachedProfile(puuid: any(named: 'puuid')))
+          .thenAnswer((_) async => tCachedValidProfile);
+      stubProfileNetwork(cardUuid: defaultCardUuid);
+
+      final result = await repository.getUserProfile(forceRefresh: true);
+
+      expect(result.isSuccess, isTrue);
+      final profile = result.valueOrNull!;
+      expect(profile.cardUuid, equals(defaultCardUuid));
+      expect(profile.cardWideArt, contains(defaultCardUuid));
+    });
+
+    test('does not start a hidden background refresh for a valid cached profile',
+        () async {
+      when(() => mockSecureStorage.getPuuid()).thenAnswer((_) async => tPuuid);
+      when(() => mockLocalStore.getCachedProfile(puuid: any(named: 'puuid')))
+          .thenAnswer((_) async => tCachedValidProfile);
+
+      final result = await repository.getUserProfile(forceRefresh: false);
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+
+      expect(result.valueOrNull, equals(tCachedValidProfile));
+      verifyNever(() => mockRemote.fetchPlayerName(
+            shard: any(named: 'shard'),
+            puuid: any(named: 'puuid'),
+          ));
+      verifyNever(() => mockRemote.fetchPlayerIdentity(
+            shard: any(named: 'shard'),
+            puuid: any(named: 'puuid'),
+          ));
     });
 
     test('invalidates cache and fetches fresh in-game card if cached profile is default VALORANT Card banner', () async {

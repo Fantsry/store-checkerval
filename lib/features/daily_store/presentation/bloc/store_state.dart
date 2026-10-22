@@ -20,15 +20,17 @@ class StoreLoaded extends StoreState {
   final DailyStore store;
   final UserWallet wallet;
   final bool isOffline;
+  final bool isRefreshing;
 
   const StoreLoaded({
     required this.store,
     this.wallet = const UserWallet(),
     this.isOffline = false,
+    this.isRefreshing = false,
   });
 
   @override
-  List<Object?> get props => [store, wallet, isOffline];
+  List<Object?> get props => [store, wallet, isOffline, isRefreshing];
 }
 
 class StoreError extends StoreState {

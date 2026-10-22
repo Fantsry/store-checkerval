@@ -29,6 +29,7 @@ class LiveMatchCubit extends Cubit<LiveMatchState> {
         }
       },
       failure: (failure) {
+        if (silent && state is LiveMatchLoaded) return;
         emit(LiveMatchError(message: failure.message));
         _transitionPollTimer?.cancel();
       },

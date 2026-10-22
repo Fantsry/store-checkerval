@@ -12,7 +12,6 @@ import 'package:valorant_store_tracker/features/daily_store/presentation/widgets
 import 'package:valorant_store_tracker/features/daily_store/presentation/widgets/bundle_card.dart';
 import 'package:valorant_store_tracker/features/daily_store/presentation/widgets/night_market_section.dart';
 import 'package:valorant_store_tracker/features/profile/presentation/cubit/profile_cubit.dart';
-import 'package:valorant_store_tracker/features/profile/presentation/cubit/profile_state.dart';
 import 'package:valorant_store_tracker/features/wishlist/presentation/cubit/wishlist_cubit.dart';
 import 'package:valorant_store_tracker/features/wishlist/presentation/cubit/wishlist_state.dart';
 import 'package:valorant_store_tracker/ui/theme/app_colors.dart';
@@ -157,7 +156,23 @@ class _StorePageState extends State<StorePage> {
               }
 
               if (state is StoreLoaded) {
-                return _buildStoreContent(state.store);
+                return Stack(
+                  children: [
+                    _buildStoreContent(state),
+                    if (state.isRefreshing)
+                      const Positioned(
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        child: LinearProgressIndicator(
+                          key: Key('store-refresh-progress'),
+                          minHeight: 2,
+                          color: AppColors.accent,
+                          backgroundColor: AppColors.border,
+                        ),
+                      ),
+                  ],
+                );
               }
 
               return const SizedBox.shrink();
@@ -183,7 +198,8 @@ class _StorePageState extends State<StorePage> {
     );
   }
 
-  Widget _buildStoreContent(DailyStore store) {
+  Widget _buildStoreContent(StoreLoaded state) {
+    final store = state.store;
     return SingleChildScrollView(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.symmetric(
@@ -193,7 +209,7 @@ class _StorePageState extends State<StorePage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _buildWalletAndTimerBar(store),
+          _buildWalletAndTimerBar(store, state.wallet),
           const SizedBox(height: AppSpacing.xl),
           if (store.bundle != null) ...[
             const SectionHeader(index: '01', title: 'FEATURED BUNDLE'),
@@ -227,46 +243,32 @@ class _StorePageState extends State<StorePage> {
     );
   }
 
-  Widget _buildWalletAndTimerBar(DailyStore store) {
-    return BlocBuilder<ProfileCubit, ProfileState>(
-      builder: (context, state) {
-        final profile = state is ProfileLoaded ? state.profile : null;
-
-        return DataPanel(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md,
-            vertical: AppSpacing.sm,
+  Widget _buildWalletAndTimerBar(DailyStore store, UserWallet wallet) {
+    return DataPanel(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.sm,
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: CountdownTimerWidget(
+              initialRemainingSeconds: store.currentRemainingSeconds,
+              onTimerExpired: () => _fetchStoreData(forceRefresh: true),
+              compact: true,
+            ),
           ),
-          child: Row(
-            children: [
-              Expanded(
-                child: CountdownTimerWidget(
-                  initialRemainingSeconds: store.currentRemainingSeconds,
-                  onTimerExpired: () => _fetchStoreData(forceRefresh: true),
-                  compact: true,
-                ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              VpChip(
-                amount: profile?.walletAvailable == true
-                    ? profile!.valorantPoints
-                    : null,
-                fontSize: 11,
-                compact: true,
-              ),
-              const SizedBox(width: AppSpacing.xs),
-              VpChip(
-                amount: profile?.walletAvailable == true
-                    ? profile!.radianitePoints
-                    : null,
-                isRadianite: true,
-                fontSize: 11,
-                compact: true,
-              ),
-            ],
+          const SizedBox(width: AppSpacing.sm),
+          VpChip(amount: wallet.valorantPoints, fontSize: 11, compact: true),
+          const SizedBox(width: AppSpacing.xs),
+          VpChip(
+            amount: wallet.radianitePoints,
+            isRadianite: true,
+            fontSize: 11,
+            compact: true,
           ),
-        );
-      },
+        ],
+      ),
     );
   }
 
@@ -346,6 +348,10 @@ class _StorePageState extends State<StorePage> {
 
   Widget _buildFeaturedSkinCard(SkinItem skin) {
     final tierColor = AppColors.getTierColor(skin.tierName);
+    final cacheWidth =
+        (MediaQuery.sizeOf(context).width *
+                MediaQuery.devicePixelRatioOf(context))
+            .round();
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
@@ -432,16 +438,11 @@ class _StorePageState extends State<StorePage> {
                       ? CachedNetworkImage(
                           imageUrl: skin.displayIcon!,
                           fit: BoxFit.contain,
-                          placeholder: (context, url) => const Center(
-                            child: SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: AppColors.accent,
-                              ),
-                            ),
-                          ),
+                          memCacheWidth: cacheWidth,
+                          fadeInDuration: const Duration(milliseconds: 180),
+                          fadeInCurve: Curves.easeOut,
+                          placeholder: (context, url) =>
+                              const SizedBox.shrink(),
                           errorWidget: (context, url, error) => const Icon(
                             Icons.shield_outlined,
                             size: 58,

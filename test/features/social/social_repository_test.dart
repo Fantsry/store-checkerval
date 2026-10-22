@@ -7,6 +7,7 @@ import 'package:valorant_store_tracker/features/career/data/datasources/career_r
 import 'package:valorant_store_tracker/features/career/domain/repositories/career_repository.dart';
 import 'package:valorant_store_tracker/features/live_match/data/datasources/live_match_remote_datasource.dart';
 import 'package:valorant_store_tracker/features/profile/data/datasources/profile_remote_datasource.dart';
+import 'package:valorant_store_tracker/features/social/data/datasources/riot_chat_remote_datasource.dart';
 import 'package:valorant_store_tracker/features/social/data/repositories/social_repository_impl.dart';
 import 'package:valorant_store_tracker/features/social/domain/entities/friend_entity.dart';
 
@@ -25,6 +26,9 @@ class MockSecureStorageService extends Mock implements SecureStorageService {}
 
 class MockLocalStoreService extends Mock implements LocalStoreService {}
 
+class MockRiotChatRemoteDataSource extends Mock
+    implements RiotChatRemoteDataSource {}
+
 void main() {
   late MockLiveMatchRemoteDataSource liveDataSource;
   late MockCareerRemoteDataSource careerDataSource;
@@ -32,6 +36,7 @@ void main() {
   late MockCareerRepository careerRepository;
   late MockSecureStorageService storage;
   late MockLocalStoreService localStore;
+  late MockRiotChatRemoteDataSource chatDataSource;
   late SocialRepositoryImpl repository;
 
   const tPuuid = '11111111-2222-3333-4444-555555555555';
@@ -45,6 +50,7 @@ void main() {
     careerRepository = MockCareerRepository();
     storage = MockSecureStorageService();
     localStore = MockLocalStoreService();
+    chatDataSource = MockRiotChatRemoteDataSource();
 
     repository = SocialRepositoryImpl(
       liveDataSource: liveDataSource,
@@ -53,6 +59,7 @@ void main() {
       careerRepository: careerRepository,
       storage: storage,
       localStore: localStore,
+      chatDataSource: chatDataSource,
     );
 
     when(() => storage.getShard()).thenAnswer((_) async => 'ap');
@@ -75,6 +82,8 @@ void main() {
         .thenAnswer((_) async => {'uuid': 'card-id', 'displayName': 'Card'});
     when(() => localStore.saveFriendJson(any(), any()))
         .thenAnswer((_) async {});
+    when(() => localStore.getSavedFriendsJson())
+        .thenAnswer((_) async => []);
     when(() => careerDataSource.fetchCompetitiveTiersMetadata())
         .thenAnswer((_) async => {
               20: {'tierName': 'Diamond 1', 'largeIcon': 'd1.png'},
@@ -96,6 +105,59 @@ void main() {
             'endTime': '2027-01-06T00:00:00Z',
           },
         ]);
+  });
+
+  group('friend card synchronization', () {
+    test('does not invent default card art when Riot returns no card ID',
+        () async {
+      const selfPuuid = 'self-puuid';
+      const friendPuuid = 'friend-puuid';
+
+      when(() => storage.getAccessToken()).thenAnswer((_) async => 'token');
+      when(() => storage.getPuuid()).thenAnswer((_) async => selfPuuid);
+      when(() => storage.getEntitlementsToken()).thenAnswer((_) async => null);
+      when(() => chatDataSource.fetchRemoteSocialData(
+            accessToken: 'token',
+            entitlementToken: null,
+          )).thenAnswer((_) async => const RiotSocialSyncData(
+            roster: [
+              RiotFriendRosterItem(
+                puuid: friendPuuid,
+                jid: 'friend-puuid@eu1.pvp.net',
+                name: 'Friend',
+                tag: '123',
+              ),
+            ],
+          ));
+      when(() => profileDataSource.fetchPlayerIdentity(
+            shard: 'ap',
+            puuid: friendPuuid,
+          )).thenAnswer((_) async => {'identity': <String, dynamic>{}});
+      when(() => liveDataSource.fetchPlayerMmr(
+            shard: 'ap',
+            puuid: friendPuuid,
+          )).thenAnswer((_) async => {});
+      when(() => careerDataSource.fetchMapsMetadata())
+          .thenAnswer((_) async => {});
+      when(() => careerDataSource.fetchAgentsMetadata())
+          .thenAnswer((_) async => {});
+      when(() => localStore.getLastNotifiedChatAt(any()))
+          .thenAnswer((_) async => DateTime(2026, 10, 20));
+
+      final result = await repository.syncRiotFriends(clearMocks: false);
+
+      expect(
+        result.isSuccess,
+        isTrue,
+        reason: result.failureOrNull?.message,
+      );
+      final friend = result.valueOrNull!.single;
+      expect(friend.cardUuid, isNull);
+      expect(friend.cardName, isNull);
+      expect(friend.cardWideArt, isNull);
+      expect(friend.cardSmallArt, isNull);
+      expect(friend.cardLargeArt, isNull);
+    });
   });
 
   group('addFriend rank resolution', () {

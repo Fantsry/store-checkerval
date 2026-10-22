@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:valorant_store_tracker/app/app.dart';
@@ -32,37 +34,54 @@ Future<void> main() async {
   await TimezoneHelper.initialize();
   await setupDI();
 
-  // Proactively refresh Riot client version in background to stay compatible with new game updates/acts
+  runApp(const ValorantStoreApp());
+
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    unawaited(_initializeDeferredServices());
+  });
+}
+
+Future<void> _initializeDeferredServices() async {
+  // Proactively refresh Riot client version in background to stay compatible
+  // with new game updates/acts.
   getIt<AuthRepository>().getClientVersion().ignore();
 
-  // Initialize Notifications with deep-link navigation
-  final notificationService = getIt<NotificationService>();
-  await notificationService.init(
-    onSelectNotification: (payload) {
-      if (payload != null && payload.isNotEmpty) {
-        AppRouter.router.push(payload);
+  try {
+    // Initialize Notifications with deep-link navigation.
+    final notificationService = getIt<NotificationService>();
+    await notificationService.init(
+      onSelectNotification: (payload) {
+        if (payload != null && payload.isNotEmpty) {
+          AppRouter.router.push(payload);
+        }
+      },
+    );
+
+    // Ask for notification permission once per install. Denials are handled in
+    // Settings instead of prompting on every cold start.
+    final secureStorage = getIt<SecureStorageService>();
+    if (!await secureStorage.isNotificationPermissionAsked()) {
+      final granted = await notificationService.requestPermissions();
+      await secureStorage.setNotificationPermissionAsked(true);
+      if (!granted) {
+        await secureStorage.setNotificationsEnabled(false);
       }
-    },
-  );
-
-  // Ask for notification permission once per install. Denials are handled in
-  // Settings instead of prompting on every cold start.
-  final secureStorage = getIt<SecureStorageService>();
-  if (!await secureStorage.isNotificationPermissionAsked()) {
-    final granted = await notificationService.requestPermissions();
-    await secureStorage.setNotificationPermissionAsked(true);
-    if (!granted) {
-      await secureStorage.setNotificationsEnabled(false);
     }
-  }
 
-  // Initialize Background Scheduler & schedule next shop reset check (00:00 UTC)
-  await BackgroundTaskManager.initialize();
-  if (await secureStorage.areNotificationsEnabled()) {
-    await BackgroundTaskManager.scheduleNextResetCheck();
-    await BackgroundTaskManager.registerPeriodicStoreCheck();
-    await BackgroundTaskManager.registerPeriodicChatCheck();
+    // Schedule the next shop reset check (00:00 UTC) and periodic checks.
+    await BackgroundTaskManager.initialize();
+    if (await secureStorage.areNotificationsEnabled()) {
+      await BackgroundTaskManager.scheduleNextResetCheck();
+      await BackgroundTaskManager.registerPeriodicStoreCheck();
+      await BackgroundTaskManager.registerPeriodicChatCheck();
+    }
+  } catch (error, stackTrace) {
+    FlutterError.reportError(
+      FlutterErrorDetails(
+        exception: error,
+        stack: stackTrace,
+        library: 'startup',
+      ),
+    );
   }
-
-  runApp(const ValorantStoreApp());
 }
