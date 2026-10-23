@@ -66,6 +66,24 @@ class SkinLevel extends Equatable {
         streamedVideo: json['streamedVideo'] as String?,
       );
 
+  static const Map<String, String> _levelItemLabels = {
+    'Animation': 'Animation',
+    'Finisher': 'Finisher',
+    'KillBanner': 'Kill Banner',
+    'KillCounter': 'Kill Counter',
+    'KillEffect': 'Kill Effect',
+    'SoundEffects': 'Sound Effects',
+    'Transformation': 'Transformation',
+    'VFX': 'VFX',
+  };
+
+  String? get levelItemLabel {
+    final raw = levelItem?.trim();
+    if (raw == null || raw.isEmpty) return null;
+    final key = raw.split('::').last;
+    return _levelItemLabels[key];
+  }
+
   @override
   List<Object?> get props => [uuid, displayName, levelItem, displayIcon, streamedVideo];
 }

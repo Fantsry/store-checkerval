@@ -67,6 +67,45 @@ void main() {
     expect(find.text('ADD TO WISHLIST'), findsNothing);
   });
 
+  testWidgets('shows friendly level labels instead of Riot enum values', (
+    tester,
+  ) async {
+    when(() => repository.getWishlist())
+        .thenAnswer((_) async => const Result.success([]));
+    when(() => repository.searchCatalog())
+        .thenAnswer((_) async => const Result.success([]));
+    await cubit.loadWishlist();
+
+    const skin = SkinItem(
+      uuid: 'skin-uuid',
+      displayName: 'Primordium Vandal',
+      weaponName: 'Vandal',
+      cost: 2175,
+      levels: [
+        SkinLevel(uuid: 'lvl-1', displayName: 'Primordium Vandal'),
+        SkinLevel(
+          uuid: 'lvl-2',
+          displayName: 'Primordium Vandal Level 2',
+          levelItem: 'EEquippableSkinLevelItem::SoundEffects',
+        ),
+        SkinLevel(
+          uuid: 'lvl-3',
+          displayName: 'Primordium Vandal Level 3',
+          levelItem: 'EEquippableSkinLevelItem::VFX',
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      _wrap(cubit: cubit, locale: const Locale('en'), skin: skin),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Sound Effects'), findsOneWidget);
+    expect(find.text('VFX'), findsOneWidget);
+    expect(find.textContaining('EEquippableSkinLevelItem'), findsNothing);
+  });
+
   testWidgets('shows the English wishlisted label', (tester) async {
     when(() => repository.getWishlist()).thenAnswer(
       (_) async => Result.success([

@@ -102,6 +102,35 @@ void main() {
       expect(restored.accessoryOffers.first.kcCost, 4000);
     });
 
+    test('SkinLevel levelItemLabel hides internal Riot enum syntax', () {
+      const levels = {
+        'EEquippableSkinLevelItem::SoundEffects': 'Sound Effects',
+        'EEquippableSkinLevelItem::VFX': 'VFX',
+        'EEquippableSkinLevelItem::Finisher': 'Finisher',
+        'EEquippableSkinLevelItem::Transformation': 'Transformation',
+        'EEquippableSkinLevelItem::KillBanner': 'Kill Banner',
+      };
+
+      for (final entry in levels.entries) {
+        final level = SkinLevel(
+          uuid: entry.key,
+          displayName: 'Level',
+          levelItem: entry.key,
+        );
+        expect(level.levelItemLabel, entry.value);
+      }
+
+      const noItem = SkinLevel(uuid: 'l-2', displayName: 'Level 2');
+      expect(noItem.levelItemLabel, isNull);
+
+      const unknown = SkinLevel(
+        uuid: 'l-3',
+        displayName: 'Level 3',
+        levelItem: 'EEquippableSkinLevelItem::InternalValue',
+      );
+      expect(unknown.levelItemLabel, isNull);
+    });
+
     test('currentRemainingSeconds correctly accounts for elapsed time', () {
       final now = DateTime.now();
       final store = DailyStore(

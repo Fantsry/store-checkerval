@@ -426,9 +426,7 @@ class _SkinDetailPageState extends State<SkinDetailPage> {
   }
 
   Widget _buildLevelRow(SkinLevel level, int index) {
-    final item = level.levelItem
-        ?.replaceAll('EEquippableSkinLevelItem::', '')
-        .replaceAll('::', ' ');
+    final item = level.levelItemLabel;
 
     return Padding(
       padding: const EdgeInsets.symmetric(

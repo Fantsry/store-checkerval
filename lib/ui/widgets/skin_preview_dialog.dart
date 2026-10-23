@@ -239,9 +239,9 @@ class _SkinPreviewSheetState extends State<SkinPreviewSheet> {
                                   style: AppTextStyles.bodyMedium(color: AppColors.textPrimary),
                                 ),
                               ),
-                              if (lvl.levelItem != null)
+                              if (lvl.levelItemLabel != null)
                                 Text(
-                                  lvl.levelItem!,
+                                  lvl.levelItemLabel!,
                                   style: AppTextStyles.caption(color: AppColors.accentSoft),
                                 ),
                             ],
