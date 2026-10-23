@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:valorant_store_tracker/core/utils/card_diagnostics_log.dart';
 import 'package:valorant_store_tracker/features/live_match/presentation/cubit/live_match_cubit.dart';
 import 'package:valorant_store_tracker/features/live_match/presentation/cubit/live_match_state.dart';
 import 'package:valorant_store_tracker/features/profile/presentation/cubit/profile_cubit.dart';
@@ -50,6 +51,10 @@ class CardDiagnosticsPanel extends StatelessWidget {
               },
             ),
             const SizedBox(height: AppSpacing.sm),
+            _buildLoadoutLog(),
+            const SizedBox(height: AppSpacing.sm),
+            _buildPresenceLog(),
+            const SizedBox(height: AppSpacing.sm),
             BlocBuilder<SocialCubit, SocialState>(
               builder: (context, state) {
                 final friends = switch (state) {
@@ -93,6 +98,51 @@ class CardDiagnosticsPanel extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildLoadoutLog() {
+    final events = CardDiagnosticsLog.instance.events
+        .where((event) => event.source == 'loadout')
+        .toList()
+        .reversed
+        .take(6)
+        .toList();
+
+    return _block(
+      'LOADOUT ATTEMPTS',
+      events.map((event) {
+        final flags =
+            'auth=${event.hasAuthorization ? 1 : 0} '
+            'ent=${event.hasEntitlements ? 1 : 0} '
+            'ver=${event.hasClientVersion ? 1 : 0}';
+        final error = event.error == null ? '' : ' err=${event.error}';
+        final detail = event.detail == null ? '' : ' ${event.detail}';
+        final keys = event.bodyKeys.isEmpty
+            ? ''
+            : ' body=${event.bodyKeys.join(',')}';
+        final identity = event.identityKeys.isEmpty
+            ? ''
+            : ' id=${event.identityKeys.join(',')}';
+        return _line(
+          '${event.shard ?? '?'} [${event.statusCode ?? '-'}]',
+          '$flags card=${event.cardId ?? 'null'}$error$keys$identity$detail',
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildPresenceLog() {
+    final events = CardDiagnosticsLog.instance.events
+        .where((event) => event.source == 'presence')
+        .toList()
+        .reversed
+        .take(3)
+        .toList();
+
+    return _block(
+      'PRESENCE SYNC',
+      events.map((event) => _line('sync', event.bodyKeys.join(' '))).toList(),
     );
   }
 

@@ -49,6 +49,14 @@ class SocialRepositoryImpl implements SocialRepository {
     }
   }
 
+  static String? _resolveCardUuid(String? raw) {
+    final normalized = ValorantCardAssets.normalizeCardUuid(raw);
+    if (normalized == null || ValorantCardAssets.isDefaultCard(normalized)) {
+      return null;
+    }
+    return normalized;
+  }
+
   static String _cleanModeName(String modeUrl) {
     final lower = modeUrl.toLowerCase();
     if (lower.contains('competitive')) return 'Competitive';
@@ -115,9 +123,7 @@ class SocialRepositoryImpl implements SocialRepository {
       final hasLegacyDefaultCard = friends.any(
         (friend) =>
             friend.cardUuid == null &&
-            (friend.cardWideArt?.contains(
-                  ValorantCardAssets.defaultCardUuid,
-                ) ??
+            (friend.cardWideArt?.contains(ValorantCardAssets.defaultCardUuid) ??
                 false),
       );
 
@@ -182,6 +188,7 @@ class SocialRepositoryImpl implements SocialRepository {
     required String puuid,
     String? gameName,
     String? tagLine,
+    String? cardUuid,
   }) async {
     try {
       final cleanPuuid = puuid.trim();
@@ -214,25 +221,20 @@ class SocialRepositoryImpl implements SocialRepository {
             : 'Agent';
       }
 
-      // Fetch Player Identity & Equipped Card
-      final identityRes = await _profileDataSource.fetchPlayerIdentity(
-        shard: shard,
-        puuid: cleanPuuid,
+      // Riot does not allow reading another player's identity/loadout.
+      // Reuse a card observed from Riot presence or shared match data.
+      final knownCards = await _careerRepository.getKnownPlayerCards();
+      final resolvedCardUuid = _resolveCardUuid(
+        cardUuid ?? knownCards[cleanPuuid.toLowerCase()],
       );
-      final identityMap =
-          identityRes['identity'] as Map<String, dynamic>? ?? {};
 
-      final cardUuid = ValorantCardAssets.cardIdFrom(identityMap);
-
-      var accountLevel = 1;
-      final levelRaw =
-          identityMap['AccountLevel'] ?? identityMap['accountLevel'];
-      if (levelRaw is num) accountLevel = levelRaw.toInt();
-
-      // Fetch Card Details from Valorant-API
       Map<String, dynamic>? cardData;
-      if (cardUuid != null) {
-        cardData = await _profileDataSource.fetchPlayerCardDetails(cardUuid);
+      if (resolvedCardUuid != null) {
+        try {
+          cardData = await _profileDataSource.fetchPlayerCardDetails(
+            resolvedCardUuid,
+          );
+        } catch (_) {}
       }
 
       // Fetch MMR / Rank
@@ -265,12 +267,12 @@ class SocialRepositoryImpl implements SocialRepository {
         puuid: cleanPuuid,
         gameName: resolvedName,
         tagLine: resolvedTag,
-        accountLevel: accountLevel,
-        cardUuid: cardUuid,
+        accountLevel: 1,
+        cardUuid: resolvedCardUuid,
         cardName: cardData?['displayName']?.toString(),
-        cardWideArt: ValorantCardAssets.wideArt(cardUuid),
-        cardSmallArt: ValorantCardAssets.smallArt(cardUuid),
-        cardLargeArt: ValorantCardAssets.largeArt(cardUuid),
+        cardWideArt: ValorantCardAssets.wideArt(resolvedCardUuid),
+        cardSmallArt: ValorantCardAssets.smallArt(resolvedCardUuid),
+        cardLargeArt: ValorantCardAssets.largeArt(resolvedCardUuid),
         rankTier: rankTier,
         rankName: rankName ?? 'Unranked',
         rankIcon: rankIcon,
@@ -317,6 +319,7 @@ class SocialRepositoryImpl implements SocialRepository {
                 puuid: p.puuid,
                 gameName: p.gameName,
                 tagLine: p.tagLine,
+                cardUuid: p.cardUuid,
               );
             }
           }
@@ -398,7 +401,6 @@ class SocialRepositoryImpl implements SocialRepository {
   Future<Result<List<FriendEntity>>> importRecentTeammates() async {
     try {
       final selfPuuid = await _storage.getPuuid() ?? '';
-      final shard = await _storage.getShard() ?? 'ap';
 
       final careerResult = await _careerRepository.getCareerOverview();
       if (!careerResult.isSuccess || careerResult.valueOrNull == null) {
@@ -431,35 +433,28 @@ class SocialRepositoryImpl implements SocialRepository {
         return const Result.success([]);
       }
 
+      final knownCards = await _careerRepository.getKnownPlayerCards();
       final List<FriendEntity> newFriends = [];
       for (final entry in teammatesMap.entries.take(8)) {
         final t = entry.value;
 
-        // Fetch card identity and account level
+        final cardUuid = _resolveCardUuid(
+          t.cardUuid ?? knownCards[t.puuid.toLowerCase()],
+        );
         Map<String, dynamic>? cardData;
-        String? cardUuid;
-        var accountLevel = 1;
-        try {
-          final identityRes = await _profileDataSource.fetchPlayerIdentity(
-            shard: shard,
-            puuid: t.puuid,
-          );
-          final idMap = identityRes['identity'] as Map<String, dynamic>? ?? {};
-          final level = idMap['AccountLevel'] ?? idMap['accountLevel'];
-          if (level is num) accountLevel = level.toInt();
-          cardUuid = ValorantCardAssets.cardIdFrom(idMap);
-          if (cardUuid != null) {
+        if (cardUuid != null) {
+          try {
             cardData = await _profileDataSource.fetchPlayerCardDetails(
               cardUuid,
             );
-          }
-        } catch (_) {}
+          } catch (_) {}
+        }
 
         final friend = FriendEntity(
           puuid: t.puuid,
           gameName: t.gameName.isNotEmpty ? t.gameName : 'Teammate',
           tagLine: t.tagLine,
-          accountLevel: accountLevel,
+          accountLevel: 1,
           cardUuid: cardUuid,
           cardName: cardData?['displayName']?.toString(),
           cardWideArt: ValorantCardAssets.wideArt(cardUuid),
@@ -688,6 +683,11 @@ class SocialRepositoryImpl implements SocialRepository {
               }
             } catch (_) {}
 
+            final knownCards = Map<String, String>.from(
+              await _careerRepository.getKnownPlayerCards(),
+            );
+            var knownCardsChanged = false;
+
             for (final puuid in puuidsToResolve) {
               final rosterItem = rosterMap[puuid];
               final nameInfo = resolvedNames[puuid];
@@ -741,35 +741,22 @@ class SocialRepositoryImpl implements SocialRepository {
                 }
               }
 
-              // Fetch Equipped Card Banner & Account Level
+              // Resolve the equipped card from Riot presence, match data, or
+              // a previously cached real card. Never query another player's
+              // private loadout/identity.
               Map<String, dynamic>? cardData;
-              int accountLevel = presence?.accountLevel ?? 1;
+              final accountLevel = presence?.accountLevel ?? 1;
               final cachedFriend = cachedFriends[puuid];
-              var cardUuid = ValorantCardAssets.normalizeCardUuid(
-                presence?.playerCardId,
-              );
-              try {
-                if (cardUuid == null) {
-                  final idRes = await _profileDataSource.fetchPlayerIdentity(
-                    shard: shard,
-                    puuid: puuid,
-                  );
-                  final idMap =
-                      idRes['identity'] as Map<String, dynamic>? ?? {};
-                  cardUuid = ValorantCardAssets.cardIdFrom(idMap);
-                  final lvl = idMap['AccountLevel'] ?? idMap['accountLevel'];
-                  if (lvl is num) accountLevel = lvl.toInt();
-                }
-              } catch (_) {}
-
-              final cachedCardUuid = ValorantCardAssets.normalizeCardUuid(
-                cachedFriend?.cardUuid,
-              );
-              if (cardUuid == null &&
-                  cachedCardUuid != null &&
-                  !ValorantCardAssets.isDefaultCard(cachedCardUuid)) {
-                cardUuid = cachedCardUuid;
+              final knownKey = puuid.toLowerCase();
+              var cardUuid =
+                  _resolveCardUuid(presence?.playerCardId) ??
+                  _resolveCardUuid(knownCards[knownKey]) ??
+                  _resolveCardUuid(cachedFriend?.cardUuid);
+              if (cardUuid != null && knownCards[knownKey] != cardUuid) {
+                knownCards[knownKey] = cardUuid;
+                knownCardsChanged = true;
               }
+              final cachedCardUuid = _resolveCardUuid(cachedFriend?.cardUuid);
               if (cardUuid != null) {
                 try {
                   cardData = await _profileDataSource.fetchPlayerCardDetails(
@@ -811,13 +798,11 @@ class SocialRepositoryImpl implements SocialRepository {
               }
               if (isPlacement) rankName = 'Placement';
 
-              var lastChatMessage =
-                  socialData.recentMessages[puuid]?.body;
+              var lastChatMessage = socialData.recentMessages[puuid]?.body;
               var lastChatTimestamp =
                   socialData.recentMessages[puuid]?.timestamp;
               try {
-                final localHistory =
-                    await _localStore.getChatMessages(puuid);
+                final localHistory = await _localStore.getChatMessages(puuid);
                 if (localHistory.isNotEmpty) {
                   final latest = localHistory.last;
                   if (lastChatTimestamp == null ||
@@ -828,7 +813,8 @@ class SocialRepositoryImpl implements SocialRepository {
                 }
               } catch (_) {}
 
-              final cardName = cardData?['displayName']?.toString() ??
+              final cardName =
+                  cardData?['displayName']?.toString() ??
                   (cachedCardUuid == cardUuid ? cachedFriend?.cardName : null);
               final friend = FriendEntity(
                 puuid: puuid,
@@ -859,6 +845,12 @@ class SocialRepositoryImpl implements SocialRepository {
                 jsonEncode(friend.toJson()),
               );
               realFriends.add(friend);
+            }
+
+            if (knownCardsChanged) {
+              try {
+                await _localStore.saveKnownPlayerCards(knownCards);
+              } catch (_) {}
             }
           }
         } catch (_) {}
@@ -913,9 +905,7 @@ class SocialRepositoryImpl implements SocialRepository {
   }
 
   @override
-  Future<Result<List<ChatMessageEntity>>> getChatMessages(
-    String puuid,
-  ) async {
+  Future<Result<List<ChatMessageEntity>>> getChatMessages(String puuid) async {
     try {
       final messages = await _localStore.getChatMessages(puuid);
       return Result.success(messages);
@@ -963,8 +953,7 @@ class SocialRepositoryImpl implements SocialRepository {
       }
 
       final rosterJid = friend?.xmppJid?.trim() ?? '';
-      final recipientJid =
-          rosterJid.isNotEmpty ? rosterJid : '$puuid@pvp.net';
+      final recipientJid = rosterJid.isNotEmpty ? rosterJid : '$puuid@pvp.net';
 
       final sendResult = await _chatDataSource.sendChatMessage(
         accessToken: accessToken,
@@ -975,16 +964,13 @@ class SocialRepositoryImpl implements SocialRepository {
 
       if (!sendResult.isSuccess) {
         return Result.failure(
-          ServerFailure(
-            message: sendResult.error ?? 'Gagal mengirim pesan',
-          ),
+          ServerFailure(message: sendResult.error ?? 'Gagal mengirim pesan'),
         );
       }
 
       final timestamp = DateTime.now();
       final message = ChatMessageEntity(
-        id: sendResult.messageId ??
-            'local-${timestamp.microsecondsSinceEpoch}',
+        id: sendResult.messageId ?? 'local-${timestamp.microsecondsSinceEpoch}',
         body: trimmed,
         timestamp: timestamp,
         isMine: true,
@@ -997,11 +983,13 @@ class SocialRepositoryImpl implements SocialRepository {
           await _localStore.saveFriendJson(
             puuid,
             jsonEncode(
-              friend.copyWith(
-                lastChatMessage: trimmed,
-                lastChatTimestamp: timestamp,
-                lastUpdated: timestamp,
-              ).toJson(),
+              friend
+                  .copyWith(
+                    lastChatMessage: trimmed,
+                    lastChatTimestamp: timestamp,
+                    lastUpdated: timestamp,
+                  )
+                  .toJson(),
             ),
           );
         }
@@ -1009,9 +997,7 @@ class SocialRepositoryImpl implements SocialRepository {
 
       return Result.success(message);
     } catch (e) {
-      return Result.failure(
-        ServerFailure(message: 'Gagal mengirim pesan: $e'),
-      );
+      return Result.failure(ServerFailure(message: 'Gagal mengirim pesan: $e'));
     }
   }
 

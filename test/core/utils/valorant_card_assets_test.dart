@@ -44,9 +44,7 @@ void main() {
         cardUuid,
       );
       expect(
-        ValorantCardAssets.cardIdFrom({
-          'player_card_id': cardUuid,
-        }),
+        ValorantCardAssets.cardIdFrom({'player_card_id': cardUuid}),
         cardUuid,
       );
       expect(
@@ -55,10 +53,14 @@ void main() {
         }),
         cardUuid,
       );
+      expect(ValorantCardAssets.cardIdFrom({'playerCard': cardUuid}), cardUuid);
     });
 
     test('identifies the VALORANT default card', () {
-      expect(ValorantCardAssets.isDefaultCard(ValorantCardAssets.defaultCardUuid), isTrue);
+      expect(
+        ValorantCardAssets.isDefaultCard(ValorantCardAssets.defaultCardUuid),
+        isTrue,
+      );
       expect(
         ValorantCardAssets.isDefaultCard(
           ValorantCardAssets.defaultCardUuid.toUpperCase(),

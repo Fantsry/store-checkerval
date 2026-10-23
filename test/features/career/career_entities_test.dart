@@ -81,74 +81,82 @@ void main() {
       expect(drawMatch.scoreDisplay, '14 - 14');
     });
 
-    test('MatchSummary serialization toJson and fromJson preserves data including teammates and enemies', () {
-      final teammate = MatchPlayerSummary(
-        puuid: 'puuid-ally-1',
-        gameName: 'AllyOne',
-        tagLine: '123',
-        teamId: 'Blue',
-        agentId: 'agent-sova',
-        agentName: 'Sova',
-        agentIconUrl: 'https://media.valorant-api.com/agents/sova.png',
-        competitiveTier: 16,
-        rankName: 'Platinum 2',
-        rankIconUrl: 'https://media.valorant-api.com/tiers/16.png',
-        kills: 18,
-        deaths: 12,
-        assists: 9,
-        score: 4200,
-        roundsPlayed: 22,
-        averageCombatScore: 191,
-      );
+    test(
+      'MatchSummary serialization toJson and fromJson preserves data including teammates and enemies',
+      () {
+        final teammate = MatchPlayerSummary(
+          puuid: 'puuid-ally-1',
+          gameName: 'AllyOne',
+          tagLine: '123',
+          teamId: 'Blue',
+          agentId: 'agent-sova',
+          agentName: 'Sova',
+          agentIconUrl: 'https://media.valorant-api.com/agents/sova.png',
+          cardUuid: '8edf22c5-4489-ab41-769a-07adb4c454d6',
+          competitiveTier: 16,
+          rankName: 'Platinum 2',
+          rankIconUrl: 'https://media.valorant-api.com/tiers/16.png',
+          kills: 18,
+          deaths: 12,
+          assists: 9,
+          score: 4200,
+          roundsPlayed: 22,
+          averageCombatScore: 191,
+        );
 
-      final enemy = MatchPlayerSummary(
-        puuid: 'puuid-enemy-1',
-        gameName: 'EnemyOne',
-        tagLine: '999',
-        teamId: 'Red',
-        agentId: 'agent-reyna',
-        agentName: 'Reyna',
-        competitiveTier: 17,
-        rankName: 'Platinum 3',
-        kills: 25,
-        deaths: 15,
-        assists: 3,
-        score: 6100,
-        roundsPlayed: 22,
-        averageCombatScore: 277,
-      );
+        final enemy = MatchPlayerSummary(
+          puuid: 'puuid-enemy-1',
+          gameName: 'EnemyOne',
+          tagLine: '999',
+          teamId: 'Red',
+          agentId: 'agent-reyna',
+          agentName: 'Reyna',
+          competitiveTier: 17,
+          rankName: 'Platinum 3',
+          kills: 25,
+          deaths: 15,
+          assists: 3,
+          score: 6100,
+          roundsPlayed: 22,
+          averageCombatScore: 277,
+        );
 
-      final matchWithTeams = MatchSummary(
-        matchId: sampleMatch.matchId,
-        mapId: sampleMatch.mapId,
-        mapName: sampleMatch.mapName,
-        gameMode: sampleMatch.gameMode,
-        queueId: sampleMatch.queueId,
-        gameStartTime: sampleMatch.gameStartTime,
-        won: true,
-        agentId: sampleMatch.agentId,
-        agentName: sampleMatch.agentName,
-        teammates: [teammate],
-        enemies: [enemy],
-      );
+        final matchWithTeams = MatchSummary(
+          matchId: sampleMatch.matchId,
+          mapId: sampleMatch.mapId,
+          mapName: sampleMatch.mapName,
+          gameMode: sampleMatch.gameMode,
+          queueId: sampleMatch.queueId,
+          gameStartTime: sampleMatch.gameStartTime,
+          won: true,
+          agentId: sampleMatch.agentId,
+          agentName: sampleMatch.agentName,
+          teammates: [teammate],
+          enemies: [enemy],
+        );
 
-      expect(teammate.kdRatio, 1.5);
-      expect(teammate.kdaDisplay, '18 / 12 / 9');
-      expect(teammate.displayName, 'AllyOne#123');
+        expect(teammate.kdRatio, 1.5);
+        expect(teammate.kdaDisplay, '18 / 12 / 9');
+        expect(teammate.displayName, 'AllyOne#123');
 
-      final json = matchWithTeams.toJson();
-      final reconstructed = MatchSummary.fromJson(json);
+        final json = matchWithTeams.toJson();
+        final reconstructed = MatchSummary.fromJson(json);
 
-      expect(reconstructed.matchId, sampleMatch.matchId);
-      expect(reconstructed.mapName, 'Ascent');
-      expect(reconstructed.won, true);
-      expect(reconstructed.teammates.length, 1);
-      expect(reconstructed.enemies.length, 1);
-      expect(reconstructed.teammates.first.displayName, 'AllyOne#123');
-      expect(reconstructed.teammates.first.rankName, 'Platinum 2');
-      expect(reconstructed.enemies.first.displayName, 'EnemyOne#999');
-      expect(reconstructed.enemies.first.rankName, 'Platinum 3');
-    });
+        expect(reconstructed.matchId, sampleMatch.matchId);
+        expect(reconstructed.mapName, 'Ascent');
+        expect(reconstructed.won, true);
+        expect(reconstructed.teammates.length, 1);
+        expect(reconstructed.enemies.length, 1);
+        expect(reconstructed.teammates.first.displayName, 'AllyOne#123');
+        expect(reconstructed.teammates.first.rankName, 'Platinum 2');
+        expect(
+          reconstructed.teammates.first.cardUuid,
+          '8edf22c5-4489-ab41-769a-07adb4c454d6',
+        );
+        expect(reconstructed.enemies.first.displayName, 'EnemyOne#999');
+        expect(reconstructed.enemies.first.rankName, 'Platinum 3');
+      },
+    );
 
     test('CareerOverview calculates stats and serializes to/from json', () {
       final overview = CareerOverview(
@@ -180,149 +188,161 @@ void main() {
       expect(restored.matches.first.mapName, 'Ascent');
     });
 
-    test('MatchRoundKill and MatchRoundSummary serialize to and from json correctly', () {
-      const kill = MatchRoundKill(
-        roundTime: 45000,
-        killerPuuid: 'killer-uuid',
-        killerName: 'KillerPlayer#ID1',
-        killerAgentName: 'Reyna',
-        killerAgentIconUrl: 'https://media.valorant-api.com/reyna.png',
-        killerTeamId: 'Blue',
-        victimPuuid: 'victim-uuid',
-        victimName: 'VictimPlayer#ID2',
-        victimAgentName: 'Jett',
-        victimAgentIconUrl: 'https://media.valorant-api.com/jett.png',
-        victimTeamId: 'Red',
-        assistantPuuids: ['assist-uuid'],
-        assistantNames: ['AssistPlayer#ID3'],
-        weaponId: 'vandal-uuid',
-        isKillerSelf: true,
-        isVictimSelf: false,
-      );
+    test(
+      'MatchRoundKill and MatchRoundSummary serialize to and from json correctly',
+      () {
+        const kill = MatchRoundKill(
+          roundTime: 45000,
+          killerPuuid: 'killer-uuid',
+          killerName: 'KillerPlayer#ID1',
+          killerAgentName: 'Reyna',
+          killerAgentIconUrl: 'https://media.valorant-api.com/reyna.png',
+          killerTeamId: 'Blue',
+          victimPuuid: 'victim-uuid',
+          victimName: 'VictimPlayer#ID2',
+          victimAgentName: 'Jett',
+          victimAgentIconUrl: 'https://media.valorant-api.com/jett.png',
+          victimTeamId: 'Red',
+          assistantPuuids: ['assist-uuid'],
+          assistantNames: ['AssistPlayer#ID3'],
+          weaponId: 'vandal-uuid',
+          isKillerSelf: true,
+          isVictimSelf: false,
+        );
 
-      final killJson = kill.toJson();
-      final restoredKill = MatchRoundKill.fromJson(killJson);
+        final killJson = kill.toJson();
+        final restoredKill = MatchRoundKill.fromJson(killJson);
 
-      expect(restoredKill.killerName, 'KillerPlayer#ID1');
-      expect(restoredKill.killerAgentName, 'Reyna');
-      expect(restoredKill.victimName, 'VictimPlayer#ID2');
-      expect(restoredKill.victimAgentName, 'Jett');
-      expect(restoredKill.isKillerSelf, true);
-      expect(restoredKill.assistantNames, ['AssistPlayer#ID3']);
+        expect(restoredKill.killerName, 'KillerPlayer#ID1');
+        expect(restoredKill.killerAgentName, 'Reyna');
+        expect(restoredKill.victimName, 'VictimPlayer#ID2');
+        expect(restoredKill.victimAgentName, 'Jett');
+        expect(restoredKill.isKillerSelf, true);
+        expect(restoredKill.assistantNames, ['AssistPlayer#ID3']);
 
-      final round = MatchRoundSummary(
-        roundNum: 0,
-        winningTeam: 'Blue',
-        won: true,
-        roundResult: 'Eliminated',
-        kills: [restoredKill],
-      );
+        final round = MatchRoundSummary(
+          roundNum: 0,
+          winningTeam: 'Blue',
+          won: true,
+          roundResult: 'Eliminated',
+          kills: [restoredKill],
+        );
 
-      final roundJson = round.toJson();
-      final restoredRound = MatchRoundSummary.fromJson(roundJson);
+        final roundJson = round.toJson();
+        final restoredRound = MatchRoundSummary.fromJson(roundJson);
 
-      expect(restoredRound.roundNum, 0);
-      expect(restoredRound.winningTeam, 'Blue');
-      expect(restoredRound.won, true);
-      expect(restoredRound.kills.length, 1);
-      expect(restoredRound.kills.first.killerName, 'KillerPlayer#ID1');
-    });
+        expect(restoredRound.roundNum, 0);
+        expect(restoredRound.winningTeam, 'Blue');
+        expect(restoredRound.won, true);
+        expect(restoredRound.kills.length, 1);
+        expect(restoredRound.kills.first.killerName, 'KillerPlayer#ID1');
+      },
+    );
 
-    test('MatchSummary handles Deathmatch, allPlayers, and MVP calculations', () {
-      const p1 = MatchPlayerSummary(
-        puuid: 'p1',
-        gameName: 'TopFragger',
-        tagLine: '001',
-        teamId: 'Blue',
-        agentId: 'jett',
-        agentName: 'Jett',
-        score: 6000,
-      );
-      const p2 = MatchPlayerSummary(
-        puuid: 'p2',
-        gameName: 'SecondFragger',
-        tagLine: '002',
-        teamId: 'Red',
-        agentId: 'reyna',
-        agentName: 'Reyna',
-        score: 4500,
-      );
+    test(
+      'MatchSummary handles Deathmatch, allPlayers, and MVP calculations',
+      () {
+        const p1 = MatchPlayerSummary(
+          puuid: 'p1',
+          gameName: 'TopFragger',
+          tagLine: '001',
+          teamId: 'Blue',
+          agentId: 'jett',
+          agentName: 'Jett',
+          score: 6000,
+        );
+        const p2 = MatchPlayerSummary(
+          puuid: 'p2',
+          gameName: 'SecondFragger',
+          tagLine: '002',
+          teamId: 'Red',
+          agentId: 'reyna',
+          agentName: 'Reyna',
+          score: 4500,
+        );
 
-      final dmMatch = MatchSummary(
-        matchId: 'dm-1',
-        mapId: 'split',
-        mapName: 'Split',
-        gameMode: 'deathmatch',
-        queueId: 'deathmatch',
-        gameStartTime: DateTime(2026, 9, 7),
-        agentId: 'jett',
-        agentName: 'Jett',
-        teammates: const [p1],
-        enemies: const [p2],
-      );
+        final dmMatch = MatchSummary(
+          matchId: 'dm-1',
+          mapId: 'split',
+          mapName: 'Split',
+          gameMode: 'deathmatch',
+          queueId: 'deathmatch',
+          gameStartTime: DateTime(2026, 9, 7),
+          agentId: 'jett',
+          agentName: 'Jett',
+          teammates: const [p1],
+          enemies: const [p2],
+        );
 
-      expect(dmMatch.isDeathmatch, true);
-      expect(dmMatch.allPlayers.length, 2);
-      expect(dmMatch.allPlayers.first.puuid, 'p1');
-      expect(dmMatch.matchMvpPuuid, 'p1');
-      expect(dmMatch.teamMvpPuuid, 'p1');
-    });
+        expect(dmMatch.isDeathmatch, true);
+        expect(dmMatch.allPlayers.length, 2);
+        expect(dmMatch.allPlayers.first.puuid, 'p1');
+        expect(dmMatch.matchMvpPuuid, 'p1');
+        expect(dmMatch.teamMvpPuuid, 'p1');
+      },
+    );
 
-    test('MatchSummary hasMinimapData returns true only when URL and multipliers are valid', () {
-      final matchWithMinimap = MatchSummary(
-        matchId: 'minimap-test',
-        mapId: 'ascent',
-        mapName: 'Ascent',
-        mapMinimapUrl: 'https://media.valorant-api.com/maps/displayicon.png',
-        mapXMultiplier: 0.00007,
-        mapYMultiplier: -0.00007,
-        mapXScalarToAdd: 0.81,
-        mapYScalarToAdd: 0.57,
-        gameMode: 'bomb',
-        queueId: 'competitive',
-        gameStartTime: DateTime(2026, 9, 7),
-        agentId: 'jett',
-        agentName: 'Jett',
-      );
+    test(
+      'MatchSummary hasMinimapData returns true only when URL and multipliers are valid',
+      () {
+        final matchWithMinimap = MatchSummary(
+          matchId: 'minimap-test',
+          mapId: 'ascent',
+          mapName: 'Ascent',
+          mapMinimapUrl: 'https://media.valorant-api.com/maps/displayicon.png',
+          mapXMultiplier: 0.00007,
+          mapYMultiplier: -0.00007,
+          mapXScalarToAdd: 0.81,
+          mapYScalarToAdd: 0.57,
+          gameMode: 'bomb',
+          queueId: 'competitive',
+          gameStartTime: DateTime(2026, 9, 7),
+          agentId: 'jett',
+          agentName: 'Jett',
+        );
 
-      expect(matchWithMinimap.hasMinimapData, true);
+        expect(matchWithMinimap.hasMinimapData, true);
 
-      final matchWithoutMinimap = MatchSummary(
-        matchId: 'no-minimap',
-        mapId: 'custom',
-        mapName: 'Custom Map',
-        gameMode: 'bomb',
-        queueId: 'custom',
-        gameStartTime: DateTime(2026, 9, 7),
-        agentId: 'jett',
-        agentName: 'Jett',
-      );
+        final matchWithoutMinimap = MatchSummary(
+          matchId: 'no-minimap',
+          mapId: 'custom',
+          mapName: 'Custom Map',
+          gameMode: 'bomb',
+          queueId: 'custom',
+          gameStartTime: DateTime(2026, 9, 7),
+          agentId: 'jett',
+          agentName: 'Jett',
+        );
 
-      expect(matchWithoutMinimap.hasMinimapData, false);
-    });
+        expect(matchWithoutMinimap.hasMinimapData, false);
+      },
+    );
 
-    test('MatchRoundKill location fields serialize to and from JSON correctly', () {
-      const kill = MatchRoundKill(
-        roundTime: 45000,
-        killerPuuid: 'killer-1',
-        killerName: 'Ace#123',
-        killerAgentName: 'Reyna',
-        victimPuuid: 'victim-1',
-        victimName: 'Opponent#456',
-        victimAgentName: 'Sova',
-        killerLocationX: 1234.5,
-        killerLocationY: 5678.9,
-        victimLocationX: -4321.0,
-        victimLocationY: 8765.4,
-      );
+    test(
+      'MatchRoundKill location fields serialize to and from JSON correctly',
+      () {
+        const kill = MatchRoundKill(
+          roundTime: 45000,
+          killerPuuid: 'killer-1',
+          killerName: 'Ace#123',
+          killerAgentName: 'Reyna',
+          victimPuuid: 'victim-1',
+          victimName: 'Opponent#456',
+          victimAgentName: 'Sova',
+          killerLocationX: 1234.5,
+          killerLocationY: 5678.9,
+          victimLocationX: -4321.0,
+          victimLocationY: 8765.4,
+        );
 
-      final json = kill.toJson();
-      final restored = MatchRoundKill.fromJson(json);
+        final json = kill.toJson();
+        final restored = MatchRoundKill.fromJson(json);
 
-      expect(restored.killerLocationX, 1234.5);
-      expect(restored.killerLocationY, 5678.9);
-      expect(restored.victimLocationX, -4321.0);
-      expect(restored.victimLocationY, 8765.4);
-    });
+        expect(restored.killerLocationX, 1234.5);
+        expect(restored.killerLocationY, 5678.9);
+        expect(restored.victimLocationX, -4321.0);
+        expect(restored.victimLocationY, 8765.4);
+      },
+    );
   });
 }

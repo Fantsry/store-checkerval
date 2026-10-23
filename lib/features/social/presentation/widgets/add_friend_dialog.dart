@@ -42,8 +42,9 @@ class _AddFriendDialogState extends State<AddFriendDialog>
 
   Future<void> _loadRecentTeammates() async {
     setState(() => _isLoadingTeammates = true);
-    final teammates =
-        await context.read<SocialCubit>().getRecentAvailableTeammates();
+    final teammates = await context
+        .read<SocialCubit>()
+        .getRecentAvailableTeammates();
     if (mounted) {
       setState(() {
         _recentTeammates = teammates;
@@ -94,10 +95,11 @@ class _AddFriendDialogState extends State<AddFriendDialog>
 
   Future<void> _addTeammate(MatchPlayerSummary player) async {
     final success = await context.read<SocialCubit>().addFriend(
-          puuid: player.puuid,
-          gameName: player.gameName,
-          tagLine: player.tagLine,
-        );
+      puuid: player.puuid,
+      gameName: player.gameName,
+      tagLine: player.tagLine,
+      cardUuid: player.cardUuid,
+    );
 
     if (mounted && success) {
       setState(() {
@@ -174,14 +176,18 @@ class _AddFriendDialogState extends State<AddFriendDialog>
                         Text(
                           'Lacak aktivitas live teman bermain',
                           style: AppTextStyles.caption(
-                              color: AppColors.textSecondary),
+                            color: AppColors.textSecondary,
+                          ),
                         ),
                       ],
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.close_rounded,
-                        color: AppColors.textSecondary, size: 20),
+                    icon: const Icon(
+                      Icons.close_rounded,
+                      color: AppColors.textSecondary,
+                      size: 20,
+                    ),
                     onPressed: () => Navigator.of(context).pop(),
                   ),
                 ],
@@ -202,8 +208,9 @@ class _AddFriendDialogState extends State<AddFriendDialog>
                 indicatorWeight: 2,
                 labelColor: AppColors.textPrimary,
                 unselectedLabelColor: AppColors.textSecondary,
-                labelStyle: AppTextStyles.badge(color: AppColors.textPrimary)
-                    .copyWith(fontWeight: FontWeight.w700),
+                labelStyle: AppTextStyles.badge(
+                  color: AppColors.textPrimary,
+                ).copyWith(fontWeight: FontWeight.w700),
                 tabs: const [
                   Tab(text: 'RIOT ID / PUUID'),
                   Tab(text: 'RECENT TEAMMATES'),
@@ -215,10 +222,7 @@ class _AddFriendDialogState extends State<AddFriendDialog>
             Expanded(
               child: TabBarView(
                 controller: _tabController,
-                children: [
-                  _buildRiotIdTab(),
-                  _buildRecentTeammatesTab(),
-                ],
+                children: [_buildRiotIdTab(), _buildRecentTeammatesTab()],
               ),
             ),
           ],
@@ -267,7 +271,10 @@ class _AddFriendDialogState extends State<AddFriendDialog>
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: AppRadius.roundedMd,
-                borderSide: const BorderSide(color: AppColors.accent, width: 1.5),
+                borderSide: const BorderSide(
+                  color: AppColors.accent,
+                  width: 1.5,
+                ),
               ),
               prefixIcon: const Icon(
                 Icons.tag_rounded,
@@ -295,9 +302,7 @@ class _AddFriendDialogState extends State<AddFriendDialog>
               backgroundColor: AppColors.accent,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(
-                borderRadius: AppRadius.roundedMd,
-              ),
+              shape: RoundedRectangleBorder(borderRadius: AppRadius.roundedMd),
             ),
             child: _isLoading
                 ? const SizedBox(
@@ -315,8 +320,9 @@ class _AddFriendDialogState extends State<AddFriendDialog>
                       const SizedBox(width: AppSpacing.xs),
                       Text(
                         'TAMBAHKAN KE SQUAD',
-                        style: AppTextStyles.badge(color: Colors.white)
-                            .copyWith(fontWeight: FontWeight.w800),
+                        style: AppTextStyles.badge(
+                          color: Colors.white,
+                        ).copyWith(fontWeight: FontWeight.w800),
                       ),
                     ],
                   ),
@@ -393,8 +399,10 @@ class _AddFriendDialogState extends State<AddFriendDialog>
                           width: 32,
                           height: 32,
                           fit: BoxFit.cover,
-                          errorWidget: (_, __, ___) =>
-                              const Icon(Icons.person, color: AppColors.textMuted),
+                          errorWidget: (_, __, ___) => const Icon(
+                            Icons.person,
+                            color: AppColors.textMuted,
+                          ),
                         ),
                       )
                     else
@@ -417,13 +425,16 @@ class _AddFriendDialogState extends State<AddFriendDialog>
                           Row(
                             children: [
                               GemRankIcon(
-                                  tierName: player.rankName ?? 'Unranked',
-                                  size: 14),
+                                tierName: player.rankName ?? 'Unranked',
+                                size: 14,
+                              ),
                               const SizedBox(width: 4),
                               Text(
                                 player.rankName ?? 'Unranked',
                                 style: AppTextStyles.caption(
-                                  color: AppColors.getRankColor(player.rankName),
+                                  color: AppColors.getRankColor(
+                                    player.rankName,
+                                  ),
                                 ),
                               ),
                             ],
@@ -470,9 +481,7 @@ class _AddFriendDialogState extends State<AddFriendDialog>
               foregroundColor: AppColors.cyan,
               side: const BorderSide(color: AppColors.cyan, width: 1.2),
               padding: const EdgeInsets.symmetric(vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: AppRadius.roundedMd,
-              ),
+              shape: RoundedRectangleBorder(borderRadius: AppRadius.roundedMd),
             ),
           ),
         ),

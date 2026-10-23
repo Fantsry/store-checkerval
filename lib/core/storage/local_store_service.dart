@@ -17,6 +17,7 @@ class LocalStoreService {
   static const String _careerCacheBoxName = 'career_cache_box';
   static const String _socialFriendsBoxName = 'social_friends_box';
   static const String _socialChatsBoxName = 'social_chats_box';
+  static const String _knownCardsBoxName = 'known_player_cards_box';
   static const String _settingsBoxName = 'settings_box';
   static const String _chatMetaBoxName = 'chat_meta_box';
 
@@ -28,6 +29,7 @@ class LocalStoreService {
   late Box<String> _careerCacheBox;
   late Box<String> _socialFriendsBox;
   late Box<String> _socialChatsBox;
+  late Box<String> _knownCardsBox;
   late Box<String> _settingsBox;
   late Box<String> _chatMetaBox;
 
@@ -41,6 +43,7 @@ class LocalStoreService {
     _careerCacheBox = await Hive.openBox<String>(_careerCacheBoxName);
     _socialFriendsBox = await Hive.openBox<String>(_socialFriendsBoxName);
     _socialChatsBox = await Hive.openBox<String>(_socialChatsBoxName);
+    _knownCardsBox = await Hive.openBox<String>(_knownCardsBoxName);
     _settingsBox = await Hive.openBox<String>(_settingsBoxName);
     _chatMetaBox = await Hive.openBox<String>(_chatMetaBoxName);
   }
@@ -470,6 +473,49 @@ class LocalStoreService {
     await _careerCacheBox.clear();
   }
 
+  // ─── Known Player Cards ────────────────────────────────────
+
+  static const String _knownPlayerCardsKey = 'known_player_cards';
+
+  Future<Map<String, String>> getKnownPlayerCards() async {
+    final raw = _knownCardsBox.get(_knownPlayerCardsKey);
+    if (raw == null || raw.isEmpty) return const {};
+
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map) return const {};
+      final cards = <String, String>{};
+      for (final entry in decoded.entries) {
+        final puuid = entry.key.toString().trim().toLowerCase();
+        final cardUuid = entry.value?.toString().trim().toLowerCase() ?? '';
+        if (puuid.isNotEmpty && cardUuid.isNotEmpty) {
+          cards[puuid] = cardUuid;
+        }
+      }
+      return cards;
+    } catch (_) {
+      return const {};
+    }
+  }
+
+  Future<void> saveKnownPlayerCards(Map<String, String> cards) async {
+    final normalized = <String, String>{};
+    for (final entry in cards.entries) {
+      final puuid = entry.key.trim().toLowerCase();
+      final cardUuid = entry.value.trim().toLowerCase();
+      if (puuid.isNotEmpty && cardUuid.isNotEmpty) {
+        normalized[puuid] = cardUuid;
+      }
+    }
+
+    if (normalized.isEmpty) {
+      await _knownCardsBox.delete(_knownPlayerCardsKey);
+      return;
+    }
+
+    await _knownCardsBox.put(_knownPlayerCardsKey, jsonEncode(normalized));
+  }
+
   // ─── Generic Key-Value Map Cache ───────────────────────────
 
   Map<String, dynamic>? getMap(String key) {
@@ -601,6 +647,7 @@ class LocalStoreService {
       _careerCacheBox.clear(),
       _socialFriendsBox.clear(),
       _socialChatsBox.clear(),
+      _knownCardsBox.clear(),
       _chatMetaBox.clear(),
     ]);
   }

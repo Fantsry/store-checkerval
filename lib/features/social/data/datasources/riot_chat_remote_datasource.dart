@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 import 'package:dio/dio.dart';
+import 'package:valorant_store_tracker/core/utils/card_diagnostics_log.dart';
 
 /// Friend item parsed from Riot's remote XMPP roster service.
 class RiotFriendRosterItem {
@@ -21,7 +22,8 @@ class RiotFriendRosterItem {
   });
 
   @override
-  String toString() => 'RiotFriendRosterItem(puuid: $puuid, name: $name, tag: $tag)';
+  String toString() =>
+      'RiotFriendRosterItem(puuid: $puuid, name: $name, tag: $tag)';
 }
 
 /// Rich presence payload extracted from Riot XMPP broadcast.
@@ -32,7 +34,8 @@ class RiotPresenceData {
   final bool isOnline;
   final bool isAway;
   final bool isMobile;
-  final String clientActivity; // 'In Riot Client', 'Away', 'Competitive · Bind · 2-0'
+  final String
+  clientActivity; // 'In Riot Client', 'Away', 'Competitive · Bind · 2-0'
   final String? sessionLoopState; // 'INGAME', 'PREGAME', 'MENUS'
   final String? matchMap; // e.g. '/Game/Maps/Duality/Duality'
   final String? queueId; // e.g. 'competitive'
@@ -118,14 +121,10 @@ class RiotChatSendResult {
   const RiotChatSendResult.success({
     required String messageId,
     List<RiotChatMessage> messages = const [],
-  }) : this(
-          isSuccess: true,
-          messageId: messageId,
-          messages: messages,
-        );
+  }) : this(isSuccess: true, messageId: messageId, messages: messages);
 
   const RiotChatSendResult.failure(String error)
-      : this(isSuccess: false, error: error);
+    : this(isSuccess: false, error: error);
 }
 
 /// Remote data source connecting to Riot Games' real-time chat & presence
@@ -143,9 +142,7 @@ class RiotChatRemoteDataSource {
       final response = await _dio.get<String>(
         'https://riot-geo.pas.si.riotgames.com/pas/v1/service/chat',
         options: Options(
-          headers: {
-            'Authorization': 'Bearer $accessToken',
-          },
+          headers: {'Authorization': 'Bearer $accessToken'},
           responseType: ResponseType.plain,
           sendTimeout: const Duration(seconds: 8),
           receiveTimeout: const Duration(seconds: 8),
@@ -163,10 +160,7 @@ class RiotChatRemoteDataSource {
       final payload = jsonDecode(payloadStr) as Map<String, dynamic>;
 
       final affinity = payload['affinity']?.toString() ?? 'ap1';
-      return {
-        'pasToken': pasJwt,
-        'affinity': affinity,
-      };
+      return {'pasToken': pasJwt, 'affinity': affinity};
     } catch (_) {
       return null;
     }
@@ -247,8 +241,11 @@ class RiotChatRemoteDataSource {
     String? entitlementToken,
   }) async {
     final lowerAffinity = affinity.toLowerCase().trim();
-    String host = defaultChatAffinities[lowerAffinity] ?? '$lowerAffinity.chat.si.riotgames.com';
-    String rawDomain = defaultChatAffinityDomains[lowerAffinity] ?? lowerAffinity;
+    String host =
+        defaultChatAffinities[lowerAffinity] ??
+        '$lowerAffinity.chat.si.riotgames.com';
+    String rawDomain =
+        defaultChatAffinityDomains[lowerAffinity] ?? lowerAffinity;
     String domain = rawDomain.contains('.') ? rawDomain : '$rawDomain.pvp.net';
 
     if (entitlementToken != null && entitlementToken.isNotEmpty) {
@@ -267,7 +264,9 @@ class RiotChatRemoteDataSource {
 
         final data = res.data ?? {};
         if (data['chat.affinities'] is Map) {
-          final affinities = Map<String, dynamic>.from(data['chat.affinities'] as Map);
+          final affinities = Map<String, dynamic>.from(
+            data['chat.affinities'] as Map,
+          );
           if (affinities.containsKey(lowerAffinity)) {
             host = affinities[lowerAffinity].toString();
           } else if (affinities.containsKey(affinity)) {
@@ -275,7 +274,9 @@ class RiotChatRemoteDataSource {
           }
         }
         if (data['chat.affinity_domains'] is Map) {
-          final domains = Map<String, dynamic>.from(data['chat.affinity_domains'] as Map);
+          final domains = Map<String, dynamic>.from(
+            data['chat.affinity_domains'] as Map,
+          );
           String? d;
           if (domains.containsKey(lowerAffinity)) {
             d = domains[lowerAffinity].toString();
@@ -315,10 +316,11 @@ class RiotChatRemoteDataSource {
 
     final host = routing['host']!;
     final domain = routing['domain']!;
-    final randomHex =
-        Random().nextInt(0xFFFFFF).toRadixString(16).padLeft(6, '0');
-    final messageId =
-        'msg-${DateTime.now().microsecondsSinceEpoch}-$randomHex';
+    final randomHex = Random()
+        .nextInt(0xFFFFFF)
+        .toRadixString(16)
+        .padLeft(6, '0');
+    final messageId = 'msg-${DateTime.now().microsecondsSinceEpoch}-$randomHex';
 
     SecureSocket? socket;
     try {
@@ -358,9 +360,7 @@ class RiotChatRemoteDataSource {
               (lower.contains('type="error"') ||
                   lower.contains("type='error'"))) {
             finish(
-              const RiotChatSendResult.failure(
-                'Server Riot menolak pesan',
-              ),
+              const RiotChatSendResult.failure('Server Riot menolak pesan'),
             );
             return;
           }
@@ -385,8 +385,7 @@ class RiotChatRemoteDataSource {
               'xmlns:stream="http://etherx.jabber.org/streams">',
             );
           } else if (step == 2 &&
-              (chunk.contains('<stream:features') ||
-                  chunk.contains('<bind'))) {
+              (chunk.contains('<stream:features') || chunk.contains('<bind'))) {
             step = 3;
             socket!.write(
               '<iq id="_xmpp_bind1" type="set">'
@@ -481,9 +480,7 @@ class RiotChatRemoteDataSource {
       timeoutTimer.cancel();
       return result;
     } catch (e) {
-      return RiotChatSendResult.failure(
-        'Gagal mengirim pesan chat: $e',
-      );
+      return RiotChatSendResult.failure('Gagal mengirim pesan chat: $e');
     } finally {
       try {
         socket?.destroy();
@@ -510,7 +507,10 @@ class RiotChatRemoteDataSource {
 
     final host = routing['host']!;
     final domain = routing['domain']!;
-    final randomHex = Random().nextInt(0xFFFFFF).toRadixString(16).padLeft(6, '0');
+    final randomHex = Random()
+        .nextInt(0xFFFFFF)
+        .toRadixString(16)
+        .padLeft(6, '0');
 
     SecureSocket? socket;
     try {
@@ -522,7 +522,8 @@ class RiotChatRemoteDataSource {
 
       final completer = Completer<RiotSocialSyncData>();
       final buffer = StringBuffer();
-      int step = 0; // 0: stream init, 1: auth sent, 2: stream reset, 3: bind sent, 4: session sent, 5: collecting data
+      int step =
+          0; // 0: stream init, 1: auth sent, 2: stream reset, 3: bind sent, 4: session sent, 5: collecting data
 
       final List<RiotFriendRosterItem> rosterList = [];
       final Map<String, RiotPresenceData> presencesMap = {};
@@ -534,12 +535,25 @@ class RiotChatRemoteDataSource {
       void finish() {
         if (!completer.isCompleted) {
           collectionTimer?.cancel();
-          completer.complete(RiotSocialSyncData(
-            roster: rosterList,
-            presences: presencesMap,
-            recentMessages: messagesMap,
-            messages: messagesList,
-          ));
+          CardDiagnosticsLog.instance.record(
+            CardDiagnosticEvent(
+              source: 'presence',
+              bodyKeys: [
+                'roster=${rosterList.length}',
+                'presences=${presencesMap.length}',
+                'cards=${presencesMap.values.where((p) => p.playerCardId != null).length}',
+                'sessions=${presencesMap.values.where((p) => p.sessionLoopState != null).length}',
+              ],
+            ),
+          );
+          completer.complete(
+            RiotSocialSyncData(
+              roster: rosterList,
+              presences: presencesMap,
+              recentMessages: messagesMap,
+              messages: messagesList,
+            ),
+          );
         }
       }
 
@@ -551,7 +565,10 @@ class RiotChatRemoteDataSource {
           buffer.write(str);
 
           // Step 0: Server sent features after initial connection -> Send SASL auth
-          if (step == 0 && (str.contains('<stream:features') || str.contains('stream:features') || str.contains('X-Riot-RSO-PAS'))) {
+          if (step == 0 &&
+              (str.contains('<stream:features') ||
+                  str.contains('stream:features') ||
+                  str.contains('X-Riot-RSO-PAS'))) {
             step = 1;
             socket!.write(
               '<auth mechanism="X-Riot-RSO-PAS" xmlns="urn:ietf:params:xml:ns:xmpp-sasl">'
@@ -569,7 +586,10 @@ class RiotChatRemoteDataSource {
             );
           }
           // Step 2: Server sent features after stream restart -> Bind with PUUID mode enabled
-          else if (step == 2 && (str.contains('<stream:features') || str.contains('stream:features') || str.contains('<bind'))) {
+          else if (step == 2 &&
+              (str.contains('<stream:features') ||
+                  str.contains('stream:features') ||
+                  str.contains('<bind'))) {
             step = 3;
             socket!.write(
               '<iq id="_xmpp_bind1" type="set">'
@@ -630,10 +650,10 @@ class RiotChatRemoteDataSource {
             collectionTimer = Timer(const Duration(milliseconds: 3500), finish);
           }
 
-          // Parse any stanzas that arrive
+          // TCP frames can split a stanza, so parse the accumulated stream.
           if (step >= 4) {
-            _parseIncomingChunk(
-              chunk: str,
+            parseIncomingChunk(
+              chunk: buffer.toString(),
               rosterList: rosterList,
               presencesMap: presencesMap,
               messagesMap: messagesMap,
@@ -667,7 +687,7 @@ class RiotChatRemoteDataSource {
   }
 
   /// Parse stanzas from stream: `item`, `presence`, and `message`.
-  static void _parseIncomingChunk({
+  static void parseIncomingChunk({
     required String chunk,
     required List<RiotFriendRosterItem> rosterList,
     required Map<String, RiotPresenceData> presencesMap,
@@ -683,7 +703,7 @@ class RiotChatRemoteDataSource {
 
     // 2. Parse Presence Stanzas
     final presenceRegex = RegExp(
-      r'<presence\b([^>]*?)>(?:([\s\S]*?)<\/presence>)?|<presence\b([^>]*?)\/>',
+      r'<presence\b([^>]*?)>([\s\S]*?)<\/presence>|<presence\b([^>]*?)\/>',
       caseSensitive: false,
     );
 
@@ -691,14 +711,18 @@ class RiotChatRemoteDataSource {
       final presenceAttrs = match.group(1) ?? match.group(3) ?? '';
       final body = match.group(2) ?? '';
 
-      final fromMatch = RegExp(r'from=["\x27]([^@"\x27]+)@[^/"\x27]+(?:\/([^"\x27]*))?["\x27]', caseSensitive: false).firstMatch(presenceAttrs);
+      final fromMatch = RegExp(
+        r'from=["\x27]([^@"\x27]+)@[^/"\x27]+(?:\/([^"\x27]*))?["\x27]',
+        caseSensitive: false,
+      ).firstMatch(presenceAttrs);
       final puuid = fromMatch?.group(1)?.trim() ?? '';
       final resource = fromMatch?.group(2)?.toLowerCase().trim() ?? '';
 
       if (puuid.isEmpty) continue;
 
       // Check if unavailable (offline)
-      final isUnavailable = presenceAttrs.contains('type="unavailable"') ||
+      final isUnavailable =
+          presenceAttrs.contains('type="unavailable"') ||
           presenceAttrs.contains("type='unavailable'");
 
       if (isUnavailable) {
@@ -712,15 +736,24 @@ class RiotChatRemoteDataSource {
       }
 
       // Extract <show> (chat, away, dnd, xa)
-      final showMatch = RegExp(r'<show>([^<]+)</show>', caseSensitive: false).firstMatch(body);
+      final showMatch = RegExp(
+        r'<show>([^<]+)</show>',
+        caseSensitive: false,
+      ).firstMatch(body);
       final rawShow = showMatch?.group(1)?.toLowerCase().trim() ?? 'chat';
 
       // Extract <status>
-      final statusMatch = RegExp(r'<status>([^<]*)</status>', caseSensitive: false).firstMatch(body);
+      final statusMatch = RegExp(
+        r'<status>([^<]*)</status>',
+        caseSensitive: false,
+      ).firstMatch(body);
       final rawStatus = statusMatch?.group(1)?.trim() ?? '';
 
       // Extract Base64 JSON payload in <p> tag
-      final pMatch = RegExp(r'<p>([^<]+)</p>', caseSensitive: false).firstMatch(body);
+      final pMatch = RegExp(
+        r'<p>([^<]+)</p>',
+        caseSensitive: false,
+      ).firstMatch(body);
       Map<String, dynamic>? valorantPayload;
       if (pMatch != null) {
         try {
@@ -731,12 +764,16 @@ class RiotChatRemoteDataSource {
         } catch (_) {}
       }
 
-      final isMobile = resource.contains('mobile') ||
+      final isMobile =
+          resource.contains('mobile') ||
           resource.contains('phone') ||
           body.contains('<wildrift>') ||
           rawStatus.toLowerCase().contains('mobile');
 
-      final isAway = rawShow == 'away' || rawShow == 'xa' || (valorantPayload?['isIdle'] == true);
+      final isAway =
+          rawShow == 'away' ||
+          rawShow == 'xa' ||
+          (valorantPayload?['isIdle'] == true);
 
       // Determine activity details
       String clientActivity = 'In Riot Client';
@@ -753,14 +790,19 @@ class RiotChatRemoteDataSource {
 
       if (valorantPayload != null && valorantPayload.isNotEmpty) {
         sessionLoopState = valorantPayload['sessionLoopState']?.toString();
-        matchMap = (valorantPayload['matchMap'] ?? valorantPayload['partyOwnerMatchMap'])?.toString();
+        matchMap =
+            (valorantPayload['matchMap'] ??
+                    valorantPayload['partyOwnerMatchMap'])
+                ?.toString();
         queueId = valorantPayload['queueId']?.toString();
 
-        final sAlly = valorantPayload['partyOwnerMatchScoreAllyTeam'] ??
+        final sAlly =
+            valorantPayload['partyOwnerMatchScoreAllyTeam'] ??
             valorantPayload['partyOwnerMatchScoreAlly'];
         if (sAlly != null) scoreAlly = int.tryParse(sAlly.toString());
 
-        final sEnemy = valorantPayload['partyOwnerMatchScoreEnemyTeam'] ??
+        final sEnemy =
+            valorantPayload['partyOwnerMatchScoreEnemyTeam'] ??
             valorantPayload['partyOwnerMatchScoreEnemy'];
         if (sEnemy != null) scoreEnemy = int.tryParse(sEnemy.toString());
 
@@ -817,7 +859,9 @@ class RiotChatRemoteDataSource {
 
     // 3. Parse Chat Messages
     for (final message in parseChatMessages(chunk)) {
-      messagesList.add(message);
+      if (!messagesList.any((existing) => existing.id == message.id)) {
+        messagesList.add(message);
+      }
       final existing = messagesMap[message.senderPuuid];
       if (existing == null || message.timestamp.isAfter(existing.timestamp)) {
         messagesMap[message.senderPuuid] = message;
@@ -838,8 +882,7 @@ class RiotChatRemoteDataSource {
 
       final jid = _readAttribute(attrs, 'jid') ?? '';
       final atIndex = jid.indexOf('@');
-      final rawPuuid =
-          atIndex > 0 ? jid.substring(0, atIndex).trim() : '';
+      final rawPuuid = atIndex > 0 ? jid.substring(0, atIndex).trim() : '';
       if (rawPuuid.isEmpty || rawPuuid == 'null') continue;
 
       final subscription = _readAttribute(attrs, 'subscription') ?? 'both';
@@ -868,13 +911,15 @@ class RiotChatRemoteDataSource {
         }
       }
 
-      items.add(RiotFriendRosterItem(
-        puuid: rawPuuid,
-        jid: jid,
-        name: name,
-        tag: tag,
-        subscription: subscription,
-      ));
+      items.add(
+        RiotFriendRosterItem(
+          puuid: rawPuuid,
+          jid: jid,
+          name: name,
+          tag: tag,
+          subscription: subscription,
+        ),
+      );
     }
 
     return items;
@@ -918,15 +963,18 @@ class RiotChatRemoteDataSource {
           _parseTimestamp(_readAttribute(attrs, 'stamp')) ??
           _parseTimestamp(_readAttribute(inner, 'stamp')) ??
           DateTime.now();
-      final id = _readAttribute(attrs, 'id') ??
+      final id =
+          _readAttribute(attrs, 'id') ??
           'srv_${senderPuuid}_${timestamp.microsecondsSinceEpoch}';
 
-      messages.add(RiotChatMessage(
-        id: id,
-        senderPuuid: senderPuuid,
-        body: text,
-        timestamp: timestamp,
-      ));
+      messages.add(
+        RiotChatMessage(
+          id: id,
+          senderPuuid: senderPuuid,
+          body: text,
+          timestamp: timestamp,
+        ),
+      );
     }
 
     return messages;
@@ -971,7 +1019,6 @@ class RiotChatRemoteDataSource {
     );
     return result;
   }
-
 
   /// Legacy helper for roster fetching
   Future<List<RiotFriendRosterItem>> fetchRemoteRoster({

@@ -12,16 +12,14 @@ class ApiConstants {
   static const String riotAuthToken = '$riotAuthBaseUrl/api/v1/authorization';
   static const String riotEntitlementsUrl =
       'https://entitlements.auth.riotgames.com/api/token/v1';
-  static const String riotUserInfoUrl =
-      'https://auth.riotgames.com/userinfo';
+  static const String riotUserInfoUrl = 'https://auth.riotgames.com/userinfo';
 
   // ─── PAS Geo (Region/Shard Detection) ───────────────────────
   static const String pasGeoUrl =
       'https://riot-geo.pas.si.riotgames.com/pas/v1/product/valorant';
 
   // ─── Valorant Store (per-shard) ─────────────────────────────
-  static String storeBaseUrl(String shard) =>
-      'https://pd.$shard.a.pvp.net';
+  static String storeBaseUrl(String shard) => 'https://pd.$shard.a.pvp.net';
 
   static String storefrontUrl(String shard, String puuid) =>
       '${storeBaseUrl(shard)}/store/v2/storefront/$puuid';
@@ -40,7 +38,7 @@ class ApiConstants {
       '${storeBaseUrl(shard)}/name-service/v2/players';
 
   static String playerLoadoutUrl(String shard, String puuid) =>
-      '${storeBaseUrl(shard)}/personalization/v2/players/$puuid/playerloadout';
+      '${storeBaseUrl(shard)}/personalization/v3/players/$puuid/playerloadout';
 
   static String accountXpUrl(String shard, String puuid) =>
       '${storeBaseUrl(shard)}/account-xp/v1/players/$puuid';
@@ -85,8 +83,7 @@ class ApiConstants {
     String shard,
     String puuid, {
     String itemTypeId = weaponSkinItemTypeId,
-  }) =>
-      '${storeBaseUrl(shard)}/store/v1/entitlements/$puuid/$itemTypeId';
+  }) => '${storeBaseUrl(shard)}/store/v1/entitlements/$puuid/$itemTypeId';
 
   static String contractsUrl(String shard, String puuid) =>
       '${storeBaseUrl(shard)}/contracts/v1/contracts/$puuid';
@@ -122,8 +119,7 @@ class ApiConstants {
       '$valorantApiBaseUrl/weapons/skinlevels';
   static const String valorantApiContentTiers =
       '$valorantApiBaseUrl/contenttiers';
-  static const String valorantApiCurrencies =
-      '$valorantApiBaseUrl/currencies';
+  static const String valorantApiCurrencies = '$valorantApiBaseUrl/currencies';
   static const String valorantApiMaps = '$valorantApiBaseUrl/maps';
   static const String valorantApiAgents = '$valorantApiBaseUrl/agents';
   static const String valorantApiCompetitiveTiers =
@@ -134,14 +130,15 @@ class ApiConstants {
   static const String valorantApiMissions = '$valorantApiBaseUrl/missions';
   static const String valorantApiContracts = '$valorantApiBaseUrl/contracts';
   static const String valorantApiSeasons = '$valorantApiBaseUrl/seasons';
-  static const String valorantApiPlayerCards = '$valorantApiBaseUrl/playercards';
-  static const String valorantApiPlayerTitles = '$valorantApiBaseUrl/playertitles';
+  static const String valorantApiPlayerCards =
+      '$valorantApiBaseUrl/playercards';
+  static const String valorantApiPlayerTitles =
+      '$valorantApiBaseUrl/playertitles';
 
   // ─── Auth OAuth2 Parameters ─────────────────────────────────
   static const String riotClientId = 'play-valorant-web-prod';
   static const String riotResponseType = 'token id_token';
-  static const String riotRedirectUri =
-      'https://playvalorant.com/opt_in';
+  static const String riotRedirectUri = 'https://playvalorant.com/opt_in';
   static const String riotScope = 'account openid';
   static const String riotNonce = '1';
 

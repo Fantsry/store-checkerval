@@ -1,7 +1,53 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:valorant_store_tracker/features/social/data/datasources/riot_chat_remote_datasource.dart';
 
 void main() {
+  group('parseIncomingChunk presences', () {
+    test('keeps split presence payload until the stanza is complete', () {
+      const puuid = 'friend-puuid';
+      const cardId = '11111111-2222-3333-4444-555555555555';
+      final payload = base64Encode(
+        utf8.encode(
+          jsonEncode({
+            'sessionLoopState': 'MENUS',
+            'playerCardId': cardId,
+            'accountLevel': 227,
+          }),
+        ),
+      );
+      final opening =
+          '<presence from="$puuid@eu1.pvp.net/RC-1">'
+          '<show>chat</show><status></status>'
+          '<games><valorant><p>';
+      final closing = '$payload</p></valorant></games></presence>';
+
+      final roster = <RiotFriendRosterItem>[];
+      final presences = <String, RiotPresenceData>{};
+      final messages = <RiotChatMessage>[];
+      final messageMap = <String, RiotChatMessage>{};
+
+      void parse(String chunk) {
+        RiotChatRemoteDataSource.parseIncomingChunk(
+          chunk: chunk,
+          rosterList: roster,
+          presencesMap: presences,
+          messagesMap: messageMap,
+          messagesList: messages,
+        );
+      }
+
+      parse(opening);
+      expect(presences, isEmpty);
+
+      parse(opening + closing);
+      expect(presences[puuid]?.playerCardId, cardId);
+      expect(presences[puuid]?.accountLevel, 227);
+      expect(presences[puuid]?.clientActivity, 'In Lobby');
+    });
+  });
+
   group('buildChatMessageStanza', () {
     test('builds an escaped direct chat stanza', () {
       final stanza = RiotChatRemoteDataSource.buildChatMessageStanza(
@@ -51,10 +97,7 @@ void main() {
       expect(messages.single.id, 'srv-1');
       expect(messages.single.senderPuuid, 'friend-puuid');
       expect(messages.single.body, 'halo & hai');
-      expect(
-        messages.single.timestamp,
-        DateTime(2026, 10, 20, 8, 7, 33),
-      );
+      expect(messages.single.timestamp, DateTime(2026, 10, 20, 8, 7, 33));
     });
 
     test('ignores groupchat and error stanzas', () {
@@ -84,10 +127,7 @@ void main() {
 
       final messages = RiotChatRemoteDataSource.parseChatMessages(chunk);
 
-      expect(
-        messages.single.timestamp.toUtc(),
-        DateTime.utc(2026, 10, 19, 21),
-      );
+      expect(messages.single.timestamp.toUtc(), DateTime.utc(2026, 10, 19, 21));
     });
   });
 }

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:valorant_store_tracker/core/constants/api_constants.dart';
+import 'package:valorant_store_tracker/core/utils/card_diagnostics_log.dart';
 import 'package:valorant_store_tracker/core/utils/valorant_card_assets.dart';
 
 abstract class ProfileRemoteDataSource {
@@ -46,9 +47,7 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
     try {
       final response = await _dio.get(
         ApiConstants.riotUserInfoUrl,
-        options: Options(
-          headers: {'Authorization': 'Bearer $accessToken'},
-        ),
+        options: Options(headers: {'Authorization': 'Bearer $accessToken'}),
       );
 
       dynamic body = response.data;
@@ -99,8 +98,10 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
         if (body is List && body.isNotEmpty) {
           final item = body.first;
           if (item is Map) {
-            final gameName = (item['GameName'] ?? item['game_name'] ?? '').toString();
-            final tagLine = (item['TagLine'] ?? item['tag_line'] ?? '').toString();
+            final gameName = (item['GameName'] ?? item['game_name'] ?? '')
+                .toString();
+            final tagLine = (item['TagLine'] ?? item['tag_line'] ?? '')
+                .toString();
             if (gameName.isNotEmpty) {
               return {
                 'gameName': gameName,
@@ -147,13 +148,7 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
     }
 
     final normalized = _normalizeShard(shard);
-    final shardsToTry = {
-      normalized,
-      'ap',
-      'eu',
-      'na',
-      'kr',
-    }.toList();
+    final shardsToTry = {normalized, 'ap', 'eu', 'na', 'kr'}.toList();
 
     Map<String, dynamic>? defaultCardResult;
 
@@ -168,7 +163,16 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
           ),
         );
 
-        if (response.statusCode != 200) continue;
+        final headers = response.requestOptions.headers;
+        if (response.statusCode != 200) {
+          _recordLoadout(
+            shard: s,
+            statusCode: response.statusCode,
+            body: response.data,
+            headers: headers,
+          );
+          continue;
+        }
 
         dynamic body = response.data;
         if (body is String) {
@@ -176,36 +180,68 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
             body = jsonDecode(body);
           } catch (_) {}
         }
-        if (body is! Map) continue;
+        if (body is! Map) {
+          _recordLoadout(
+            shard: s,
+            statusCode: 200,
+            error: 'body:${body.runtimeType}',
+            body: body,
+            headers: headers,
+          );
+          continue;
+        }
 
         final bodyMap = Map<String, dynamic>.from(body);
-        dynamic identity = bodyMap['Identity'] ??
+        dynamic identity =
+            bodyMap['Identity'] ??
             bodyMap['identity'] ??
             bodyMap['PlayerIdentity'] ??
             bodyMap['playerIdentity'];
 
         if (identity == null && bodyMap['data'] is Map) {
-          identity = bodyMap['data']['Identity'] ??
+          identity =
+              bodyMap['data']['Identity'] ??
               bodyMap['data']['identity'] ??
               bodyMap['data']['PlayerIdentity'];
         }
         if (identity == null && bodyMap['loadout'] is Map) {
-          identity = bodyMap['loadout']['Identity'] ??
-              bodyMap['loadout']['identity'];
+          identity =
+              bodyMap['loadout']['Identity'] ?? bodyMap['loadout']['identity'];
         }
 
         identity ??= bodyMap;
-        if (identity is! Map) continue;
-
-        final identityMap = Map<String, dynamic>.from(identity);
-        final subject = _findSubject(identityMap, bodyMap);
-        if (subject != null &&
-            subject.toLowerCase() != cleanPuuid.toLowerCase()) {
+        if (identity is! Map) {
+          _recordLoadout(
+            shard: s,
+            statusCode: 200,
+            error: 'identity:${identity.runtimeType}',
+            body: bodyMap,
+            headers: headers,
+          );
           continue;
         }
 
-        final cardId = ValorantCardAssets.cardIdFrom(identityMap) ??
+        final identityMap = Map<String, dynamic>.from(identity);
+        final subject = _findSubject(identityMap, bodyMap);
+        final subjectMismatch =
+            subject != null &&
+            subject.toLowerCase() != cleanPuuid.toLowerCase();
+        final cardId =
+            ValorantCardAssets.cardIdFrom(identityMap) ??
             ValorantCardAssets.cardIdFrom(bodyMap);
+
+        _recordLoadout(
+          shard: s,
+          statusCode: 200,
+          error: subjectMismatch ? 'subject-mismatch' : null,
+          body: bodyMap,
+          headers: headers,
+          identityKeys: identityMap.keys.take(12).map((k) => k.toString()),
+          cardId: cardId,
+        );
+
+        if (subjectMismatch) continue;
+
         final result = <String, dynamic>{
           'identity': identityMap,
           'resolvedShard': s,
@@ -217,7 +253,22 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
           return result;
         }
         defaultCardResult ??= result;
-      } catch (_) {}
+      } on DioException catch (e) {
+        _recordLoadout(
+          shard: s,
+          statusCode: e.response?.statusCode,
+          error: e.type.name,
+          detail: e.message,
+          body: e.response?.data,
+          headers: e.requestOptions.headers,
+        );
+      } catch (e) {
+        _recordLoadout(
+          shard: s,
+          error: e.runtimeType.toString(),
+          detail: e.toString(),
+        );
+      }
     }
 
     return defaultCardResult ??
@@ -242,6 +293,83 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
     return null;
   }
 
+  static void _recordLoadout({
+    required String shard,
+    int? statusCode,
+    String? error,
+    String? detail,
+    dynamic body,
+    Map<String, dynamic>? headers,
+    Iterable<String> identityKeys = const [],
+    String? cardId,
+  }) {
+    final requestHeaders = headers ?? const <String, dynamic>{};
+    CardDiagnosticsLog.instance.record(
+      CardDiagnosticEvent(
+        source: 'loadout',
+        shard: shard,
+        statusCode: statusCode,
+        error: error,
+        detail: _truncate(detail ?? _bodyDetail(body)),
+        bodyKeys: _bodyKeys(body),
+        identityKeys: identityKeys.take(12).toList(),
+        cardId: cardId,
+        hasAuthorization: _hasHeader(requestHeaders, 'Authorization'),
+        hasEntitlements: _hasHeader(requestHeaders, 'X-Riot-Entitlements-JWT'),
+        hasClientVersion: _hasHeader(requestHeaders, 'X-Riot-ClientVersion'),
+      ),
+    );
+  }
+
+  static bool _hasHeader(Map<String, dynamic> headers, String name) {
+    final target = name.toLowerCase();
+    return headers.keys.any((key) => key.toLowerCase() == target);
+  }
+
+  static List<String> _bodyKeys(dynamic body) {
+    dynamic decoded = body;
+    if (decoded is String) {
+      try {
+        decoded = jsonDecode(decoded);
+      } catch (_) {}
+    }
+    if (decoded is Map) {
+      return decoded.keys.take(10).map((key) => key.toString()).toList();
+    }
+    if (decoded is List) return ['list:${decoded.length}'];
+    if (decoded == null) return const [];
+    return [decoded.runtimeType.toString()];
+  }
+
+  static String? _bodyDetail(dynamic body) {
+    dynamic decoded = body;
+    if (decoded is String) {
+      try {
+        decoded = jsonDecode(decoded);
+      } catch (_) {
+        return _truncate(decoded);
+      }
+    }
+    if (decoded is Map) {
+      final parts = [
+        decoded['errorCode'],
+        decoded['error_code'],
+        decoded['error'],
+        decoded['message'],
+        decoded['errorMessage'],
+      ].where((value) => value != null && value.toString().trim().isNotEmpty);
+      final text = parts.map((value) => value.toString()).join(' | ');
+      return text.isEmpty ? null : _truncate(text);
+    }
+    return null;
+  }
+
+  static String? _truncate(String? value) {
+    final trimmed = value?.trim();
+    if (trimmed == null || trimmed.isEmpty) return null;
+    return trimmed.length <= 180 ? trimmed : '${trimmed.substring(0, 180)}...';
+  }
+
   @override
   Future<Map<String, dynamic>> fetchAccountXp({
     required String shard,
@@ -251,13 +379,7 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
     if (cleanPuuid.isEmpty) return {};
 
     final normalized = _normalizeShard(shard);
-    final shardsToTry = {
-      normalized,
-      'ap',
-      'eu',
-      'na',
-      'kr',
-    }.toList();
+    final shardsToTry = {normalized, 'ap', 'eu', 'na', 'kr'}.toList();
 
     for (final s in shardsToTry) {
       try {
@@ -296,7 +418,8 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
   @override
   Future<Map<String, dynamic>?> fetchPlayerCardDetails(String cardUuid) async {
     final cleanUuid = cardUuid.trim().toLowerCase();
-    if (cleanUuid.isEmpty || cleanUuid == '00000000-0000-0000-0000-000000000000') {
+    if (cleanUuid.isEmpty ||
+        cleanUuid == '00000000-0000-0000-0000-000000000000') {
       return null;
     }
 
@@ -324,11 +447,18 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
         if (data != null) {
           final wide = data['wideArt']?.toString();
           final large = data['largeArt']?.toString();
-          final small = data['smallArt']?.toString() ?? data['displayIcon']?.toString();
+          final small =
+              data['smallArt']?.toString() ?? data['displayIcon']?.toString();
 
-          final effectiveWide = (wide != null && wide.isNotEmpty) ? wide : (large ?? small);
-          final effectiveSmall = (small != null && small.isNotEmpty) ? small : (wide ?? large);
-          final effectiveLarge = (large != null && large.isNotEmpty) ? large : (wide ?? small);
+          final effectiveWide = (wide != null && wide.isNotEmpty)
+              ? wide
+              : (large ?? small);
+          final effectiveSmall = (small != null && small.isNotEmpty)
+              ? small
+              : (wide ?? large);
+          final effectiveLarge = (large != null && large.isNotEmpty)
+              ? large
+              : (wide ?? small);
 
           return {
             'uuid': data['uuid']?.toString() ?? cleanUuid,
@@ -347,7 +477,8 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
   @override
   Future<String?> fetchPlayerTitleText(String titleUuid) async {
     final cleanUuid = titleUuid.trim().toLowerCase();
-    if (cleanUuid.isEmpty || cleanUuid == '00000000-0000-0000-0000-000000000000') {
+    if (cleanUuid.isEmpty ||
+        cleanUuid == '00000000-0000-0000-0000-000000000000') {
       return null;
     }
 
@@ -381,7 +512,6 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
     return null;
   }
 
-
   @override
   Future<Map<String, int>?> fetchWallet({
     required String shard,
@@ -397,9 +527,7 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
 
     for (final s in shardsToTry) {
       try {
-        final response = await _dio.get(
-          ApiConstants.walletUrl(s, puuid),
-        );
+        final response = await _dio.get(ApiConstants.walletUrl(s, puuid));
 
         dynamic body = response.data;
         if (body is String) {

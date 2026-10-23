@@ -1,9 +1,12 @@
 import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:valorant_store_tracker/core/error/result.dart';
 import 'package:valorant_store_tracker/core/storage/local_store_service.dart';
 import 'package:valorant_store_tracker/core/storage/secure_storage_service.dart';
 import 'package:valorant_store_tracker/features/career/data/datasources/career_remote_datasource.dart';
+import 'package:valorant_store_tracker/features/career/domain/entities/career_overview.dart';
+import 'package:valorant_store_tracker/features/career/domain/entities/match_summary.dart';
 import 'package:valorant_store_tracker/features/career/domain/repositories/career_repository.dart';
 import 'package:valorant_store_tracker/features/live_match/data/datasources/live_match_remote_datasource.dart';
 import 'package:valorant_store_tracker/features/profile/data/datasources/profile_remote_datasource.dart';
@@ -42,6 +45,8 @@ void main() {
   const tPuuid = '11111111-2222-3333-4444-555555555555';
   const tActiveSeasonId = 'season-current';
   const tOldSeasonId = 'season-old';
+  const tCardUuid = '8edf22c5-4489-ab41-769a-07adb4c454d6';
+  const tKnownCardUuid = 'd5bb04de-6f2f-4f75-9d3a-92d61f02c3f1';
 
   setUp(() {
     liveDataSource = MockLiveMatchRemoteDataSource();
@@ -63,63 +68,81 @@ void main() {
     );
 
     when(() => storage.getShard()).thenAnswer((_) async => 'ap');
-    when(() => liveDataSource.fetchPlayerNames(
-          shard: any(named: 'shard'),
-          puuids: any(named: 'puuids'),
-        )).thenAnswer((_) async => [
-          {'Subject': tPuuid, 'GameName': 'Friend', 'TagLine': '123'},
-        ]);
-    when(() => profileDataSource.fetchPlayerIdentity(
-          shard: any(named: 'shard'),
-          puuid: any(named: 'puuid'),
-        )).thenAnswer((_) async => {
-          'identity': {
-            'PlayerCardID': 'card-id',
-            'AccountLevel': 42,
-          },
-        });
-    when(() => profileDataSource.fetchPlayerCardDetails(any()))
-        .thenAnswer((_) async => {'uuid': 'card-id', 'displayName': 'Card'});
-    when(() => localStore.saveFriendJson(any(), any()))
-        .thenAnswer((_) async {});
-    when(() => localStore.getSavedFriendsJson())
-        .thenAnswer((_) async => []);
-    when(() => careerDataSource.fetchCompetitiveTiersMetadata())
-        .thenAnswer((_) async => {
-              20: {'tierName': 'Diamond 1', 'largeIcon': 'd1.png'},
-              24: {'tierName': 'Ascendant 2', 'largeIcon': 'a2.png'},
-            });
-    when(() => careerDataSource.fetchSeasonsMetadata()).thenAnswer((_) async => [
-          {
-            'uuid': tOldSeasonId,
-            'displayName': 'ACT OLD',
-            'type': 'EAresSeasonType::Act',
-            'startTime': '2026-06-01T00:00:00Z',
-            'endTime': '2026-10-13T00:00:00Z',
-          },
-          {
-            'uuid': tActiveSeasonId,
-            'displayName': 'ACT CURRENT',
-            'type': 'EAresSeasonType::Act',
-            'startTime': '2026-10-14T00:00:00Z',
-            'endTime': '2027-01-06T00:00:00Z',
-          },
-        ]);
+    when(
+      () => liveDataSource.fetchPlayerNames(
+        shard: any(named: 'shard'),
+        puuids: any(named: 'puuids'),
+      ),
+    ).thenAnswer(
+      (_) async => [
+        {'Subject': tPuuid, 'GameName': 'Friend', 'TagLine': '123'},
+      ],
+    );
+    when(
+      () => profileDataSource.fetchPlayerIdentity(
+        shard: any(named: 'shard'),
+        puuid: any(named: 'puuid'),
+      ),
+    ).thenAnswer(
+      (_) async => {
+        'identity': {'PlayerCardID': 'card-id', 'AccountLevel': 42},
+      },
+    );
+    when(
+      () => profileDataSource.fetchPlayerCardDetails(any()),
+    ).thenAnswer((_) async => {'uuid': 'card-id', 'displayName': 'Card'});
+    when(
+      () => localStore.saveFriendJson(any(), any()),
+    ).thenAnswer((_) async {});
+    when(() => localStore.getSavedFriendsJson()).thenAnswer((_) async => []);
+    when(
+      () => careerRepository.getKnownPlayerCards(),
+    ).thenAnswer((_) async => {});
+    when(() => careerDataSource.fetchCompetitiveTiersMetadata()).thenAnswer(
+      (_) async => {
+        20: {'tierName': 'Diamond 1', 'largeIcon': 'd1.png'},
+        24: {'tierName': 'Ascendant 2', 'largeIcon': 'a2.png'},
+      },
+    );
+    when(() => careerDataSource.fetchSeasonsMetadata()).thenAnswer(
+      (_) async => [
+        {
+          'uuid': tOldSeasonId,
+          'displayName': 'ACT OLD',
+          'type': 'EAresSeasonType::Act',
+          'startTime': '2026-06-01T00:00:00Z',
+          'endTime': '2026-10-13T00:00:00Z',
+        },
+        {
+          'uuid': tActiveSeasonId,
+          'displayName': 'ACT CURRENT',
+          'type': 'EAresSeasonType::Act',
+          'startTime': '2026-10-14T00:00:00Z',
+          'endTime': '2027-01-06T00:00:00Z',
+        },
+      ],
+    );
   });
 
   group('friend card synchronization', () {
-    test('does not invent default card art when Riot returns no card ID',
-        () async {
-      const selfPuuid = 'self-puuid';
-      const friendPuuid = 'friend-puuid';
+    test(
+      'does not invent default card art when Riot returns no card ID',
+      () async {
+        const selfPuuid = 'self-puuid';
+        const friendPuuid = 'friend-puuid';
 
-      when(() => storage.getAccessToken()).thenAnswer((_) async => 'token');
-      when(() => storage.getPuuid()).thenAnswer((_) async => selfPuuid);
-      when(() => storage.getEntitlementsToken()).thenAnswer((_) async => null);
-      when(() => chatDataSource.fetchRemoteSocialData(
+        when(() => storage.getAccessToken()).thenAnswer((_) async => 'token');
+        when(() => storage.getPuuid()).thenAnswer((_) async => selfPuuid);
+        when(
+          () => storage.getEntitlementsToken(),
+        ).thenAnswer((_) async => null);
+        when(
+          () => chatDataSource.fetchRemoteSocialData(
             accessToken: 'token',
             entitlementToken: null,
-          )).thenAnswer((_) async => const RiotSocialSyncData(
+          ),
+        ).thenAnswer(
+          (_) async => const RiotSocialSyncData(
             roster: [
               RiotFriendRosterItem(
                 puuid: friendPuuid,
@@ -128,53 +151,225 @@ void main() {
                 tag: '123',
               ),
             ],
-          ));
-      when(() => profileDataSource.fetchPlayerIdentity(
+          ),
+        );
+        when(
+          () => profileDataSource.fetchPlayerIdentity(
             shard: 'ap',
             puuid: friendPuuid,
-          )).thenAnswer((_) async => {'identity': <String, dynamic>{}});
-      when(() => liveDataSource.fetchPlayerMmr(
-            shard: 'ap',
-            puuid: friendPuuid,
-          )).thenAnswer((_) async => {});
-      when(() => careerDataSource.fetchMapsMetadata())
-          .thenAnswer((_) async => {});
-      when(() => careerDataSource.fetchAgentsMetadata())
-          .thenAnswer((_) async => {});
-      when(() => localStore.getLastNotifiedChatAt(any()))
-          .thenAnswer((_) async => DateTime(2026, 10, 20));
+          ),
+        ).thenAnswer((_) async => {'identity': <String, dynamic>{}});
+        when(
+          () => liveDataSource.fetchPlayerMmr(shard: 'ap', puuid: friendPuuid),
+        ).thenAnswer((_) async => {});
+        when(
+          () => careerDataSource.fetchMapsMetadata(),
+        ).thenAnswer((_) async => {});
+        when(
+          () => careerDataSource.fetchAgentsMetadata(),
+        ).thenAnswer((_) async => {});
+        when(
+          () => localStore.getLastNotifiedChatAt(any()),
+        ).thenAnswer((_) async => DateTime(2026, 10, 20));
 
-      final result = await repository.syncRiotFriends(clearMocks: false);
+        final result = await repository.syncRiotFriends(clearMocks: false);
 
-      expect(
-        result.isSuccess,
-        isTrue,
-        reason: result.failureOrNull?.message,
-      );
-      final friend = result.valueOrNull!.single;
-      expect(friend.cardUuid, isNull);
-      expect(friend.cardName, isNull);
-      expect(friend.cardWideArt, isNull);
-      expect(friend.cardSmallArt, isNull);
-      expect(friend.cardLargeArt, isNull);
-    });
+        expect(result.isSuccess, isTrue, reason: result.failureOrNull?.message);
+        final friend = result.valueOrNull!.single;
+        expect(friend.cardUuid, isNull);
+        expect(friend.cardName, isNull);
+        expect(friend.cardWideArt, isNull);
+        expect(friend.cardSmallArt, isNull);
+        expect(friend.cardLargeArt, isNull);
+      },
+    );
+
+    test(
+      'uses the card from Riot presence without fetching friend identity',
+      () async {
+        const selfPuuid = 'self-puuid';
+        const friendPuuid = 'friend-puuid';
+
+        when(() => storage.getAccessToken()).thenAnswer((_) async => 'token');
+        when(() => storage.getPuuid()).thenAnswer((_) async => selfPuuid);
+        when(
+          () => storage.getEntitlementsToken(),
+        ).thenAnswer((_) async => null);
+        when(
+          () => chatDataSource.fetchRemoteSocialData(
+            accessToken: 'token',
+            entitlementToken: null,
+          ),
+        ).thenAnswer(
+          (_) async => const RiotSocialSyncData(
+            roster: [
+              RiotFriendRosterItem(
+                puuid: friendPuuid,
+                jid: 'friend-puuid@eu1.pvp.net',
+                name: 'Friend',
+                tag: '123',
+              ),
+            ],
+            presences: {
+              friendPuuid: RiotPresenceData(
+                puuid: friendPuuid,
+                isOnline: true,
+                clientActivity: 'In Riot Client',
+                sessionLoopState: 'MENUS',
+                playerCardId: tCardUuid,
+              ),
+            },
+          ),
+        );
+        when(
+          () => liveDataSource.fetchPlayerMmr(shard: 'ap', puuid: friendPuuid),
+        ).thenAnswer((_) async => {});
+        when(
+          () => careerDataSource.fetchMapsMetadata(),
+        ).thenAnswer((_) async => {});
+        when(
+          () => careerDataSource.fetchAgentsMetadata(),
+        ).thenAnswer((_) async => {});
+        when(
+          () => localStore.getLastNotifiedChatAt(any()),
+        ).thenAnswer((_) async => DateTime(2026, 10, 20));
+
+        final result = await repository.syncRiotFriends(clearMocks: false);
+
+        expect(result.isSuccess, isTrue);
+        final friend = result.valueOrNull!.single;
+        expect(friend.cardUuid, tCardUuid);
+        expect(
+          friend.cardWideArt,
+          contains('/playercards/$tCardUuid/wideart.png'),
+        );
+        verifyNever(
+          () => profileDataSource.fetchPlayerIdentity(
+            shard: any(named: 'shard'),
+            puuid: any(named: 'puuid'),
+          ),
+        );
+      },
+    );
+
+    test(
+      'falls back to a known match card without fetching friend identity',
+      () async {
+        const selfPuuid = 'self-puuid';
+        const friendPuuid = 'friend-puuid';
+
+        when(
+          () => careerRepository.getKnownPlayerCards(),
+        ).thenAnswer((_) async => {friendPuuid: tKnownCardUuid});
+        when(() => storage.getAccessToken()).thenAnswer((_) async => 'token');
+        when(() => storage.getPuuid()).thenAnswer((_) async => selfPuuid);
+        when(
+          () => storage.getEntitlementsToken(),
+        ).thenAnswer((_) async => null);
+        when(
+          () => chatDataSource.fetchRemoteSocialData(
+            accessToken: 'token',
+            entitlementToken: null,
+          ),
+        ).thenAnswer(
+          (_) async => const RiotSocialSyncData(
+            roster: [
+              RiotFriendRosterItem(
+                puuid: friendPuuid,
+                jid: 'friend-puuid@eu1.pvp.net',
+                name: 'Friend',
+                tag: '123',
+              ),
+            ],
+            presences: {
+              friendPuuid: RiotPresenceData(
+                puuid: friendPuuid,
+                isOnline: true,
+                clientActivity: 'In Riot Client',
+                sessionLoopState: 'MENUS',
+              ),
+            },
+          ),
+        );
+        when(
+          () => liveDataSource.fetchPlayerMmr(shard: 'ap', puuid: friendPuuid),
+        ).thenAnswer((_) async => {});
+        when(
+          () => careerDataSource.fetchMapsMetadata(),
+        ).thenAnswer((_) async => {});
+        when(
+          () => careerDataSource.fetchAgentsMetadata(),
+        ).thenAnswer((_) async => {});
+        when(
+          () => localStore.getLastNotifiedChatAt(any()),
+        ).thenAnswer((_) async => DateTime(2026, 10, 20));
+
+        final result = await repository.syncRiotFriends(clearMocks: false);
+
+        expect(result.isSuccess, isTrue);
+        final friend = result.valueOrNull!.single;
+        expect(friend.cardUuid, tKnownCardUuid);
+        expect(
+          friend.cardWideArt,
+          contains('/playercards/$tKnownCardUuid/wideart.png'),
+        );
+        verifyNever(
+          () => profileDataSource.fetchPlayerIdentity(
+            shard: any(named: 'shard'),
+            puuid: any(named: 'puuid'),
+          ),
+        );
+      },
+    );
   });
 
   group('addFriend rank resolution', () {
+    test('uses a known match card without fetching friend identity', () async {
+      when(
+        () => careerRepository.getKnownPlayerCards(),
+      ).thenAnswer((_) async => {tPuuid: tKnownCardUuid});
+      when(
+        () => liveDataSource.fetchPlayerMmr(
+          shard: any(named: 'shard'),
+          puuid: any(named: 'puuid'),
+        ),
+      ).thenAnswer((_) async => {});
+
+      final result = await repository.addFriend(puuid: tPuuid);
+
+      expect(result.isSuccess, isTrue);
+      final friend = result.valueOrNull!;
+      expect(friend.cardUuid, tKnownCardUuid);
+      expect(
+        friend.cardWideArt,
+        contains('/playercards/$tKnownCardUuid/wideart.png'),
+      );
+      verifyNever(
+        () => profileDataSource.fetchPlayerIdentity(
+          shard: any(named: 'shard'),
+          puuid: any(named: 'puuid'),
+        ),
+      );
+    });
+
     test('uses the active act seasonal entry for tier and RR', () async {
-      when(() => liveDataSource.fetchPlayerMmr(
-            shard: any(named: 'shard'),
-            puuid: any(named: 'puuid'),
-          )).thenAnswer((_) async => {
-            'QueueSkills': {
-              'competitive': {
-                'SeasonalInfoBySeasonID': {
-                  tOldSeasonId: {'CompetitiveTier': 16, 'RankedRating': 10},
-                  tActiveSeasonId: {'CompetitiveTier': 24, 'RankedRating': 60},
-                },
+      when(
+        () => liveDataSource.fetchPlayerMmr(
+          shard: any(named: 'shard'),
+          puuid: any(named: 'puuid'),
+        ),
+      ).thenAnswer(
+        (_) async => {
+          'QueueSkills': {
+            'competitive': {
+              'SeasonalInfoBySeasonID': {
+                tOldSeasonId: {'CompetitiveTier': 16, 'RankedRating': 10},
+                tActiveSeasonId: {'CompetitiveTier': 24, 'RankedRating': 60},
               },
             },
-          });
+          },
+        },
+      );
 
       final result = await repository.addFriend(puuid: tPuuid);
 
@@ -186,12 +381,16 @@ void main() {
       expect(friend.rankIcon, equals('a2.png'));
     });
 
-    test('does not fall back to a previous act when the current act is reset',
-        () async {
-      when(() => liveDataSource.fetchPlayerMmr(
+    test(
+      'does not fall back to a previous act when the current act is reset',
+      () async {
+        when(
+          () => liveDataSource.fetchPlayerMmr(
             shard: any(named: 'shard'),
             puuid: any(named: 'puuid'),
-          )).thenAnswer((_) async => {
+          ),
+        ).thenAnswer(
+          (_) async => {
             'QueueSkills': {
               'competitive': {
                 'SeasonalInfoBySeasonID': {
@@ -199,34 +398,40 @@ void main() {
                 },
               },
             },
-          });
+          },
+        );
 
-      final result = await repository.addFriend(puuid: tPuuid);
+        final result = await repository.addFriend(puuid: tPuuid);
 
-      expect(result.isSuccess, isTrue);
-      final friend = result.valueOrNull!;
-      expect(friend.rankTier, isNull);
-      expect(friend.rankedRating, equals(0));
-      expect(friend.rankName, equals('Unranked'));
-    });
+        expect(result.isSuccess, isTrue);
+        final friend = result.valueOrNull!;
+        expect(friend.rankTier, isNull);
+        expect(friend.rankedRating, equals(0));
+        expect(friend.rankName, equals('Unranked'));
+      },
+    );
 
     test('reports placement and keeps a real 0 RR ranked value', () async {
-      when(() => liveDataSource.fetchPlayerMmr(
-            shard: any(named: 'shard'),
-            puuid: any(named: 'puuid'),
-          )).thenAnswer((_) async => {
-            'QueueSkills': {
-              'competitive': {
-                'SeasonalInfoBySeasonID': {
-                  tActiveSeasonId: {
-                    'CompetitiveTier': 20,
-                    'RankedRating': 0,
-                    'GamesNeededForRating': 2,
-                  },
+      when(
+        () => liveDataSource.fetchPlayerMmr(
+          shard: any(named: 'shard'),
+          puuid: any(named: 'puuid'),
+        ),
+      ).thenAnswer(
+        (_) async => {
+          'QueueSkills': {
+            'competitive': {
+              'SeasonalInfoBySeasonID': {
+                tActiveSeasonId: {
+                  'CompetitiveTier': 20,
+                  'RankedRating': 0,
+                  'GamesNeededForRating': 2,
                 },
               },
             },
-          });
+          },
+        },
+      );
 
       final result = await repository.addFriend(puuid: tPuuid);
 
@@ -236,12 +441,69 @@ void main() {
       expect(friend.rankedRating, equals(0));
       expect(friend.rankName, equals('Placement'));
 
-      final saved = verify(() => localStore.saveFriendJson(tPuuid, captureAny()))
-          .captured
-          .first as String;
+      final saved =
+          verify(
+                () => localStore.saveFriendJson(tPuuid, captureAny()),
+              ).captured.first
+              as String;
       final decoded = jsonDecode(saved) as Map<String, dynamic>;
       expect(decoded['rankedRating'], equals(0));
       expect(FriendEntity.fromJson(decoded).rankedRating, equals(0));
     });
+  });
+
+  group('importRecentTeammates', () {
+    test(
+      'uses the match card without fetching the teammate identity',
+      () async {
+        const selfPuuid = 'self-puuid';
+        when(() => storage.getPuuid()).thenAnswer((_) async => selfPuuid);
+        when(() => careerRepository.getCareerOverview()).thenAnswer(
+          (_) async => Result.success(
+            CareerOverview(
+              matches: [
+                MatchSummary(
+                  matchId: 'match-with-teammate',
+                  mapId: 'ascent',
+                  mapName: 'Ascent',
+                  gameMode: 'bomb',
+                  queueId: 'competitive',
+                  gameStartTime: DateTime(2026, 10, 20),
+                  agentId: 'jett',
+                  agentName: 'Jett',
+                  teammates: [
+                    MatchPlayerSummary(
+                      puuid: tPuuid,
+                      gameName: 'Friend',
+                      tagLine: '123',
+                      teamId: 'Blue',
+                      agentId: 'sage',
+                      agentName: 'Sage',
+                      cardUuid: tCardUuid,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+
+        final result = await repository.importRecentTeammates();
+
+        expect(result.isSuccess, isTrue);
+        final friend = result.valueOrNull!.single;
+        expect(friend.cardUuid, tCardUuid);
+        expect(
+          friend.cardWideArt,
+          contains('/playercards/$tCardUuid/wideart.png'),
+        );
+        verifyNever(
+          () => profileDataSource.fetchPlayerIdentity(
+            shard: any(named: 'shard'),
+            puuid: any(named: 'puuid'),
+          ),
+        );
+      },
+    );
   });
 }

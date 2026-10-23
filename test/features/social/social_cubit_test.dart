@@ -58,10 +58,10 @@ void main() {
 
   setUp(() {
     mockRepository = MockSocialRepository();
-    when(() => mockRepository.getUnreadChatCounts())
-        .thenAnswer((_) async => {});
-    when(() => mockRepository.markChatRead(any()))
-        .thenAnswer((_) async {});
+    when(
+      () => mockRepository.getUnreadChatCounts(),
+    ).thenAnswer((_) async => {});
+    when(() => mockRepository.markChatRead(any())).thenAnswer((_) async {});
     cubit = SocialCubit(socialRepository: mockRepository);
   });
 
@@ -152,6 +152,7 @@ void main() {
           puuid: 'p1',
           gameName: 'TenZ',
           tagLine: 'SEN',
+          cardUuid: null,
         ),
       ).thenAnswer((_) async => Result.success(testFriendInGame));
 
@@ -165,6 +166,35 @@ void main() {
       final state = cubit.state as SocialLoaded;
       expect(state.friends.length, 2);
       expect(state.friends.first.puuid, 'p1');
+    });
+
+    test('addFriend forwards the observed card UUID', () async {
+      const cardUuid = '8edf22c5-4489-ab41-769a-07adb4c454d6';
+      when(
+        () => mockRepository.addFriend(
+          puuid: 'p1',
+          gameName: 'TenZ',
+          tagLine: 'SEN',
+          cardUuid: cardUuid,
+        ),
+      ).thenAnswer((_) async => Result.success(testFriendInGame));
+
+      final success = await cubit.addFriend(
+        puuid: 'p1',
+        gameName: 'TenZ',
+        tagLine: 'SEN',
+        cardUuid: cardUuid,
+      );
+
+      expect(success, isTrue);
+      verify(
+        () => mockRepository.addFriend(
+          puuid: 'p1',
+          gameName: 'TenZ',
+          tagLine: 'SEN',
+          cardUuid: cardUuid,
+        ),
+      ).called(1);
     });
 
     test('simulateRoundWon updates ally score and round outcome', () async {
@@ -249,10 +279,7 @@ void main() {
         () => mockRepository.sendChatMessage(puuid: 'p1', body: 'halo'),
       ).thenAnswer((_) async => Result.success(sentMessage));
 
-      final result = await cubit.sendChatMessage(
-        puuid: 'p1',
-        body: 'halo',
-      );
+      final result = await cubit.sendChatMessage(puuid: 'p1', body: 'halo');
 
       expect(result.isSuccess, isTrue);
       final state = cubit.state as SocialLoaded;
@@ -270,8 +297,9 @@ void main() {
           isMine: false,
         ),
       ];
-      when(() => mockRepository.getChatMessages('p1'))
-          .thenAnswer((_) async => Result.success(messages));
+      when(
+        () => mockRepository.getChatMessages('p1'),
+      ).thenAnswer((_) async => Result.success(messages));
 
       final result = await cubit.getChatMessages('p1');
 
@@ -283,8 +311,9 @@ void main() {
       when(
         () => mockRepository.getFriends(forceRefresh: false),
       ).thenAnswer((_) async => Result.success(testFriends));
-      when(() => mockRepository.getUnreadChatCounts())
-          .thenAnswer((_) async => {'p1': 3, 'p2': 1});
+      when(
+        () => mockRepository.getUnreadChatCounts(),
+      ).thenAnswer((_) async => {'p1': 3, 'p2': 1});
 
       await cubit.loadFriends();
       var state = cubit.state as SocialLoaded;

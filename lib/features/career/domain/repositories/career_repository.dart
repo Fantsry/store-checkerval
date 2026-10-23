@@ -11,4 +11,7 @@ abstract class CareerRepository {
 
   /// Loads the next page of match history and merges it into [current].
   Future<Result<CareerOverview>> loadMoreMatches(CareerOverview current);
+
+  /// Real equipped player cards observed from Riot match data, keyed by PUUID.
+  Future<Map<String, String>> getKnownPlayerCards();
 }

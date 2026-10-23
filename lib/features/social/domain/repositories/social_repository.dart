@@ -7,11 +7,12 @@ abstract class SocialRepository {
   /// Retrieve all tracked friends with their current live status & player card.
   Future<Result<List<FriendEntity>>> getFriends({bool forceRefresh = false});
 
-  /// Add a friend by PUUID and fetch their real player card, rank, and live activity.
+  /// Add a friend by PUUID using their real Riot/match card, rank, and presence.
   Future<Result<FriendEntity>> addFriend({
     required String puuid,
     String? gameName,
     String? tagLine,
+    String? cardUuid,
   });
 
   /// Add a friend by Riot ID (e.g. "TenZ#0001").

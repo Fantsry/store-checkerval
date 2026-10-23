@@ -80,9 +80,7 @@ class MatchSummary extends Equatable {
   });
 
   bool get hasMinimapData =>
-      mapMinimapUrl != null &&
-      mapMinimapUrl!.isNotEmpty &&
-      mapXMultiplier != 0;
+      mapMinimapUrl != null && mapMinimapUrl!.isNotEmpty && mapXMultiplier != 0;
 
   double get kdRatio => deaths > 0 ? (kills / deaths) : kills.toDouble();
 
@@ -204,7 +202,8 @@ class MatchSummary extends Equatable {
       mapYScalarToAdd: (json['mapYScalarToAdd'] as num?)?.toDouble() ?? 0,
       gameMode: json['gameMode'] as String? ?? '',
       queueId: json['queueId'] as String? ?? 'unrated',
-      gameStartTime: DateTime.tryParse(json['gameStartTime'] as String? ?? '') ??
+      gameStartTime:
+          DateTime.tryParse(json['gameStartTime'] as String? ?? '') ??
           DateTime.now(),
       gameLengthMillis: (json['gameLengthMillis'] as num?)?.toInt() ?? 0,
       won: json['won'] as bool?,
@@ -228,19 +227,25 @@ class MatchSummary extends Equatable {
       competitiveTier: (json['competitiveTier'] as num?)?.toInt(),
       rankName: json['rankName'] as String?,
       rankIconUrl: json['rankIconUrl'] as String?,
-      teammates: (json['teammates'] as List?)
-              ?.map((e) =>
-                  MatchPlayerSummary.fromJson(e as Map<String, dynamic>))
+      teammates:
+          (json['teammates'] as List?)
+              ?.map(
+                (e) => MatchPlayerSummary.fromJson(e as Map<String, dynamic>),
+              )
               .toList() ??
           const [],
-      enemies: (json['enemies'] as List?)
-              ?.map((e) =>
-                  MatchPlayerSummary.fromJson(e as Map<String, dynamic>))
+      enemies:
+          (json['enemies'] as List?)
+              ?.map(
+                (e) => MatchPlayerSummary.fromJson(e as Map<String, dynamic>),
+              )
               .toList() ??
           const [],
-      rounds: (json['rounds'] as List?)
-              ?.map((e) =>
-                  MatchRoundSummary.fromJson(e as Map<String, dynamic>))
+      rounds:
+          (json['rounds'] as List?)
+              ?.map(
+                (e) => MatchRoundSummary.fromJson(e as Map<String, dynamic>),
+              )
               .toList() ??
           const [],
     );
@@ -248,44 +253,44 @@ class MatchSummary extends Equatable {
 
   @override
   List<Object?> get props => [
-        matchId,
-        mapId,
-        mapName,
-        mapImageUrl,
-        mapMinimapUrl,
-        mapXMultiplier,
-        mapYMultiplier,
-        mapXScalarToAdd,
-        mapYScalarToAdd,
-        gameMode,
-        queueId,
-        gameStartTime,
-        gameLengthMillis,
-        won,
-        isDraw,
-        scoreWon,
-        scoreLost,
-        agentId,
-        agentName,
-        agentIconUrl,
-        kills,
-        deaths,
-        assists,
-        score,
-        roundsPlayed,
-        averageCombatScore,
-        headshots,
-        bodyshots,
-        legshots,
-        damage,
-        rankRatingEarned,
-        competitiveTier,
-        rankName,
-        rankIconUrl,
-        teammates,
-        enemies,
-        rounds,
-      ];
+    matchId,
+    mapId,
+    mapName,
+    mapImageUrl,
+    mapMinimapUrl,
+    mapXMultiplier,
+    mapYMultiplier,
+    mapXScalarToAdd,
+    mapYScalarToAdd,
+    gameMode,
+    queueId,
+    gameStartTime,
+    gameLengthMillis,
+    won,
+    isDraw,
+    scoreWon,
+    scoreLost,
+    agentId,
+    agentName,
+    agentIconUrl,
+    kills,
+    deaths,
+    assists,
+    score,
+    roundsPlayed,
+    averageCombatScore,
+    headshots,
+    bodyshots,
+    legshots,
+    damage,
+    rankRatingEarned,
+    competitiveTier,
+    rankName,
+    rankIconUrl,
+    teammates,
+    enemies,
+    rounds,
+  ];
 }
 
 class MatchPlayerSummary extends Equatable {
@@ -296,6 +301,7 @@ class MatchPlayerSummary extends Equatable {
   final String agentId;
   final String agentName;
   final String? agentIconUrl;
+  final String? cardUuid;
   final int? competitiveTier;
   final String? rankName;
   final String? rankIconUrl;
@@ -315,6 +321,7 @@ class MatchPlayerSummary extends Equatable {
     required this.agentId,
     required this.agentName,
     this.agentIconUrl,
+    this.cardUuid,
     this.competitiveTier,
     this.rankName,
     this.rankIconUrl,
@@ -347,6 +354,7 @@ class MatchPlayerSummary extends Equatable {
       'agentId': agentId,
       'agentName': agentName,
       'agentIconUrl': agentIconUrl,
+      'cardUuid': cardUuid,
       'competitiveTier': competitiveTier,
       'rankName': rankName,
       'rankIconUrl': rankIconUrl,
@@ -369,6 +377,7 @@ class MatchPlayerSummary extends Equatable {
       agentId: json['agentId'] as String? ?? '',
       agentName: json['agentName'] as String? ?? 'Agent',
       agentIconUrl: json['agentIconUrl'] as String?,
+      cardUuid: json['cardUuid'] as String?,
       competitiveTier: (json['competitiveTier'] as num?)?.toInt(),
       rankName: json['rankName'] as String?,
       rankIconUrl: json['rankIconUrl'] as String?,
@@ -384,24 +393,25 @@ class MatchPlayerSummary extends Equatable {
 
   @override
   List<Object?> get props => [
-        puuid,
-        gameName,
-        tagLine,
-        teamId,
-        agentId,
-        agentName,
-        agentIconUrl,
-        competitiveTier,
-        rankName,
-        rankIconUrl,
-        kills,
-        deaths,
-        assists,
-        score,
-        roundsPlayed,
-        averageCombatScore,
-        isSelf,
-      ];
+    puuid,
+    gameName,
+    tagLine,
+    teamId,
+    agentId,
+    agentName,
+    agentIconUrl,
+    cardUuid,
+    competitiveTier,
+    rankName,
+    rankIconUrl,
+    kills,
+    deaths,
+    assists,
+    score,
+    roundsPlayed,
+    averageCombatScore,
+    isSelf,
+  ];
 }
 
 class MatchRoundKill extends Equatable {
@@ -450,80 +460,78 @@ class MatchRoundKill extends Equatable {
   });
 
   Map<String, dynamic> toJson() => {
-        'roundTime': roundTime,
-        'killerPuuid': killerPuuid,
-        'killerName': killerName,
-        'killerAgentName': killerAgentName,
-        'killerAgentIconUrl': killerAgentIconUrl,
-        'killerTeamId': killerTeamId,
-        'victimPuuid': victimPuuid,
-        'victimName': victimName,
-        'victimAgentName': victimAgentName,
-        'victimAgentIconUrl': victimAgentIconUrl,
-        'victimTeamId': victimTeamId,
-        'assistantPuuids': assistantPuuids,
-        'assistantNames': assistantNames,
-        'weaponId': weaponId,
-        'isKillerSelf': isKillerSelf,
-        'isVictimSelf': isVictimSelf,
-        'killerLocationX': killerLocationX,
-        'killerLocationY': killerLocationY,
-        'victimLocationX': victimLocationX,
-        'victimLocationY': victimLocationY,
-      };
+    'roundTime': roundTime,
+    'killerPuuid': killerPuuid,
+    'killerName': killerName,
+    'killerAgentName': killerAgentName,
+    'killerAgentIconUrl': killerAgentIconUrl,
+    'killerTeamId': killerTeamId,
+    'victimPuuid': victimPuuid,
+    'victimName': victimName,
+    'victimAgentName': victimAgentName,
+    'victimAgentIconUrl': victimAgentIconUrl,
+    'victimTeamId': victimTeamId,
+    'assistantPuuids': assistantPuuids,
+    'assistantNames': assistantNames,
+    'weaponId': weaponId,
+    'isKillerSelf': isKillerSelf,
+    'isVictimSelf': isVictimSelf,
+    'killerLocationX': killerLocationX,
+    'killerLocationY': killerLocationY,
+    'victimLocationX': victimLocationX,
+    'victimLocationY': victimLocationY,
+  };
 
   factory MatchRoundKill.fromJson(Map<String, dynamic> json) => MatchRoundKill(
-        roundTime: (json['roundTime'] as num?)?.toInt() ?? 0,
-        killerPuuid: json['killerPuuid'] as String? ?? '',
-        killerName: json['killerName'] as String? ?? '',
-        killerAgentName: json['killerAgentName'] as String? ?? 'Agent',
-        killerAgentIconUrl: json['killerAgentIconUrl'] as String?,
-        killerTeamId: json['killerTeamId'] as String? ?? '',
-        victimPuuid: json['victimPuuid'] as String? ?? '',
-        victimName: json['victimName'] as String? ?? '',
-        victimAgentName: json['victimAgentName'] as String? ?? 'Agent',
-        victimAgentIconUrl: json['victimAgentIconUrl'] as String?,
-        victimTeamId: json['victimTeamId'] as String? ?? '',
-        assistantPuuids: (json['assistantPuuids'] as List?)
-                ?.map((e) => e.toString())
-                .toList() ??
-            const [],
-        assistantNames: (json['assistantNames'] as List?)
-                ?.map((e) => e.toString())
-                .toList() ??
-            const [],
-        weaponId: json['weaponId'] as String?,
-        isKillerSelf: json['isKillerSelf'] as bool? ?? false,
-        isVictimSelf: json['isVictimSelf'] as bool? ?? false,
-        killerLocationX: (json['killerLocationX'] as num?)?.toDouble(),
-        killerLocationY: (json['killerLocationY'] as num?)?.toDouble(),
-        victimLocationX: (json['victimLocationX'] as num?)?.toDouble(),
-        victimLocationY: (json['victimLocationY'] as num?)?.toDouble(),
-      );
+    roundTime: (json['roundTime'] as num?)?.toInt() ?? 0,
+    killerPuuid: json['killerPuuid'] as String? ?? '',
+    killerName: json['killerName'] as String? ?? '',
+    killerAgentName: json['killerAgentName'] as String? ?? 'Agent',
+    killerAgentIconUrl: json['killerAgentIconUrl'] as String?,
+    killerTeamId: json['killerTeamId'] as String? ?? '',
+    victimPuuid: json['victimPuuid'] as String? ?? '',
+    victimName: json['victimName'] as String? ?? '',
+    victimAgentName: json['victimAgentName'] as String? ?? 'Agent',
+    victimAgentIconUrl: json['victimAgentIconUrl'] as String?,
+    victimTeamId: json['victimTeamId'] as String? ?? '',
+    assistantPuuids:
+        (json['assistantPuuids'] as List?)?.map((e) => e.toString()).toList() ??
+        const [],
+    assistantNames:
+        (json['assistantNames'] as List?)?.map((e) => e.toString()).toList() ??
+        const [],
+    weaponId: json['weaponId'] as String?,
+    isKillerSelf: json['isKillerSelf'] as bool? ?? false,
+    isVictimSelf: json['isVictimSelf'] as bool? ?? false,
+    killerLocationX: (json['killerLocationX'] as num?)?.toDouble(),
+    killerLocationY: (json['killerLocationY'] as num?)?.toDouble(),
+    victimLocationX: (json['victimLocationX'] as num?)?.toDouble(),
+    victimLocationY: (json['victimLocationY'] as num?)?.toDouble(),
+  );
 
   @override
   List<Object?> get props => [
-        roundTime,
-        killerPuuid,
-        killerName,
-        killerAgentName,
-        killerAgentIconUrl,
-        killerTeamId,
-        victimPuuid,
-        victimName,
-        victimAgentName,
-        victimAgentIconUrl,
-        victimTeamId,
-        assistantPuuids,
-        assistantNames,
-        weaponId,
-        isKillerSelf,
-        isVictimSelf,
-        killerLocationX,
-        killerLocationY,
-        victimLocationX,
-        victimLocationY,
-      ];
+    roundTime,
+    killerPuuid,
+    killerName,
+    killerAgentName,
+    killerAgentIconUrl,
+    killerTeamId,
+    victimPuuid,
+    victimName,
+    victimAgentName,
+    victimAgentIconUrl,
+    victimTeamId,
+    assistantPuuids,
+    assistantNames,
+    weaponId,
+    isKillerSelf,
+    isVictimSelf,
+    killerLocationX,
+    killerLocationY,
+    victimLocationX,
+    victimLocationY,
+  ];
 }
 
 class MatchRoundSummary extends Equatable {
@@ -542,12 +550,12 @@ class MatchRoundSummary extends Equatable {
   });
 
   Map<String, dynamic> toJson() => {
-        'roundNum': roundNum,
-        'winningTeam': winningTeam,
-        'won': won,
-        'roundResult': roundResult,
-        'kills': kills.map((k) => k.toJson()).toList(),
-      };
+    'roundNum': roundNum,
+    'winningTeam': winningTeam,
+    'won': won,
+    'roundResult': roundResult,
+    'kills': kills.map((k) => k.toJson()).toList(),
+  };
 
   factory MatchRoundSummary.fromJson(Map<String, dynamic> json) =>
       MatchRoundSummary(
@@ -555,9 +563,9 @@ class MatchRoundSummary extends Equatable {
         winningTeam: json['winningTeam'] as String? ?? '',
         won: json['won'] as bool?,
         roundResult: json['roundResult'] as String? ?? '',
-        kills: (json['kills'] as List?)
-                ?.map((k) =>
-                    MatchRoundKill.fromJson(k as Map<String, dynamic>))
+        kills:
+            (json['kills'] as List?)
+                ?.map((k) => MatchRoundKill.fromJson(k as Map<String, dynamic>))
                 .toList() ??
             const [],
       );

@@ -23,11 +23,34 @@ void main() {
     dataSource = ProfileRemoteDataSourceImpl(dio: dio);
   });
 
+  test('requests the current v3 player-loadout endpoint', () async {
+    when(
+      () => dio.get<dynamic>(any(), options: any(named: 'options')),
+    ).thenAnswer((invocation) async {
+      final url = invocation.positionalArguments.first as String;
+      return Response<dynamic>(
+        requestOptions: RequestOptions(path: url),
+        statusCode: 200,
+        data: {
+          'Identity': {'Subject': puuid, 'PlayerCardID': equippedCardUuid},
+        },
+      );
+    });
+
+    await dataSource.fetchPlayerIdentity(shard: 'ap', puuid: puuid);
+
+    verify(
+      () => dio.get<dynamic>(
+        'https://pd.ap.a.pvp.net/personalization/v3/players/$puuid/playerloadout',
+        options: any(named: 'options'),
+      ),
+    ).called(1);
+  });
+
   test('uses a non-default card from the first matching shard', () async {
-    when(() => dio.get<dynamic>(
-          any(),
-          options: any(named: 'options'),
-        )).thenAnswer((invocation) async {
+    when(
+      () => dio.get<dynamic>(any(), options: any(named: 'options')),
+    ).thenAnswer((invocation) async {
       final url = invocation.positionalArguments.first as String;
       final isPrimary = url.contains('pd.ap.a.pvp.net');
       return Response<dynamic>(
@@ -36,8 +59,7 @@ void main() {
         data: {
           'Identity': {
             'Subject': puuid,
-            'PlayerCardID':
-                isPrimary ? defaultCardUuid : equippedCardUuid,
+            'PlayerCardID': isPrimary ? defaultCardUuid : equippedCardUuid,
             'PlayerTitleID': 'title-id',
           },
         },
@@ -57,10 +79,9 @@ void main() {
   });
 
   test('ignores a response that belongs to a different Riot account', () async {
-    when(() => dio.get<dynamic>(
-          any(),
-          options: any(named: 'options'),
-        )).thenAnswer((invocation) async {
+    when(
+      () => dio.get<dynamic>(any(), options: any(named: 'options')),
+    ).thenAnswer((invocation) async {
       final url = invocation.positionalArguments.first as String;
       final isPrimary = url.contains('pd.ap.a.pvp.net');
       final isEu = url.contains('pd.eu.a.pvp.net');
@@ -70,8 +91,7 @@ void main() {
         data: {
           'Identity': {
             'Subject': isEu ? puuid : 'another-puuid',
-            'PlayerCardID':
-                isPrimary ? defaultCardUuid : equippedCardUuid,
+            'PlayerCardID': isPrimary ? defaultCardUuid : equippedCardUuid,
           },
         },
       );
@@ -89,38 +109,38 @@ void main() {
     );
   });
 
-  test('falls back to the real default card when every shard returns default',
-      () async {
-    when(() => dio.get<dynamic>(
-          any(),
-          options: any(named: 'options'),
-        )).thenAnswer((invocation) async {
-      final url = invocation.positionalArguments.first as String;
-      return Response<dynamic>(
-        requestOptions: RequestOptions(path: url),
-        statusCode: 200,
-        data: {
-          'Identity': {
-            'Subject': puuid,
-            'PlayerCardID': defaultCardUuid,
+  test(
+    'falls back to the real default card when every shard returns default',
+    () async {
+      when(
+        () => dio.get<dynamic>(any(), options: any(named: 'options')),
+      ).thenAnswer((invocation) async {
+        final url = invocation.positionalArguments.first as String;
+        return Response<dynamic>(
+          requestOptions: RequestOptions(path: url),
+          statusCode: 200,
+          data: {
+            'Identity': {'Subject': puuid, 'PlayerCardID': defaultCardUuid},
           },
-        },
+        );
+      });
+
+      final result = await dataSource.fetchPlayerIdentity(
+        shard: 'ap',
+        puuid: puuid,
       );
-    });
 
-    final result = await dataSource.fetchPlayerIdentity(
-      shard: 'ap',
-      puuid: puuid,
-    );
-
-    expect(result['resolvedShard'], equals('ap'));
-    expect(
-      (result['identity'] as Map)['PlayerCardID'],
-      equals(defaultCardUuid),
-    );
-    verify(() => dio.get<dynamic>(
+      expect(result['resolvedShard'], equals('ap'));
+      expect(
+        (result['identity'] as Map)['PlayerCardID'],
+        equals(defaultCardUuid),
+      );
+      verify(
+        () => dio.get<dynamic>(
           ApiConstants.playerLoadoutUrl('ap', puuid),
           options: any(named: 'options'),
-        )).called(1);
-  });
+        ),
+      ).called(1);
+    },
+  );
 }

@@ -39,6 +39,13 @@ class _LivePlayerCardState extends State<LivePlayerCard> {
                 ? AppColors.accent.withValues(alpha: 0.6)
                 : AppColors.border,
           ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.22),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
         child: ClipRRect(
           borderRadius: AppRadius.roundedLg,
@@ -47,8 +54,6 @@ class _LivePlayerCardState extends State<LivePlayerCard> {
               Positioned.fill(
                 child: PlayerBannerArt(
                   wideArt: player.cardWideArt,
-                  largeArt: player.cardLargeArt,
-                  smallArt: player.cardSmallArt,
                   alignment: isEnemy
                       ? Alignment.centerRight
                       : Alignment.centerLeft,
@@ -228,7 +233,7 @@ class _LivePlayerCardState extends State<LivePlayerCard> {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        for (final won in outcomes.take(5))
+        for (final won in outcomes.take(10))
           Container(
             width: 13,
             height: 14,

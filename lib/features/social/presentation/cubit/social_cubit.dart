@@ -168,11 +168,13 @@ class SocialCubit extends Cubit<SocialState> {
     required String puuid,
     String? gameName,
     String? tagLine,
+    String? cardUuid,
   }) async {
     final result = await _socialRepository.addFriend(
       puuid: puuid,
       gameName: gameName,
       tagLine: tagLine,
+      cardUuid: cardUuid,
     );
 
     return result.when(
