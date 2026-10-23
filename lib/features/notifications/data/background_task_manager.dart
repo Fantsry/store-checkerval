@@ -1,4 +1,7 @@
 import 'dart:convert';
+import 'dart:io' show Platform;
+import 'dart:ui' show DartPluginRegistrant;
+
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
@@ -29,6 +32,7 @@ const String periodicChatCheckTaskTag = 'valorant_chat_periodic';
 void callbackDispatcher() {
   Workmanager().executeTask((task, inputData) async {
     WidgetsFlutterBinding.ensureInitialized();
+    DartPluginRegistrant.ensureInitialized();
     debugPrint('[Workmanager] Executing background task: $task');
 
     try {
@@ -36,31 +40,107 @@ void callbackDispatcher() {
         return await BackgroundTaskManager.executeChatCheck();
       }
 
-      final success = await BackgroundTaskManager.executeStoreCheck(
-        deduplicate: true,
-      );
-
-      // Always schedule the next targeted reset check for 00:00 UTC tomorrow
-      await BackgroundTaskManager.scheduleNextResetCheck();
-
-      return success;
+      return await BackgroundTaskManager.executeStoreCheck(deduplicate: true);
     } catch (e, stack) {
       debugPrint('[Workmanager] Background task error: $e\n$stack');
-      return true;
+      return false;
+    } finally {
+      if (task != chatCheckTaskKey) {
+        // Always schedule the next targeted reset check, even if this run
+        // failed, so one transient error cannot stop future notifications.
+        await BackgroundTaskManager.scheduleNextResetCheck();
+      }
     }
   });
 }
 
 class BackgroundTaskManager {
-  static String? _extractPuuidFromJwt(String token) {
+  static Map<String, dynamic>? _decodeJwtPayload(String token) {
     try {
       final parts = token.split('.');
       if (parts.length != 3) return null;
       final normalized = base64Url.normalize(parts[1]);
       final payloadJson = utf8.decode(base64Url.decode(normalized));
-      final payload = jsonDecode(payloadJson) as Map<String, dynamic>;
-      return payload['sub']?.toString();
+      return jsonDecode(payloadJson) as Map<String, dynamic>;
     } catch (_) {
+      return null;
+    }
+  }
+
+  static String? _extractPuuidFromJwt(String token) {
+    return _decodeJwtPayload(token)?['sub']?.toString();
+  }
+
+  /// Returns true when [token] is expired or will expire within [leeway].
+  ///
+  /// Malformed tokens are treated as usable so the API can reject them and
+  /// the caller can fall back to its normal error handling.
+  @visibleForTesting
+  static bool isJwtExpiringSoon(
+    String token, {
+    DateTime? now,
+    Duration leeway = const Duration(minutes: 5),
+  }) {
+    final payload = _decodeJwtPayload(token);
+    final expiresAt = payload?['exp'];
+    if (expiresAt is! num) return false;
+
+    final expiry = DateTime.fromMillisecondsSinceEpoch(
+      expiresAt.toInt() * 1000,
+      isUtc: true,
+    );
+    final current = (now ?? DateTime.now()).toUtc();
+    return !current.isBefore(expiry.subtract(leeway));
+  }
+
+  /// WorkManager supports expedited one-off work on Android 12 (API 31) and
+  /// newer. Older devices need a regular request because the worker does not
+  /// provide foreground notification info.
+  @visibleForTesting
+  static bool supportsExpeditedWorkFromVersion(String version) {
+    final match = RegExp(r'API\s+(\d+)').firstMatch(version);
+    final sdkInt = int.tryParse(match?.group(1) ?? '');
+    return sdkInt != null && sdkInt >= 31;
+  }
+
+  /// Refreshes the Riot session from the saved cookie jar.
+  ///
+  /// Returns the new access token, or null when reauth is unavailable or
+  /// fails. Updated cookies are persisted so the next background run can
+  /// continue to reauthenticate.
+  static Future<String?> _refreshSession({
+    required AuthRemoteDataSourceImpl authRemote,
+    required SecureStorageService secureStorage,
+    required String? cookieJar,
+  }) async {
+    if (cookieJar == null || cookieJar.isEmpty) return null;
+
+    try {
+      final tokens = await authRemote.reauthorizeSilent(cookieJar);
+      final newAccessToken = tokens['access_token'];
+      if (newAccessToken == null || newAccessToken.isEmpty) return null;
+
+      await secureStorage.setAccessToken(newAccessToken);
+
+      final idToken = tokens['id_token'];
+      if (idToken != null && idToken.isNotEmpty) {
+        await secureStorage.setIdToken(idToken);
+      }
+
+      final updatedCookies = tokens['cookieJar'];
+      if (updatedCookies != null && updatedCookies.isNotEmpty) {
+        await secureStorage.setCookieJar(updatedCookies);
+        final ssidMatch = RegExp(
+          r'(?:^|;\s*)ssid=([^;]+)',
+        ).firstMatch(updatedCookies);
+        if (ssidMatch != null) {
+          await secureStorage.setSsidCookie(ssidMatch.group(1)!);
+        }
+      }
+
+      return newAccessToken;
+    } catch (e) {
+      debugPrint('[BackgroundTaskManager] Silent reauth warning: $e');
       return null;
     }
   }
@@ -105,24 +185,17 @@ class BackgroundTaskManager {
 
     final authRemote = AuthRemoteDataSourceImpl(dio: dio);
 
-    // Silent reauth if cookieJar is available
-    if (cookieJar != null && cookieJar.isNotEmpty) {
-      try {
-        final reauthTokens = await authRemote.reauthorizeSilent(cookieJar);
-        final newAccessToken = reauthTokens['access_token'];
-        if (newAccessToken != null && newAccessToken.isNotEmpty) {
-          accessToken = newAccessToken;
-          await secureStorage.setAccessToken(accessToken);
-
-          final idToken = reauthTokens['id_token'];
-          if (idToken != null) await secureStorage.setIdToken(idToken);
-
-          final entToken = await authRemote.getEntitlementsToken(accessToken);
-          await secureStorage.setEntitlementsToken(entToken);
-        }
-      } catch (e) {
-        debugPrint('[BackgroundTaskManager] Silent reauth warning: $e');
-        accessToken ??= await secureStorage.getAccessToken();
+    // Refresh the session only when the token is missing or about to expire.
+    if (accessToken == null ||
+        accessToken.isEmpty ||
+        isJwtExpiringSoon(accessToken)) {
+      final refreshedAccessToken = await _refreshSession(
+        authRemote: authRemote,
+        secureStorage: secureStorage,
+        cookieJar: cookieJar,
+      );
+      if (refreshedAccessToken != null) {
+        accessToken = refreshedAccessToken;
       }
     }
 
@@ -302,17 +375,43 @@ class BackgroundTaskManager {
     if (!await localStore.areChatAlertsEnabled()) return true;
     if (!await secureStorage.areNotificationsEnabled()) return true;
 
-    final accessToken = await secureStorage.getAccessToken();
-    final selfPuuid = await secureStorage.getPuuid() ?? '';
-    if (accessToken == null || accessToken.isEmpty) return true;
-
-    final entitlementToken = await secureStorage.getEntitlementsToken();
+    var accessToken = await secureStorage.getAccessToken();
+    final cookieJar = await secureStorage.getCookieJar();
     final dio = Dio(
       BaseOptions(
         connectTimeout: const Duration(seconds: 12),
         receiveTimeout: const Duration(seconds: 12),
       ),
     );
+    final authRemote = AuthRemoteDataSourceImpl(dio: dio);
+
+    if (accessToken == null ||
+        accessToken.isEmpty ||
+        isJwtExpiringSoon(accessToken)) {
+      final refreshedAccessToken = await _refreshSession(
+        authRemote: authRemote,
+        secureStorage: secureStorage,
+        cookieJar: cookieJar,
+      );
+      if (refreshedAccessToken != null) {
+        accessToken = refreshedAccessToken;
+      }
+    }
+    if (accessToken == null || accessToken.isEmpty) return true;
+
+    var entitlementToken = await secureStorage.getEntitlementsToken();
+    if (entitlementToken == null || entitlementToken.isEmpty) {
+      try {
+        entitlementToken = await authRemote.getEntitlementsToken(accessToken);
+        await secureStorage.setEntitlementsToken(entitlementToken);
+      } catch (e) {
+        debugPrint(
+          '[BackgroundTaskManager] Chat entitlement refresh failed: $e',
+        );
+      }
+    }
+
+    final selfPuuid = await secureStorage.getPuuid() ?? '';
     final chatDataSource = RiotChatRemoteDataSource(dio: dio);
     final socialData = await chatDataSource.fetchRemoteSocialData(
       accessToken: accessToken,
@@ -406,6 +505,14 @@ class BackgroundTaskManager {
     }
   }
 
+  static OutOfQuotaPolicy? get _resetOutOfQuotaPolicy {
+    if (kIsWeb || !Platform.isAndroid) return null;
+    if (!supportsExpeditedWorkFromVersion(Platform.operatingSystemVersion)) {
+      return null;
+    }
+    return OutOfQuotaPolicy.runAsNonExpeditedWorkRequest;
+  }
+
   /// Schedules a targeted one-off task specifically for the next 00:00 UTC (07:00 WIB) reset.
   /// Adds a 1-minute buffer (07:01 WIB) to ensure Riot's storefront rotation is live.
   static Future<void> scheduleNextResetCheck() async {
@@ -415,9 +522,11 @@ class BackgroundTaskManager {
       final timeUntilReset = TimezoneHelper.timeUntilReset;
       // 1 minute buffer after 00:00 UTC
       final delay = timeUntilReset + const Duration(minutes: 1);
+      final outOfQuotaPolicy = _resetOutOfQuotaPolicy;
 
       debugPrint(
-        '[BackgroundTaskManager] Scheduling targeted reset check in: ${delay.inMinutes}m (${TimezoneHelper.formatDuration(delay)})',
+        '[BackgroundTaskManager] Scheduling targeted reset check in: ${delay.inMinutes}m (${TimezoneHelper.formatDuration(delay)})'
+        '${outOfQuotaPolicy != null ? ' [expedited]' : ''}',
       );
 
       await Workmanager().registerOneOffTask(
@@ -427,6 +536,7 @@ class BackgroundTaskManager {
         initialDelay: delay,
         constraints: Constraints(networkType: NetworkType.connected),
         existingWorkPolicy: ExistingWorkPolicy.replace,
+        outOfQuotaPolicy: outOfQuotaPolicy,
       );
     } catch (e) {
       debugPrint('[BackgroundTaskManager] Error scheduling reset check: $e');

@@ -34,6 +34,10 @@ Future<void> main() async {
   await TimezoneHelper.initialize();
   await setupDI();
 
+  // Register the background callback before the first frame so scheduling
+  // survives quick backgrounding or process death during startup.
+  await BackgroundTaskManager.initialize();
+
   runApp(const ValorantStoreApp());
 
   WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -69,7 +73,6 @@ Future<void> _initializeDeferredServices() async {
     }
 
     // Schedule the next shop reset check (00:00 UTC) and periodic checks.
-    await BackgroundTaskManager.initialize();
     if (await secureStorage.areNotificationsEnabled()) {
       await BackgroundTaskManager.scheduleNextResetCheck();
       await BackgroundTaskManager.registerPeriodicStoreCheck();
